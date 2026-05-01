@@ -1,0 +1,13 @@
+# Ignore build outputs
+bin/
+obj/
+
+# Ignore development secrets
+appsettings.Development.json
+
+# Ignore user-specific files
+*.user
+*.suo
+
+# Ignore VS Code workspace settings
+.vscode/
