@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("NexaPlan.API")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+27d9d2a55568d84666cd973f7805e42a78002730")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+13b68ed665e4ad1309da7d777808a4ab904562ec")]
 [assembly: System.Reflection.AssemblyProductAttribute("NexaPlan.API")]
 [assembly: System.Reflection.AssemblyTitleAttribute("NexaPlan.API")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

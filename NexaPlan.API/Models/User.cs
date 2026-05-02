@@ -14,6 +14,13 @@ namespace NexaPlan.API.Models
         public string PasswordHash { get; set; } = string.Empty;
         public bool IsActive { get; set; }
 
+        // Super Admin extensions
+        public string Email { get; set; } = string.Empty;
+        public bool MfaEnabled { get; set; } = false;
+        public bool IsLocked { get; set; } = false;
+        public int FailedLoginAttempts { get; set; } = 0;
+        public DateTime? LastLoginAt { get; set; }
+
         [ForeignKey("TenantID")]
         public Tenant? Tenant { get; set; }
         [ForeignKey("RoleID")]

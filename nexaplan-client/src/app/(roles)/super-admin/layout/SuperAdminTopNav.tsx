@@ -1,0 +1,136 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { LayoutDashboard, Building2, CreditCard, UserCog, Settings, Database, ClipboardList, ChevronDown, LogOut, User, Lock } from 'lucide-react';
+import logoImg from "/src/assets/brand/nexaplan-logo.png";
+import type { DashboardView } from '../SuperAdminSystem';
+
+interface SuperAdminTopNavProps {
+  currentView: DashboardView;
+  setCurrentView: React.Dispatch<React.SetStateAction<DashboardView>>;
+  onBack: () => void;
+  pendingTrialCount: number;
+}
+
+export function SuperAdminTopNav({ currentView, setCurrentView, onBack, pendingTrialCount }: SuperAdminTopNavProps) {
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setShowProfileDropdown(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <nav className="h-20 bg-[#0F172A] flex items-center justify-between px-8 shrink-0 border-b border-white/10">
+      <div className="flex items-center gap-6">
+        <div className="flex items-center gap-3">
+          <img src={logoImg} alt="NexaPlan Logo" className="h-10 w-auto" />
+          <div>
+            <div className="font-black text-xl leading-none text-white">NexaPlan</div>
+            <div className="text-xs text-slate-400 mt-0.5">Super Admin</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex gap-1">
+        {([
+          { view: 'overview', icon: LayoutDashboard, label: 'Dashboard' },
+          { view: 'tenants', icon: Building2, label: 'Tenants' },
+          { view: 'billing', icon: CreditCard, label: 'Billing' },
+          { view: 'admins', icon: UserCog, label: 'Admins' },
+        ] as { view: DashboardView; icon: React.ElementType; label: string }[]).map(({ view, icon: Icon, label }) => (
+          <button
+            key={view}
+            onClick={() => setCurrentView(view)}
+            className={`px-4 py-2.5 rounded-md text-sm font-semibold transition-all ${
+              currentView === view ? 'bg-[#4F46E5] text-white' : 'text-slate-300 hover:bg-[#1E293B] hover:text-white'
+            }`}
+          >
+            <Icon className="w-4 h-4 inline mr-1.5" />
+            {label}
+          </button>
+        ))}
+
+        <button
+          onClick={() => setCurrentView('trial-requests')}
+          className={`relative px-4 py-2.5 rounded-md text-sm font-semibold transition-all ${
+            currentView === 'trial-requests' ? 'bg-[#4F46E5] text-white' : 'text-slate-300 hover:bg-[#1E293B] hover:text-white'
+          }`}
+        >
+          <ClipboardList className="w-4 h-4 inline mr-1.5" />
+          Trial Requests
+          {pendingTrialCount > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-[#EF4444] text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-[#0F172A]">
+              {pendingTrialCount}
+            </span>
+          )}
+        </button>
+
+        {([
+          { view: 'config', icon: Settings, label: 'Config' },
+          { view: 'maintenance', icon: Database, label: 'Maintenance' },
+        ] as { view: DashboardView; icon: React.ElementType; label: string }[]).map(({ view, icon: Icon, label }) => (
+          <button
+            key={view}
+            onClick={() => setCurrentView(view)}
+            className={`px-4 py-2.5 rounded-md text-sm font-semibold transition-all ${
+              currentView === view ? 'bg-[#4F46E5] text-white' : 'text-slate-300 hover:bg-[#1E293B] hover:text-white'
+            }`}
+          >
+            <Icon className="w-4 h-4 inline mr-1.5" />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 text-xs">
+          <div className="w-2 h-2 bg-[#10B981] rounded-full animate-pulse"></div>
+          <span className="text-slate-300 font-medium">All Systems Operational</span>
+        </div>
+
+        <div className="relative pl-4 border-l border-white/10" ref={profileRef}>
+          <button
+            onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+            className="flex items-center gap-2.5 hover:bg-white/10 px-3 py-2 rounded-lg transition-all"
+          >
+            <div className="w-9 h-9 bg-gradient-to-br from-[#4F46E5] to-[#6366F1] rounded-full flex items-center justify-center">
+              <span className="text-white font-bold text-sm">JB</span>
+            </div>
+            <div className="text-left">
+              <div className="text-sm font-bold text-white leading-none">Justin Bais</div>
+              <div className="text-xs text-slate-400 mt-0.5">Super Admin</div>
+            </div>
+            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${showProfileDropdown ? 'rotate-180' : ''}`} />
+          </button>
+
+          {showProfileDropdown && (
+            <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden z-50">
+              <div className="px-4 py-3 bg-slate-50 border-b border-slate-200">
+                <div className="text-sm font-bold text-slate-900">Justin Bais</div>
+                <div className="text-xs text-slate-500">justin@nexaplan.ph</div>
+              </div>
+              <div className="py-1">
+                <button onClick={() => { setShowProfileDropdown(false); alert('Profile Settings — Edit your display name, avatar, and contact details.'); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                  <User className="w-4 h-4 text-slate-400" /> Profile Settings
+                </button>
+                <button onClick={() => { setShowProfileDropdown(false); alert('Security Settings — Manage MFA, password, and active sessions.'); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                  <Lock className="w-4 h-4 text-slate-400" /> Security
+                </button>
+              </div>
+              <div className="py-1 border-t border-slate-100">
+                <button onClick={() => { setShowProfileDropdown(false); onBack(); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#EF4444] hover:bg-red-50 transition-colors font-semibold">
+                  <LogOut className="w-4 h-4" /> Logout
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </nav>
+  );
+}

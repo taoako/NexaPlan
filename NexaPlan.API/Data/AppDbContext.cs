@@ -34,5 +34,9 @@ namespace NexaPlan.API.Data
         public DbSet<AuditLog> AuditLogs { get; set; }
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<PaymentSession> PaymentSessions { get; set; }
+
+        // --- Super Admin ---
+        public DbSet<TrialRequest> TrialRequests { get; set; }
+        public DbSet<SystemConfig> SystemConfigs { get; set; }
     }
 }

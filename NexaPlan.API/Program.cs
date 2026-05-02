@@ -55,21 +55,38 @@ app.MapControllers();
 
 static void SeedReferenceData(AppDbContext db)
 {
-    if (db.Roles.Any())
+    if (!db.Roles.Any())
     {
-        return;
+        db.Roles.AddRange(
+            new Role { RoleName = "Super Admin" },
+            new Role { RoleName = "Main Admin" },
+            new Role { RoleName = "Finance Manager" },
+            new Role { RoleName = "Department Head" },
+            new Role { RoleName = "Auditor" },
+            new Role { RoleName = "Viewer" }
+        );
+        db.SaveChanges();
     }
 
-    db.Roles.AddRange(
-        new Role { RoleName = "Super Admin" },
-        new Role { RoleName = "Main Admin" },
-        new Role { RoleName = "Finance Manager" },
-        new Role { RoleName = "Department Head" },
-        new Role { RoleName = "Auditor" },
-        new Role { RoleName = "Viewer" }
-    );
-
-    db.SaveChanges();
+    // Seed default system configs if they don't exist
+    if (!db.SystemConfigs.Any())
+    {
+        db.SystemConfigs.AddRange(
+            new SystemConfig { ConfigKey = "mfa_enabled", ConfigValue = "true" },
+            new SystemConfig { ConfigKey = "ssl_enabled", ConfigValue = "true" },
+            new SystemConfig { ConfigKey = "ml_enabled", ConfigValue = "true" },
+            new SystemConfig { ConfigKey = "maintenance_mode", ConfigValue = "false" },
+            new SystemConfig { ConfigKey = "api_rate_limit", ConfigValue = "1000" },
+            new SystemConfig { ConfigKey = "jwt_expiration_hours", ConfigValue = "24" },
+            new SystemConfig { ConfigKey = "max_failed_logins", ConfigValue = "5" },
+            new SystemConfig { ConfigKey = "session_timeout_minutes", ConfigValue = "60" },
+            new SystemConfig { ConfigKey = "ml_confidence_threshold", ConfigValue = "85" },
+            new SystemConfig { ConfigKey = "ml_training_cycle", ConfigValue = "Weekly" },
+            new SystemConfig { ConfigKey = "api_timeout_ms", ConfigValue = "4000" },
+            new SystemConfig { ConfigKey = "max_export_rows", ConfigValue = "50000" }
+        );
+        db.SaveChanges();
+    }
 }
 
 app.Run();
