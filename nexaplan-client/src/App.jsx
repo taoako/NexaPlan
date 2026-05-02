@@ -4,12 +4,12 @@ import { LandingPage } from './pages/LandingPage';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { Checkout } from './pages/Checkout';
-import { SuperAdminDashboard } from './features/dashboards/super-admin/SuperAdminDashboard';
-import { MainAdminDashboard } from './features/dashboards/main-admin/MainAdminDashboard';
-import { BudgetPlanningDashboard } from './features/dashboards/budget-planning/BudgetPlanningDashboard';
-import { ComplianceAuditDashboard } from './features/dashboards/compliance-audit/ComplianceAuditDashboard';
-import { DepartmentHeadDashboard } from './features/dashboards/department-head/DepartmentHeadDashboard';
-import { FinanceManagerDashboard } from './features/dashboards/finance-manager/FinanceManagerDashboard';
+import SuperAdminSystem from './app/(roles)/super-admin/SuperAdminSystem';
+import { MainAdminSystem } from './app/(roles)/main-admin/MainAdminSystem';
+import { BudgetPlanningSystem } from './app/(roles)/budget-planning/BudgetPlanningSystem';
+import { ComplianceAuditSystem } from './app/(roles)/compliance-audit/ComplianceAuditSystem';
+import { DepartmentHeadSystem } from './app/(roles)/department-head/DepartmentHeadSystem';
+import { FinanceManagerSystem } from './app/(roles)/finance-manager/FinanceManagerSystem';
 
 export default function App() {
   const [currentView, setCurrentView] = useState('landing');
@@ -250,23 +250,23 @@ export default function App() {
   }
 
   if (currentView === 'main-admin') {
-    return <MainAdminDashboard onBack={() => setCurrentView('landing')} />;
+    return <MainAdminSystem onBack={() => setCurrentView('landing')} />;
   }
 
   if (currentView === 'admin-dashboard') {
-    return <SuperAdminDashboard onBack={() => setCurrentView('landing')} />;
+    return <SuperAdminSystem onBack={() => setCurrentView('landing')} />;
   }
 
   if (currentView === 'finance-manager') {
-    return <FinanceManagerDashboard onBack={() => setCurrentView('landing')} />;
+    return <FinanceManagerSystem onBack={() => setCurrentView('landing')} />;
   }
 
   if (currentView === 'dept-head') {
-    return <DepartmentHeadDashboard onBack={() => setCurrentView('landing')} />;
+    return <DepartmentHeadSystem onBack={() => setCurrentView('landing')} />;
   }
 
   if (currentView === 'auditor') {
-    return <ComplianceAuditDashboard onBack={() => setCurrentView('landing')} />;
+    return <ComplianceAuditSystem onBack={() => setCurrentView('landing')} />;
   }
 
   return null;
