@@ -40,8 +40,20 @@ namespace NexaPlan.API.Controllers
             }
 
             var frontendBaseUrl = _configuration["Frontend:BaseUrl"] ?? "http://localhost:5173";
-            var secretKey = _configuration["PayMongo:SecretKey"];
-            var isMockCheckout = string.IsNullOrWhiteSpace(secretKey);
+            
+            // Check database config first
+            var dbConfigSecret = await _context.SystemConfigs.FirstOrDefaultAsync(c => c.ConfigKey == "PayMongoSecret");
+            var secretKey = dbConfigSecret?.ConfigValue;
+            
+            if (string.IsNullOrWhiteSpace(secretKey))
+            {
+                secretKey = _configuration["PayMongo:SecretKey"];
+            }
+
+            if (string.IsNullOrWhiteSpace(secretKey))
+            {
+                return BadRequest(new { message = "PayMongo Secret Key is not configured in DB or appsettings." });
+            }
 
             if (await _context.Users.AnyAsync(u => u.Name == request.Email))
             {
@@ -52,9 +64,13 @@ namespace NexaPlan.API.Controllers
             {
                 CompanyName = request.CompanyName,
                 SubscriptionTier = request.PlanTier,
-                RegistrationStatus = isMockCheckout ? "Active" : "PendingPayment",
+                RegistrationStatus = "PendingPayment",
                 IsActive = false,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                Phone = request.Phone,
+                OrgType = string.IsNullOrWhiteSpace(request.OrgType) ? "Corporate" : request.OrgType,
+                ContactPerson = $"{request.FirstName} {request.LastName}".Trim(),
+                ContactEmail = request.Email
             };
 
             _context.Tenants.Add(tenant);
@@ -68,7 +84,7 @@ namespace NexaPlan.API.Controllers
                 PasswordHash = passwordHash,
                 TenantID = tenant.TenantID,
                 RoleID = 2,
-                IsActive = isMockCheckout
+                IsActive = false
             };
 
             _context.Users.Add(user);
@@ -94,30 +110,13 @@ namespace NexaPlan.API.Controllers
                 Amount = plan.Amount / 100m,
                 BillingDate = DateTime.UtcNow,
                 DueDate = DateTime.UtcNow.AddDays(14),
-                Status = isMockCheckout
+                Status = false
             };
 
             _context.Invoices.Add(invoice);
             await _context.SaveChangesAsync();
 
-            if (isMockCheckout)
-            {
-                tenant.IsActive = true;
-                tenant.RegistrationStatus = "Active";
-                user.IsActive = true;
-                paymentSession.Status = "Paid";
-                paymentSession.PaidAt = DateTime.UtcNow;
-                paymentSession.PayMongoCheckoutID = $"mock-{paymentSession.PaymentSessionID}";
-                paymentSession.PayMongoCheckoutUrl = $"{frontendBaseUrl}/?payment=success&mockCheckout=1";
-                invoice.Status = true;
 
-                await _context.SaveChangesAsync();
-                return Ok(new
-                {
-                    checkoutUrl = paymentSession.PayMongoCheckoutUrl,
-                    message = "Mock checkout completed because PayMongo is not configured."
-                });
-            }
 
             try
             {

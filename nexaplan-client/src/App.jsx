@@ -26,6 +26,8 @@ export default function App() {
   const [registerEmail, setRegisterEmail] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [registerPassword, setRegisterPassword] = useState('');
+  const [phone, setPhone] = useState('');
+  const [orgType, setOrgType] = useState('Corporate');
   const [streetAddress, setStreetAddress] = useState('');
   const [city, setCity] = useState('');
   const [postalCode, setPostalCode] = useState('');
@@ -64,6 +66,8 @@ export default function App() {
       companyName: companyName,
       password: registerPassword,
       planTier: selectedPlan,
+      phone: phone,
+      orgType: orgType,
     };
 
     try {
@@ -97,24 +101,51 @@ export default function App() {
     e.preventDefault();
     setIsLoading(true);
 
-    setTimeout(() => {
-      setIsLoading(false);
-      const email = loginEmail.toLowerCase();
+    try {
+      const response = await fetch('http://localhost:5189/api/Auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email: loginEmail, password: loginPassword })
+      });
 
-      if (email === 'justin@nexaplan.ph' || email.includes('superadmin')) {
-        setCurrentView('admin-dashboard');
-      } else if (email.includes('auditor')) {
-        setCurrentView('auditor');
-      } else if (email.includes('finance')) {
-        setCurrentView('finance-manager');
-      } else if (email.includes('dept') || email.includes('department')) {
-        setCurrentView('dept-head');
-      } else if (email.includes('admin')) {
-        setCurrentView('main-admin');
+      const data = await response.json();
+
+      if (response.ok) {
+        // Save user details
+        localStorage.setItem('user', JSON.stringify(data));
+        
+        // Route based on roleId
+        // 1: Super Admin, 2: Main Admin, 3: Dept Head, 4: Finance, 5: Auditor, 6: Employee
+        switch (data.roleId) {
+          case 1:
+            setCurrentView('admin-dashboard');
+            break;
+          case 2:
+            setCurrentView('main-admin');
+            break;
+          case 3:
+            setCurrentView('dept-head');
+            break;
+          case 4:
+            setCurrentView('finance-manager');
+            break;
+          case 5:
+            setCurrentView('auditor');
+            break;
+          default:
+            setCurrentView('main-admin');
+        }
       } else {
-        setCurrentView('checkout');
+        alert(data.message || 'Login failed.');
       }
-    }, 1500);
+    } catch (error) {
+      console.error('Login error:', error);
+      alert('Could not connect to backend.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // --- UPGRADED REGISTRATION LOGIC ---
@@ -129,6 +160,8 @@ export default function App() {
       companyName: companyName,
       password: registerPassword,
       planTier: selectedPlan === 'trial' ? 'Trial' : selectedPlan,
+      phone: phone,
+      orgType: orgType,
     };
 
     try {
@@ -203,6 +236,10 @@ export default function App() {
         setCompanyName={setCompanyName}
         registerPassword={registerPassword}
         setRegisterPassword={setRegisterPassword}
+        phone={phone}
+        setPhone={setPhone}
+        orgType={orgType}
+        setOrgType={setOrgType}
         planLabel={planLabels[selectedPlan] || 'Plan'}
       />
     );

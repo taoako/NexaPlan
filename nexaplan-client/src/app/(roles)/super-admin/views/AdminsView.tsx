@@ -12,14 +12,19 @@ export function AdminsView() {
   const [unlockAdminId, setUnlockAdminId] = useState<number | null>(null);
   const [editAdminId, setEditAdminId] = useState<number | null>(null);
   const [editAdminData, setEditAdminData] = useState<Partial<AdminDto>>({});
+  const [tenants, setTenants] = useState<api.TenantDto[]>([]);
 
   const fetchAdmins = async () => {
     try {
       setLoading(true);
-      const data = await api.getAdmins();
-      setAdmins(data);
+      const [adminsData, tenantsData] = await Promise.all([
+        api.getAdmins(),
+        api.getTenants()
+      ]);
+      setAdmins(adminsData);
+      setTenants(tenantsData);
     } catch (err) {
-      console.error('Failed to load admins:', err);
+      console.error('Failed to load admins or tenants:', err);
     } finally {
       setLoading(false);
     }
@@ -213,7 +218,16 @@ export function AdminsView() {
               </div>
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-2">Organization *</label>
-                <input type="text" value={createData.org} onChange={e => setCreateData(p => ({ ...p, org: e.target.value }))} className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#4F46E5] outline-none" />
+                <select 
+                  value={createData.org} 
+                  onChange={e => setCreateData(p => ({ ...p, org: e.target.value }))} 
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#4F46E5] outline-none"
+                >
+                  <option value="" disabled>Select a company</option>
+                  {tenants.map(t => (
+                    <option key={t.tenantID} value={t.companyName}>{t.companyName}</option>
+                  ))}
+                </select>
               </div>
             </div>
             <div className="flex gap-3 mt-6">

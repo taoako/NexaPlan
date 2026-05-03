@@ -133,7 +133,7 @@ export const unlockAdmin = (id: number, resetPassword = false) =>
 export const getTrialRequests = () => apiFetch<TrialDto[]>('/trial-requests');
 
 export const approveTrialRequest = (id: number, notes?: string) =>
-  apiFetch<{ message: string }>(`/trial-requests/${id}/approve`, {
+  apiFetch<{ message: string; tempPassword?: string }>(`/trial-requests/${id}/approve`, {
     method: 'PUT', body: JSON.stringify({ notes }),
   });
 
@@ -144,6 +144,8 @@ export const rejectTrialRequest = (id: number, notes?: string) =>
 
 // ─── Invoices ───
 export const getInvoices = () => apiFetch<InvoiceDto[]>('/invoices');
+
+export const syncInvoices = () => apiFetch<{ message: string }>('/invoices/sync', { method: 'POST' });
 
 export const refundInvoice = (id: number, partialAmount?: number) =>
   apiFetch<{ message: string }>(`/invoices/${id}/refund${partialAmount ? `?partialAmount=${partialAmount}` : ''}`, { method: 'PUT' });
