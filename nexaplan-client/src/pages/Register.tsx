@@ -13,6 +13,10 @@ interface RegisterProps {
   setCompanyName: (value: string) => void;
   registerPassword: string;
   setRegisterPassword: (value: string) => void;
+  phone: string;
+  setPhone: (value: string) => void;
+  orgType: string;
+  setOrgType: (value: string) => void;
   planLabel: string;
 }
 
@@ -29,6 +33,10 @@ export function Register({
   setCompanyName,
   registerPassword,
   setRegisterPassword,
+  phone,
+  setPhone,
+  orgType,
+  setOrgType,
   planLabel,
 }: RegisterProps) {
   return (
@@ -75,30 +83,60 @@ export function Register({
             </div>
           </div>
 
-          <div className="mt-4">
-            <label htmlFor="registerEmail" className="block text-sm font-semibold text-slate-900 mb-2">Work Email</label>
-            <input
-              id="registerEmail"
-              type="email"
-              value={registerEmail}
-              onChange={(e) => setRegisterEmail(e.target.value)}
-              placeholder="name@company.com"
-              className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-[#0052FF] outline-none transition-all"
-              required
-            />
+          <div className="mt-4 grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="companyName" className="block text-sm font-semibold text-slate-900 mb-2">Company Name</label>
+              <input
+                id="companyName"
+                type="text"
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+                placeholder="e.g., Modulus Visentra"
+                className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-[#0052FF] outline-none transition-all"
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="orgType" className="block text-sm font-semibold text-slate-900 mb-2">Organization Type</label>
+              <select
+                id="orgType"
+                value={orgType}
+                onChange={(e) => setOrgType(e.target.value)}
+                className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-[#0052FF] outline-none transition-all"
+                required
+              >
+                <option value="Corporate">Corporate</option>
+                <option value="Government">Government / NGO</option>
+                <option value="Education">Education</option>
+              </select>
+            </div>
           </div>
 
-          <div className="mt-4">
-            <label htmlFor="companyName" className="block text-sm font-semibold text-slate-900 mb-2">Company Name</label>
-            <input
-              id="companyName"
-              type="text"
-              value={companyName}
-              onChange={(e) => setCompanyName(e.target.value)}
-              placeholder="e.g., Modulus Visentra"
-              className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-[#0052FF] outline-none transition-all"
-              required
-            />
+          <div className="mt-4 grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="registerEmail" className="block text-sm font-semibold text-slate-900 mb-2">Work Email</label>
+              <input
+                id="registerEmail"
+                type="email"
+                value={registerEmail}
+                onChange={(e) => setRegisterEmail(e.target.value)}
+                placeholder="name@company.com"
+                className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-[#0052FF] outline-none transition-all"
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="phone" className="block text-sm font-semibold text-slate-900 mb-2">Phone Number</label>
+              <input
+                id="phone"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+63 900 000 0000"
+                className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-[#0052FF] outline-none transition-all"
+                required
+              />
+            </div>
           </div>
 
           <div className="mt-4">

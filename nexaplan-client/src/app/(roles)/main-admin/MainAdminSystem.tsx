@@ -194,19 +194,50 @@ export function MainAdminSystem({ onBack }: { onBack?: () => void }) {
               className="flex items-center gap-2.5 hover:bg-white/10 px-3 py-2 rounded-lg transition-all"
             >
               <div className="w-9 h-9 bg-gradient-to-br from-[#4F46E5] to-[#6366F1] rounded-full flex items-center justify-center text-white text-sm font-bold">
-                MA
+                {(() => {
+                  const userStr = localStorage.getItem('user');
+                  if (userStr) {
+                    const u = JSON.parse(userStr);
+                    return u.name ? u.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() : 'MA';
+                  }
+                  return 'MA';
+                })()}
               </div>
               <div className="text-left">
-                <div className="text-sm font-bold text-white leading-none">Main Admin</div>
-                <div className="text-xs text-slate-400 mt-0.5">admin@acmecorp.ph</div>
+                <div className="text-sm font-bold text-white leading-none">
+                  {(() => {
+                    const userStr = localStorage.getItem('user');
+                    if (userStr) return JSON.parse(userStr).name;
+                    return 'Main Admin';
+                  })()}
+                </div>
+                <div className="text-xs text-slate-400 mt-0.5">
+                  {(() => {
+                    const userStr = localStorage.getItem('user');
+                    if (userStr) return JSON.parse(userStr).email;
+                    return 'admin@acmecorp.ph';
+                  })()}
+                </div>
               </div>
               <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${showProfileDropdown ? 'rotate-180' : ''}`} />
             </button>
             {showProfileDropdown && (
               <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden z-50">
                 <div className="px-4 py-3 bg-slate-50 border-b border-slate-200">
-                  <div className="text-sm font-bold text-slate-900">Main Admin</div>
-                  <div className="text-xs text-slate-500">admin@acmecorp.ph</div>
+                  <div className="text-sm font-bold text-slate-900">
+                    {(() => {
+                      const userStr = localStorage.getItem('user');
+                      if (userStr) return JSON.parse(userStr).name;
+                      return 'Main Admin';
+                    })()}
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    {(() => {
+                      const userStr = localStorage.getItem('user');
+                      if (userStr) return JSON.parse(userStr).email;
+                      return 'admin@acmecorp.ph';
+                    })()}
+                  </div>
                 </div>
                 <div className="py-1">
                   <button onClick={() => { setShowProfileDropdown(false); alert('Profile Settings — Coming Soon'); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
@@ -239,7 +270,10 @@ export function MainAdminSystem({ onBack }: { onBack?: () => void }) {
             {activeTab === 'logs' && 'System Logs & Reports'}
           </h1>
           <p className="text-slate-500 text-sm mt-1">
-            {activeTab === 'overview' && 'Welcome back, Main Admin. Here\'s your workspace at a glance.'}
+            {activeTab === 'overview' && `Welcome back, ${(() => {
+              const userStr = localStorage.getItem('user');
+              return userStr ? JSON.parse(userStr).name : 'Main Admin';
+            })()}. Here's your workspace at a glance.`}
             {activeTab === 'budget' && 'AI-powered budget forecasting and departmental spending analytics'}
             {activeTab === 'users' && 'Manage user accounts, roles, and access permissions'}
             {activeTab === 'departments' && 'Configure department settings and budget access controls'}

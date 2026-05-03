@@ -21,56 +21,87 @@ namespace NexaPlan.API.Controllers
         public async Task<IActionResult> Register(RegisterDto request)
         {
             // 1. Check if the email is already in the database
-            if (await _context.Users.AnyAsync(u => u.Name == request.Email))
+            if (await _context.Users.AnyAsync(u => u.Email == request.Email || u.Name == request.Email))
             {
                 return BadRequest(new { message = "User already exists." });
             }
 
-            // 2. Lock the account if it's a Free Trial
             bool isPaidAccount = request.PlanTier != "Trial";
-            string initialStatus = isPaidAccount ? "Active" : "Pending";
 
-            // 3. Create the Workspace (Tenant)
-            var newTenant = new Tenant
+            if (!isPaidAccount)
             {
-                CompanyName = request.CompanyName,
-                SubscriptionTier = request.PlanTier,
-                RegistrationStatus = initialStatus,
-                IsActive = isPaidAccount,
-                CreatedAt = DateTime.UtcNow
-            };
+                // TRIAL REQUEST FLOW
+                // Check if a pending trial request already exists
+                if (await _context.TrialRequests.AnyAsync(t => t.Email == request.Email && t.Status == "Pending"))
+                {
+                    return BadRequest(new { message = "A trial request for this email is already pending review." });
+                }
 
-            _context.Tenants.Add(newTenant);
-            await _context.SaveChangesAsync(); // Save to generate the TenantID
+                var trialRequest = new TrialRequest
+                {
+                    CompanyName = request.CompanyName,
+                    ContactName = $"{request.FirstName} {request.LastName}".Trim(),
+                    Email = request.Email,
+                    Phone = request.Phone,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+                    Status = "Pending",
+                    RiskLevel = request.Email.EndsWith("@tempmail.com") ? "high" : "low", // Basic risk scoring
+                    SubmittedAt = DateTime.UtcNow
+                };
 
-            // 4. Encrypt the password securely
-            string passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
+                _context.TrialRequests.Add(trialRequest);
+                await _context.SaveChangesAsync();
 
-            // 5. Create the User and link them to the Workspace
-            var newUser = new User
+                return Ok(new { message = "Application received. Your workspace is currently being provisioned.", status = "Pending" });
+            }
+            else
             {
-                Name = request.Email,
-                PasswordHash = passwordHash,
-                TenantID = newTenant.TenantID,
-                RoleID = 2, // 2 = Main Admin
-                IsActive = isPaidAccount
-            };
+                // PAID ACCOUNT FLOW
+                string initialStatus = "Active";
 
-            _context.Users.Add(newUser);
-            await _context.SaveChangesAsync();
+                // 3. Create the Workspace (Tenant)
+                var newTenant = new Tenant
+                {
+                    CompanyName = request.CompanyName,
+                    SubscriptionTier = request.PlanTier,
+                    RegistrationStatus = initialStatus,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    Phone = request.Phone,
+                    OrgType = string.IsNullOrWhiteSpace(request.OrgType) ? "Corporate" : request.OrgType,
+                    ContactPerson = $"{request.FirstName} {request.LastName}".Trim(),
+                    ContactEmail = request.Email
+                };
 
-            // 6. Tell React it was successful
-            string responseMessage = isPaidAccount
-                ? "Payment successful! Your Enterprise workspace is active."
-                : "Application received. Your workspace is currently being provisioned.";
+                _context.Tenants.Add(newTenant);
+                await _context.SaveChangesAsync(); // Save to generate the TenantID
 
-            return Ok(new { message = responseMessage, status = initialStatus });
+                // 4. Encrypt the password securely
+                string passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
+
+                // 5. Create the User and link them to the Workspace
+                var newUser = new User
+                {
+                    Name = $"{request.FirstName} {request.LastName}".Trim(),
+                    Email = request.Email,
+                    PasswordHash = passwordHash,
+                    TenantID = newTenant.TenantID,
+                    RoleID = 2, // 2 = Main Admin
+                    IsActive = true
+                };
+
+                _context.Users.Add(newUser);
+                await _context.SaveChangesAsync();
+
+                // 6. Tell React it was successful
+                return Ok(new { message = "Payment successful! Your Enterprise workspace is active.", status = initialStatus });
+            }
         }
 
         [HttpPost("login")]
         public async Task<IActionResult> Login(LoginDto request)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Name == request.Email);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
             if (user == null)
             {
                 return BadRequest(new { message = "Invalid credentials." });
@@ -87,7 +118,14 @@ namespace NexaPlan.API.Controllers
                 return Unauthorized(new { message = "Your workspace is still pending approval." });
             }
 
-            return Ok(new { message = "Logged in successfully!", userId = user.UserID, tenantId = user.TenantID });
+            return Ok(new { 
+                message = "Logged in successfully!", 
+                userId = user.UserID, 
+                tenantId = user.TenantID,
+                roleId = user.RoleID,
+                name = user.Name,
+                email = user.Email
+            });
         }
     }
 }

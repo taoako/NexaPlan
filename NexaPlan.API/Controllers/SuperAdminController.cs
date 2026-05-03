@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using NexaPlan.API.Data;
 using NexaPlan.API.DTOs;
 using NexaPlan.API.Models;
+using System.Net.Mail;
+using System.Net;
 
 namespace NexaPlan.API.Controllers
 {
@@ -11,10 +13,72 @@ namespace NexaPlan.API.Controllers
     public class SuperAdminController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly IConfiguration _configuration;
 
-        public SuperAdminController(AppDbContext context)
+        public SuperAdminController(AppDbContext context, IConfiguration configuration)
         {
             _context = context;
+            _configuration = configuration;
+        }
+
+        private async Task SyncPendingPaymentsAsync(IHttpClientFactory clientFactory)
+        {
+            var pendingInvoices = await _context.Invoices.Where(i => !i.Status).ToListAsync();
+            // Also include tenants that were missed in previous syncs
+            var stuckTenants = await _context.Tenants.Where(t => t.RegistrationStatus == "Pending" && _context.Invoices.Any(i => i.TenantID == t.TenantID && i.Status)).ToListAsync();
+            foreach (var t in stuckTenants) { t.IsActive = true; t.RegistrationStatus = "Active"; }
+            if (stuckTenants.Any()) await _context.SaveChangesAsync();
+
+            if (!pendingInvoices.Any()) return;
+
+            var secretKey = _configuration["PayMongo:SecretKey"];
+            var dbConfigSecret = await _context.SystemConfigs.FirstOrDefaultAsync(c => c.ConfigKey == "PayMongoSecret");
+            if (!string.IsNullOrWhiteSpace(dbConfigSecret?.ConfigValue)) secretKey = dbConfigSecret.ConfigValue;
+            if (string.IsNullOrWhiteSpace(secretKey)) return;
+
+            var client = clientFactory.CreateClient();
+            client.BaseAddress = new Uri("https://api.paymongo.com/v1/");
+            var authValue = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"{secretKey}:"));
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", authValue);
+
+            bool changed = false;
+            foreach (var invoice in pendingInvoices)
+            {
+                var session = await _context.PaymentSessions.OrderByDescending(p => p.PaymentSessionID).FirstOrDefaultAsync(p => p.TenantID == invoice.TenantID);
+                if (session == null || string.IsNullOrEmpty(session.PayMongoCheckoutID)) continue;
+
+                try
+                {
+                    var response = await client.GetAsync($"checkout_sessions/{session.PayMongoCheckoutID}");
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var responseBody = await response.Content.ReadAsStringAsync();
+                        using var doc = System.Text.Json.JsonDocument.Parse(responseBody);
+                        var data = doc.RootElement.GetProperty("data");
+                        var attributes = data.GetProperty("attributes");
+                        var payMongoStatus = attributes.TryGetProperty("payments", out var payments) && payments.GetArrayLength() > 0 ? "paid" : "pending";
+
+                        if (payMongoStatus == "paid")
+                        {
+                            var paymentAttributes = payments[0].GetProperty("attributes");
+                            var paymentMethod = paymentAttributes.GetProperty("source").GetProperty("type").GetString();
+                            var paymentId = payments[0].GetProperty("id").GetString();
+
+                            invoice.Status = true;
+                            invoice.StatusLabel = "Paid";
+                            invoice.PaymentMethod = paymentMethod ?? "PayMongo";
+                            invoice.PayMongoPaymentIntentId = paymentId ?? "";
+                            session.Status = "Paid";
+                            session.PaidAt = DateTime.UtcNow;
+
+                            var tenant = await _context.Tenants.FindAsync(invoice.TenantID);
+                            if (tenant != null) { tenant.IsActive = true; tenant.RegistrationStatus = "Active"; }
+                            changed = true;
+                        }
+                    }
+                } catch { }
+            }
+            if (changed) await _context.SaveChangesAsync();
         }
 
         // ═══════════════════════════════════════════════
@@ -22,8 +86,9 @@ namespace NexaPlan.API.Controllers
         // ═══════════════════════════════════════════════
 
         [HttpGet("summary")]
-        public async Task<IActionResult> GetSummary()
+        public async Task<IActionResult> GetSummary([FromServices] IHttpClientFactory clientFactory)
         {
+            await SyncPendingPaymentsAsync(clientFactory);
             var tenants = await _context.Tenants.ToListAsync();
             var users = await _context.Users.Where(u => u.RoleID == 2).ToListAsync();
             var invoices = await _context.Invoices.ToListAsync();
@@ -35,7 +100,8 @@ namespace NexaPlan.API.Controllers
             {
                 { "Starter", 4950m },
                 { "Professional", 12900m },
-                { "Enterprise", 29900m }
+                { "Enterprise", 29900m },
+                { "Trial", 0m }
             };
 
             var totalMrr = activeTenants.Sum(t =>
@@ -46,7 +112,7 @@ namespace NexaPlan.API.Controllers
             return Ok(new SuperAdminSummaryDto(
                 TotalTenants: tenants.Count(t => !t.IsArchived),
                 ActiveTenants: activeTenants.Count,
-                TrialAccounts: tenants.Count(t => t.RegistrationStatus == "Pending" || t.RegistrationStatus == "Trial"),
+                TrialAccounts: tenants.Count(t => t.RegistrationStatus == "Trial" || t.SubscriptionTier == "Trial"),
                 OverdueAccounts: overdueInvoices.Select(i => i.TenantID).Distinct().Count(),
                 TotalMrr: totalMrr,
                 TotalAdmins: users.Count,
@@ -63,8 +129,10 @@ namespace NexaPlan.API.Controllers
         // ═══════════════════════════════════════════════
 
         [HttpGet("tenants")]
-        public async Task<IActionResult> GetTenants([FromQuery] string? search = null)
+        public async Task<IActionResult> GetTenants([FromServices] IHttpClientFactory clientFactory, [FromQuery] string? search = null)
         {
+            await SyncPendingPaymentsAsync(clientFactory);
+            
             var tenants = await _context.Tenants
                 .Where(t => !t.IsArchived)
                 .OrderByDescending(t => t.CreatedAt)
@@ -380,12 +448,23 @@ namespace NexaPlan.API.Controllers
             trial.ProvisionedTenantID = tenant.TenantID;
 
             // Create Main Admin user
-            var tempPassword = $"Trial_{Guid.NewGuid().ToString("N")[..8]}!";
+            string finalPasswordHash;
+            string? tempPassword = null;
+            if (!string.IsNullOrEmpty(trial.PasswordHash))
+            {
+                finalPasswordHash = trial.PasswordHash;
+            }
+            else
+            {
+                tempPassword = $"Trial_{Guid.NewGuid().ToString("N")[..8]}!";
+                finalPasswordHash = BCrypt.Net.BCrypt.HashPassword(tempPassword);
+            }
+
             _context.Users.Add(new User
             {
                 Name = trial.ContactName,
                 Email = trial.Email,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(tempPassword),
+                PasswordHash = finalPasswordHash,
                 TenantID = tenant.TenantID,
                 RoleID = 2,
                 IsActive = true
@@ -393,7 +472,61 @@ namespace NexaPlan.API.Controllers
 
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = $"Trial approved. 14-day countdown started. Temp password: {tempPassword}" });
+            // Real SMTP Dispatch
+            try 
+            {
+                var smtpHost = _configuration["Smtp:Host"];
+                var smtpPort = int.Parse(_configuration["Smtp:Port"] ?? "587");
+                var smtpUser = _configuration["Smtp:Username"];
+                var smtpPass = _configuration["Smtp:Password"];
+                var enableSsl = bool.Parse(_configuration["Smtp:EnableSsl"] ?? "true");
+
+                if (!string.IsNullOrWhiteSpace(smtpHost) && !string.IsNullOrWhiteSpace(smtpUser))
+                {
+                    var smtpClient = new SmtpClient(smtpHost)
+                    {
+                        Port = smtpPort,
+                        UseDefaultCredentials = false,
+                        Credentials = new NetworkCredential(smtpUser.Trim(), smtpPass.Replace(" ", "").Trim()),
+                        EnableSsl = enableSsl,
+                        DeliveryMethod = SmtpDeliveryMethod.Network
+                    };
+
+                    var mailMessage = new MailMessage
+                    {
+                        From = new MailAddress(smtpUser, "NexaPlan"),
+                        Subject = "Your NexaPlan Workspace is Ready",
+                        Body = $@"
+Welcome to NexaPlan. Your 14-day free trial has been approved. 
+
+Login with your email: {trial.Email}
+{(tempPassword != null ? $"Temporary password: {tempPassword}\n\nWe recommend changing your password upon first login." : "Password: The password you provided during registration.")}
+
+",
+                        IsBodyHtml = false,
+                    };
+                    mailMessage.To.Add(trial.Email);
+
+                    await smtpClient.SendMailAsync(mailMessage);
+                    Console.WriteLine($"[SMTP DISPATCH SUCCESS] Sent trial credentials to {trial.Email}");
+                }
+                else 
+                {
+                    Console.WriteLine($"[SMTP DISPATCH SKIPPED] SMTP not fully configured in appsettings.json.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[SMTP DISPATCH ERROR] Failed to send email to {trial.Email}: {ex.Message}");
+                // Fallback to local log file since the user's SMTP credentials might be invalid/expired
+                try {
+                    var logContent = $"[{DateTime.UtcNow}] TRIAL APPROVED\nTo: {trial.Email}\nSubject: Your NexaPlan Workspace is Ready\nPassword: {(tempPassword ?? "User's registered password")}\n\n";
+                    System.IO.File.AppendAllText("SENT_EMAILS.log", logContent);
+                    Console.WriteLine("[SMTP FALLBACK] Wrote email to SENT_EMAILS.log instead.");
+                } catch { }
+            }
+
+            return Ok(new { message = $"Trial approved. 14-day countdown started.", tempPassword = tempPassword ?? "Your registered password" });
         }
 
         [HttpPut("trial-requests/{id:int}/reject")]
@@ -415,8 +548,10 @@ namespace NexaPlan.API.Controllers
         // ═══════════════════════════════════════════════
 
         [HttpGet("invoices")]
-        public async Task<IActionResult> GetInvoices()
+        public async Task<IActionResult> GetInvoices([FromServices] IHttpClientFactory clientFactory)
         {
+            await SyncPendingPaymentsAsync(clientFactory);
+
             var tenants = await _context.Tenants.ToDictionaryAsync(t => t.TenantID, t => t);
             var invoices = await _context.Invoices.OrderByDescending(i => i.InvoiceID).ToListAsync();
 
@@ -432,7 +567,7 @@ namespace NexaPlan.API.Controllers
                     inv.TenantID,
                     tenant?.CompanyName ?? "Unknown",
                     inv.Amount,
-                    string.IsNullOrEmpty(inv.PaymentMethod) ? "Credit Card" : inv.PaymentMethod,
+                    string.IsNullOrEmpty(inv.PaymentMethod) ? "PayMongo" : inv.PaymentMethod,
                     inv.PayMongoPaymentIntentId,
                     inv.DueDate,
                     status,
@@ -441,6 +576,72 @@ namespace NexaPlan.API.Controllers
             }).ToList();
 
             return Ok(result);
+        }
+
+        [HttpPost("invoices/sync")]
+        public async Task<IActionResult> SyncInvoices([FromServices] IHttpClientFactory clientFactory)
+        {
+            var pendingInvoices = await _context.Invoices.Where(i => !i.Status).ToListAsync();
+            if (!pendingInvoices.Any()) return Ok(new { message = "All invoices are up to date." });
+
+            var secretKey = _configuration["PayMongo:SecretKey"];
+            var dbConfigSecret = await _context.SystemConfigs.FirstOrDefaultAsync(c => c.ConfigKey == "PayMongoSecret");
+            if (!string.IsNullOrWhiteSpace(dbConfigSecret?.ConfigValue)) secretKey = dbConfigSecret.ConfigValue;
+
+            if (string.IsNullOrWhiteSpace(secretKey)) return BadRequest(new { message = "PayMongo Secret Key not configured." });
+
+            var client = clientFactory.CreateClient();
+            client.BaseAddress = new Uri("https://api.paymongo.com/v1/");
+            var authValue = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"{secretKey}:"));
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", authValue);
+
+            int syncedCount = 0;
+            foreach (var invoice in pendingInvoices)
+            {
+                var session = await _context.PaymentSessions.OrderByDescending(p => p.PaymentSessionID).FirstOrDefaultAsync(p => p.TenantID == invoice.TenantID);
+                if (session == null || string.IsNullOrEmpty(session.PayMongoCheckoutID)) continue;
+
+                try
+                {
+                    var response = await client.GetAsync($"checkout_sessions/{session.PayMongoCheckoutID}");
+                    if (!response.IsSuccessStatusCode) continue;
+
+                    var responseBody = await response.Content.ReadAsStringAsync();
+                    using var doc = System.Text.Json.JsonDocument.Parse(responseBody);
+                    var data = doc.RootElement.GetProperty("data");
+                    var attributes = data.GetProperty("attributes");
+                    
+                    var payMongoStatus = attributes.TryGetProperty("payments", out var payments) && payments.GetArrayLength() > 0 
+                                            ? "paid" 
+                                            : "pending";
+
+                    if (payMongoStatus == "paid")
+                    {
+                        var paymentData = payments[0].GetProperty("attributes");
+                        var paymentMethod = paymentData.GetProperty("source").GetProperty("type").GetString();
+
+                        invoice.Status = true;
+                        invoice.StatusLabel = "Paid";
+                        invoice.PaymentMethod = paymentMethod ?? "PayMongo";
+                        invoice.PayMongoPaymentIntentId = paymentData.GetProperty("id").GetString() ?? "";
+
+                        session.Status = "Paid";
+                        session.PaidAt = DateTime.UtcNow;
+
+                        var tenant = await _context.Tenants.FindAsync(invoice.TenantID);
+                        if (tenant != null)
+                        {
+                            tenant.IsActive = true;
+                            tenant.RegistrationStatus = "Active";
+                        }
+                        syncedCount++;
+                    }
+                }
+                catch { /* Ignore errors for individual syncs */ }
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok(new { message = $"Synced {syncedCount} invoices successfully." });
         }
 
         [HttpPut("invoices/{id:int}/refund")]

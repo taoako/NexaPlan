@@ -13,6 +13,7 @@ export function TrialRequestsView({ onTrialCountChange }: TrialRequestsViewProps
   const [selectedTrial, setSelectedTrial] = useState<number | null>(null);
   const [reviewNote, setReviewNote] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [approvedCredentials, setApprovedCredentials] = useState<{ email: string, tempPassword: string, company: string } | null>(null);
 
   const fetchTrials = async () => {
     try {
@@ -33,7 +34,14 @@ export function TrialRequestsView({ onTrialCountChange }: TrialRequestsViewProps
     setActionLoading(true);
     try {
       const result = await api.approveTrialRequest(id, reviewNote || undefined);
-      alert(`✅ ${result.message}`);
+      
+      const req = trials.find(t => t.trialRequestID === id);
+      setApprovedCredentials({
+        email: req?.email || '',
+        tempPassword: result.tempPassword || 'Check backend logs',
+        company: req?.companyName || ''
+      });
+      
       setSelectedTrial(null);
       setReviewNote('');
       fetchTrials();
@@ -146,7 +154,10 @@ export function TrialRequestsView({ onTrialCountChange }: TrialRequestsViewProps
                   {req.status === 'Pending' ? (
                     <button onClick={() => { setSelectedTrial(req.trialRequestID); setReviewNote(''); }} className="text-[#4F46E5] hover:text-[#4338CA] text-sm font-bold hover:underline">Review →</button>
                   ) : (
-                    <span className="text-xs text-slate-400 italic">{req.reviewNotes}</span>
+                    <div className="flex flex-col gap-1">
+                      <button onClick={() => { setSelectedTrial(req.trialRequestID); setReviewNote(''); }} className="text-slate-600 hover:text-slate-900 text-sm font-bold hover:underline self-start">View Details</button>
+                      <span className="text-xs text-slate-400 italic truncate max-w-[150px]" title={req.reviewNotes}>{req.reviewNotes}</span>
+                    </div>
                   )}
                 </td>
               </tr>
@@ -180,9 +191,13 @@ export function TrialRequestsView({ onTrialCountChange }: TrialRequestsViewProps
                   { label: 'Company', value: req.companyName },
                   { label: 'Contact', value: req.contactName },
                   { label: 'Email', value: req.email },
-                  { label: 'Phone', value: req.phone },
+                  { label: 'Phone', value: req.phone || 'N/A' },
                   { label: 'Submitted', value: new Date(req.submittedAt).toLocaleDateString() },
                   { label: 'Risk', value: req.riskLevel === 'high' ? '⚠️ High' : req.riskLevel === 'medium' ? '⚡ Medium' : '✅ Low' },
+                  ...(req.status === 'Approved' ? [
+                    { label: 'Trial Status', value: `Active (${Math.max(0, 14 - Math.floor((new Date().getTime() - new Date(req.reviewedAt || req.submittedAt).getTime()) / (1000 * 3600 * 24)))} days left)` },
+                    { label: 'Approved On', value: req.reviewedAt ? new Date(req.reviewedAt).toLocaleDateString() : 'Unknown' }
+                  ] : [])
                 ].map((item, i) => (
                   <div key={i} className="bg-slate-50 rounded-md p-4 border border-slate-200">
                     <div className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-1">{item.label}</div>
@@ -192,21 +207,73 @@ export function TrialRequestsView({ onTrialCountChange }: TrialRequestsViewProps
               </div>
               <div className="mb-6">
                 <label className="block text-sm font-bold text-slate-700 mb-2">Review Notes</label>
-                <textarea value={reviewNote} onChange={e => setReviewNote(e.target.value)} placeholder="e.g. Verified business registration..." rows={3} className="w-full px-4 py-3 border border-slate-200 rounded-md text-sm focus:ring-2 focus:ring-[#4F46E5] outline-none resize-none" />
+                <textarea 
+                  value={req.status === 'Pending' ? reviewNote : req.reviewNotes} 
+                  onChange={e => req.status === 'Pending' && setReviewNote(e.target.value)} 
+                  readOnly={req.status !== 'Pending'}
+                  placeholder={req.status === 'Pending' ? "e.g. Verified business registration..." : "No notes provided"} 
+                  rows={3} 
+                  className={`w-full px-4 py-3 border border-slate-200 rounded-md text-sm focus:ring-2 focus:ring-[#4F46E5] outline-none resize-none ${req.status !== 'Pending' ? 'bg-slate-50 text-slate-500' : 'bg-white'}`} 
+                />
               </div>
               <div className="flex gap-4 items-center">
-                <button onClick={() => handleApprove(req.trialRequestID)} disabled={actionLoading} className="flex items-center gap-2 bg-[#10B981] hover:bg-[#059669] text-white px-6 py-3 rounded-md font-bold shadow-lg transition-all disabled:opacity-50">
-                  {actionLoading ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />} Approve
-                </button>
-                <button onClick={() => handleReject(req.trialRequestID)} disabled={actionLoading} className="flex items-center gap-2 bg-[#EF4444] hover:bg-[#DC2626] text-white px-6 py-3 rounded-md font-bold shadow-lg transition-all disabled:opacity-50">
-                  <X className="w-5 h-5" /> Reject
-                </button>
-                <button onClick={() => setSelectedTrial(null)} className="border border-slate-300 hover:bg-slate-50 text-slate-700 px-6 py-3 rounded-md font-bold">Cancel</button>
+                {req.status === 'Pending' ? (
+                  <>
+                    <button onClick={() => handleApprove(req.trialRequestID)} disabled={actionLoading} className="flex items-center gap-2 bg-[#10B981] hover:bg-[#059669] text-white px-6 py-3 rounded-md font-bold shadow-lg transition-all disabled:opacity-50">
+                      {actionLoading ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />} Approve
+                    </button>
+                    <button onClick={() => handleReject(req.trialRequestID)} disabled={actionLoading} className="flex items-center gap-2 bg-[#EF4444] hover:bg-[#DC2626] text-white px-6 py-3 rounded-md font-bold shadow-lg transition-all disabled:opacity-50">
+                      <X className="w-5 h-5" /> Reject
+                    </button>
+                    <button onClick={() => setSelectedTrial(null)} className="border border-slate-300 hover:bg-slate-50 text-slate-700 px-6 py-3 rounded-md font-bold">Cancel</button>
+                  </>
+                ) : (
+                  <button onClick={() => setSelectedTrial(null)} className="bg-slate-900 hover:bg-slate-800 text-white px-6 py-3 rounded-md font-bold transition-all">Close Dossier</button>
+                )}
               </div>
             </div>
           </div>
         );
       })()}
+
+      {/* Approved Credentials Modal */}
+      {approvedCredentials && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200">
+            <div className="bg-[#10B981] px-6 py-8 text-center relative">
+              <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+                <Check className="w-8 h-8 text-[#10B981]" />
+              </div>
+              <h2 className="text-2xl font-black text-white">Trial Approved!</h2>
+              <p className="text-emerald-100 font-medium mt-1">An email notification has been sent.</p>
+            </div>
+            
+            <div className="p-6">
+              <p className="text-sm text-slate-600 mb-6 text-center">
+                The 14-day trial for <strong className="text-slate-900">{approvedCredentials.company}</strong> has started. Please securely provide these generated credentials to the client.
+              </p>
+              
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3 mb-6">
+                <div>
+                  <div className="text-xs font-bold text-slate-400 uppercase">Login Email</div>
+                  <div className="font-mono text-slate-900 font-semibold">{approvedCredentials.email}</div>
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-slate-400 uppercase">Temporary Password</div>
+                  <div className="font-mono text-[#4F46E5] font-bold text-lg tracking-wider">{approvedCredentials.tempPassword}</div>
+                </div>
+              </div>
+              
+              <button 
+                onClick={() => setApprovedCredentials(null)}
+                className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 px-4 rounded-xl transition-colors"
+              >
+                Close & Return
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

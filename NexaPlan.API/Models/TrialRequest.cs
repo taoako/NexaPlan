@@ -11,6 +11,8 @@ namespace NexaPlan.API.Models
         public string Email { get; set; } = string.Empty;
         public string Phone { get; set; } = string.Empty;
         public string Status { get; set; } = "Pending";            // Pending | Approved | Rejected
+        [MaxLength(255)]
+        public string? PasswordHash { get; set; }
         public string ReviewNotes { get; set; } = string.Empty;
         public string RiskLevel { get; set; } = "low";             // low | medium | high
         public DateTime SubmittedAt { get; set; } = DateTime.UtcNow;

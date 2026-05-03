@@ -25,6 +25,18 @@ export function BillingView() {
 
   useEffect(() => { fetchInvoices(); }, []);
 
+  const handleSync = async () => {
+    try {
+      setLoading(true);
+      await api.syncInvoices();
+      await fetchInvoices();
+    } catch (err) {
+      console.error('Failed to sync invoices:', err);
+      alert('Failed to sync with PayMongo.');
+      setLoading(false);
+    }
+  };
+
   const handleRefund = async () => {
     if (!selectedInvoice) return;
     setRefundLoading(true);
@@ -79,6 +91,9 @@ export function BillingView() {
         <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
           <h2 className="text-[20px] font-semibold text-slate-900">Invoice Management</h2>
           <div className="flex items-center gap-3">
+            <button onClick={handleSync} className="bg-[#4F46E5] hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-semibold flex items-center gap-2">
+              <RefreshCw className="w-4 h-4" /> Sync PayMongo
+            </button>
             <button onClick={fetchInvoices} className="border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-md text-sm font-semibold flex items-center gap-2">
               <RefreshCw className="w-4 h-4" /> Refresh
             </button>

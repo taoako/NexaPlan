@@ -8,5 +8,7 @@ namespace NexaPlan.API.DTOs
         public string CompanyName { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
         public string PlanTier { get; set; } = string.Empty;
+        public string Phone { get; set; } = string.Empty;
+        public string OrgType { get; set; } = "Corporate";
     }
 }

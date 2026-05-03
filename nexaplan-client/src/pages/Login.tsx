@@ -1,5 +1,5 @@
 import React from 'react';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, ArrowLeft } from 'lucide-react';
 
 interface LoginProps {
   onNavigate: (view: string) => void;
@@ -31,12 +31,17 @@ export function Login({
   return (
     <div className="h-screen w-full flex font-['Inter']">
       <div className="w-full lg:w-1/2 bg-white flex flex-col justify-center px-8 lg:px-32 relative">
-        <button onClick={() => onNavigate('landing')} className="absolute top-8 left-8 hover:opacity-80 transition-opacity">
+        <button onClick={() => onNavigate('landing')} className="absolute top-8 left-8 flex items-center gap-2 text-slate-500 hover:text-[#0052FF] transition-colors font-semibold">
+          <ArrowLeft className="w-5 h-5" />
+          Back to Home
+        </button>
+
+        <div className="absolute top-8 right-8">
           <span className="font-black text-2xl">
             <span className="text-[#0052FF]">Nexa</span>
             <span className="text-[#0A192F]">Plan</span>
           </span>
-        </button>
+        </div>
 
         <div className="max-w-md w-full mx-auto">
           <h1 className="text-4xl font-extrabold text-[#0A192F] mb-2">Welcome back</h1>
