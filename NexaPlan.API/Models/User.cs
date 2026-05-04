@@ -20,6 +20,8 @@ namespace NexaPlan.API.Models
         public bool IsLocked { get; set; } = false;
         public int FailedLoginAttempts { get; set; } = 0;
         public DateTime? LastLoginAt { get; set; }
+        // Stores the last generated temp password so Main Admin can view it
+        public string? LastTempPassword { get; set; }
 
         [ForeignKey("TenantID")]
         public Tenant? Tenant { get; set; }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Eye, EyeOff, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, ArrowLeft, X } from 'lucide-react';
 
 interface LoginProps {
   onNavigate: (view: string) => void;
@@ -12,7 +12,8 @@ interface LoginProps {
   showPassword: boolean;
   setShowPassword: (value: boolean) => void;
   rememberDevice: boolean;
-  setRememberDevice: (value: boolean) => void;
+  errorMessage?: string;
+  clearError?: () => void;
 }
 
 export function Login({
@@ -27,6 +28,8 @@ export function Login({
   setShowPassword,
   rememberDevice,
   setRememberDevice,
+  errorMessage,
+  clearError
 }: LoginProps) {
   return (
     <div className="h-screen w-full flex font-['Inter']">
@@ -46,6 +49,21 @@ export function Login({
         <div className="max-w-md w-full mx-auto">
           <h1 className="text-4xl font-extrabold text-[#0A192F] mb-2">Welcome back</h1>
           <p className="text-slate-600 mb-8">Log in to your NexaPlan workspace.</p>
+
+          {errorMessage && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3 text-red-700 animate-in fade-in slide-in-from-top-4 duration-300">
+              <div className="shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                <span className="font-bold text-lg">!</span>
+              </div>
+              <div className="flex-1">
+                <div className="font-bold text-sm">Authentication Failed</div>
+                <div className="text-xs opacity-90">{errorMessage}</div>
+              </div>
+              <button onClick={clearError} className="p-1 hover:bg-red-200 rounded-full transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
 
           <form onSubmit={onSubmit} className="space-y-6">
             <div>

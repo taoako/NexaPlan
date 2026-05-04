@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Bell, Check, X, Archive, LogIn, RefreshCw } from 'lucide-react';
+import { Search, Bell, Check, X, Archive, LogIn, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { SuperAdminTopNav } from './layout/SuperAdminTopNav';
 import { OverviewView } from './views/OverviewView';
 import { TenantsView } from './views/TenantsView';
@@ -42,6 +42,14 @@ export default function SuperAdminSystem({ onBack }: SuperAdminSystemProps) {
   // Impersonate state
   const [impersonateTenant, setImpersonateTenant] = useState<TenantDto | null>(null);
   const [impersonateSessionActive, setImpersonateSessionActive] = useState(false);
+
+  // Toast system
+  const [toasts, setToasts] = useState<{ id: number; message: string; type: 'success' | 'error' | 'info' }[]>([]);
+  const addToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 5000);
+  };
 
   // ── Data fetching ──
   const fetchData = useCallback(async () => {
@@ -88,13 +96,13 @@ export default function SuperAdminSystem({ onBack }: SuperAdminSystemProps) {
         adminEmail: provisionData.adminEmail,
         tier: provisionData.tier,
       });
-      alert(`✅ ${result.message}`);
+      addToast(result.message, 'success');
       setShowProvisionModal(false);
       setProvisionStep(0);
       setProvisionData({ orgName: '', orgType: 'Corporate', adminFirst: '', adminLast: '', adminEmail: '', tier: 'starter' });
       fetchData();
     } catch (err: any) {
-      alert(`❌ Error: ${err.message}`);
+      addToast(err.message || 'Provisioning failed', 'error');
     } finally {
       setProvisionLoading(false);
     }
@@ -112,12 +120,13 @@ export default function SuperAdminSystem({ onBack }: SuperAdminSystemProps) {
         phone: editTenant.phone,
         subscriptionTier: editTenant.subscriptionTier,
         registrationStatus: editTenant.registrationStatus,
+        tempPassword: (editTenant as any).tempPassword,
       });
-      alert(`✅ Tenant "${editTenant.companyName}" updated.`);
+      addToast(`Tenant "${editTenant.companyName}" updated successfully.`, 'success');
       setEditTenant(null);
       fetchData();
     } catch (err: any) {
-      alert(`❌ Error: ${err.message}`);
+      addToast(err.message || 'Update failed', 'error');
     } finally {
       setEditLoading(false);
     }
@@ -129,24 +138,43 @@ export default function SuperAdminSystem({ onBack }: SuperAdminSystemProps) {
     setArchiveLoading(true);
     try {
       const result = await api.archiveTenant(archiveTenantId);
-      alert(`🗄️ ${result.message}`);
+      addToast(result.message, 'success');
       setArchiveTenantId(null);
       fetchData();
     } catch (err: any) {
-      alert(`❌ Error: ${err.message}`);
+      addToast(err.message || 'Archive failed', 'error');
     } finally {
       setArchiveLoading(false);
     }
   };
 
   // ── Impersonate ──
-  const handleImpersonate = () => {
+  const handleImpersonate = async () => {
+    if (!impersonateTenant) return;
     setImpersonateSessionActive(true);
-    setTimeout(() => {
+    try {
+      const result = await api.impersonateTenant(impersonateTenant.tenantID);
+      addToast(`Unlocking session for ${impersonateTenant.companyName}...`, 'info');
+      
+      // Simulate real impersonation by storing token and redirecting
+      setTimeout(() => {
+        localStorage.setItem('token', result.token);
+        localStorage.setItem('user', JSON.stringify({
+          name: impersonateTenant.contactPerson,
+          email: result.email,
+          role: 'MainAdmin',
+          roleId: 2,
+          tenantId: result.tenantId,
+          userId: result.userId ?? 0,
+          impersonated: true
+        }));
+        // Reload the SPA — App.jsx will read localStorage and route to main-admin
+        window.location.reload();
+      }, 1500);
+    } catch (err: any) {
+      addToast(err.message || 'Impersonation failed', 'error');
       setImpersonateSessionActive(false);
-      alert(`🔓 Impersonation Session Started\n\nTenant: ${impersonateTenant?.companyName}\nMode: Read-Only\nAuto-expires in 15 minutes.`);
-      setImpersonateTenant(null);
-    }, 2000);
+    }
   };
 
   return (
@@ -193,6 +221,7 @@ export default function SuperAdminSystem({ onBack }: SuperAdminSystemProps) {
               {currentView === 'tenants' && (
                 <TenantsView
                   tenants={tenants}
+                  addToast={addToast}
                   onProvision={() => { setShowProvisionModal(true); setProvisionStep(0); }}
                   onEdit={(t) => setEditTenant({ ...t })}
                   onArchive={(id) => setArchiveTenantId(id)}
@@ -200,7 +229,7 @@ export default function SuperAdminSystem({ onBack }: SuperAdminSystemProps) {
                 />
               )}
               {currentView === 'billing' && <BillingView />}
-              {currentView === 'admins' && <AdminsView />}
+              {currentView === 'admins' && <AdminsView addToast={addToast} />}
               {currentView === 'trial-requests' && <TrialRequestsView onTrialCountChange={(c) => setPendingTrialCount(c)} />}
               {currentView === 'config' && <ConfigView />}
               {currentView === 'maintenance' && <MaintenanceView />}
@@ -300,48 +329,116 @@ export default function SuperAdminSystem({ onBack }: SuperAdminSystemProps) {
         </div>
       )}
 
-      {/* ═══ Edit Tenant Modal ═══ */}
       {editTenant && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-end">
-          <div className="bg-white h-full w-full max-w-md shadow-2xl flex flex-col">
-            <div className="px-6 py-5 bg-[#0F172A] flex items-center justify-between">
-              <div><h2 className="text-lg font-black text-white">Edit Tenant</h2><p className="text-xs text-slate-400 mt-0.5">ID: {editTenant.tenantID}</p></div>
-              <button onClick={() => setEditTenant(null)} className="text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-6 space-y-5">
-              {[
-                { label: 'Organization Name', field: 'companyName' as const, type: 'text' },
-                { label: 'Main Admin Name', field: 'contactPerson' as const, type: 'text' },
-                { label: 'Contact Email', field: 'contactEmail' as const, type: 'email' },
-                { label: 'Phone Number', field: 'phone' as const, type: 'text' },
-              ].map(({ label, field, type }) => (
-                <div key={field}>
-                  <label className="block text-sm font-bold text-slate-700 mb-2">{label}</label>
-                  <input type={type} value={(editTenant as any)[field] || ''} onChange={e => setEditTenant(t => t ? { ...t, [field]: e.target.value } : null)} className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#4F46E5] outline-none" />
-                </div>
-              ))}
+          <div className="bg-white h-full w-full max-w-lg shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+            <div className="px-8 py-6 bg-[#0F172A] flex items-center justify-between shrink-0">
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">Subscription Tier</label>
-                <select value={editTenant.subscriptionTier} onChange={e => setEditTenant(t => t ? { ...t, subscriptionTier: e.target.value } : null)} className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#4F46E5] outline-none">
-                  <option value="Starter">Starter</option><option value="Professional">Professional</option><option value="Enterprise">Enterprise</option>
-                </select>
+                <h2 className="text-xl font-black text-white">Advanced Tenant Editor</h2>
+                <p className="text-xs text-slate-400 mt-1 uppercase tracking-widest font-bold">Organization ID: {editTenant.tenantID}</p>
               </div>
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">Status</label>
-                <select value={editTenant.registrationStatus} onChange={e => setEditTenant(t => t ? { ...t, registrationStatus: e.target.value } : null)} className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#4F46E5] outline-none">
-                  <option value="Active">Active</option><option value="Trial">Trial</option><option value="Pending">Pending</option><option value="Archived">Archived</option>
-                </select>
-              </div>
-            </div>
-            <div className="px-6 py-4 border-t border-slate-200 flex gap-3">
-              <button onClick={handleSaveEditTenant} disabled={editLoading} className="flex-1 bg-[#4F46E5] hover:bg-[#4338CA] text-white py-2.5 rounded-lg font-bold shadow-md flex items-center justify-center gap-2 disabled:opacity-50">
-                {editLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Save
+              <button onClick={() => setEditTenant(null)} className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-full transition-all">
+                <X className="w-6 h-6" />
               </button>
-              <button onClick={() => setEditTenant(null)} className="px-5 py-2.5 border border-slate-300 rounded-lg text-slate-700 font-semibold hover:bg-slate-50">Cancel</button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-8 space-y-8">
+              {/* Basic Info Section */}
+              <section className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                  <div className="w-1.5 h-6 bg-[#4F46E5] rounded-full"></div>
+                  <h3 className="font-black text-slate-900 uppercase text-sm tracking-tight">General Information</h3>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                    <label className="block text-xs font-black text-slate-500 uppercase mb-2">Organization Name</label>
+                    <input type="text" value={editTenant.companyName} onChange={e => setEditTenant(t => t ? { ...t, companyName: e.target.value } : null)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#4F46E5] focus:bg-white outline-none transition-all font-semibold" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-black text-slate-500 uppercase mb-2">Main Admin</label>
+                    <input type="text" value={editTenant.contactPerson} onChange={e => setEditTenant(t => t ? { ...t, contactPerson: e.target.value } : null)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#4F46E5] focus:bg-white outline-none transition-all font-semibold" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-black text-slate-500 uppercase mb-2">Contact Email</label>
+                    <input type="email" value={editTenant.contactEmail} onChange={e => setEditTenant(t => t ? { ...t, contactEmail: e.target.value } : null)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#4F46E5] focus:bg-white outline-none transition-all font-semibold" />
+                  </div>
+                </div>
+              </section>
+
+              {/* Status & Tier Section */}
+              <section className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                  <div className="w-1.5 h-6 bg-[#10B981] rounded-full"></div>
+                  <h3 className="font-black text-slate-900 uppercase text-sm tracking-tight">Subscription & Status</h3>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-black text-slate-500 uppercase mb-2">Subscription Tier</label>
+                    <select value={editTenant.subscriptionTier} onChange={e => setEditTenant(t => t ? { ...t, subscriptionTier: e.target.value } : null)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#4F46E5] focus:bg-white outline-none transition-all font-bold">
+                      <option value="Starter">Starter (₱4,950)</option>
+                      <option value="Professional">Professional (₱12,900)</option>
+                      <option value="Enterprise">Enterprise (₱29,900)</option>
+                      <option value="Trial">Trial (Free)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-black text-slate-500 uppercase mb-2">System Status</label>
+                    <select value={editTenant.registrationStatus} onChange={e => setEditTenant(t => t ? { ...t, registrationStatus: e.target.value } : null)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#4F46E5] focus:bg-white outline-none transition-all font-bold">
+                      <option value="Active">Active</option>
+                      <option value="Trial">Trial Period</option>
+                      <option value="Pending">Pending Payment</option>
+                      <option value="Archived">Suspended / Archived</option>
+                    </select>
+                  </div>
+                </div>
+              </section>
+
+              {/* Security Section */}
+              <section className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                  <div className="w-1.5 h-6 bg-[#EF4444] rounded-full"></div>
+                  <h3 className="font-black text-slate-900 uppercase text-sm tracking-tight">Security & Auth</h3>
+                </div>
+                <div className="bg-red-50 border border-red-100 rounded-xl p-4">
+                  <p className="text-xs text-red-700 font-medium mb-3">To update the Main Admin's password, enter it below. This will take effect immediately upon saving.</p>
+                  <label className="block text-xs font-black text-red-900 uppercase mb-2">Reset Password</label>
+                  <div className="relative">
+                    <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-400" />
+                    <input 
+                      type="password" 
+                      placeholder="••••••••" 
+                      onChange={e => setEditTenant(t => t ? { ...t, tempPassword: e.target.value } : null)}
+                      className="w-full pl-10 pr-4 py-3 bg-white border border-red-200 rounded-xl focus:ring-2 focus:ring-red-500 outline-none transition-all" 
+                    />
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <div className="px-8 py-6 border-t border-slate-200 bg-slate-50 flex gap-4 shrink-0">
+              <button onClick={handleSaveEditTenant} disabled={editLoading} className="flex-1 bg-[#4F46E5] hover:bg-[#4338CA] text-white py-3.5 rounded-xl font-black shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50">
+                {editLoading ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />} Commit Changes
+              </button>
+              <button onClick={() => setEditTenant(null)} className="px-6 py-3.5 border border-slate-300 rounded-xl text-slate-700 font-black hover:bg-white hover:shadow-md transition-all">Discard</button>
             </div>
           </div>
         </div>
       )}
+
+      {/* ═══ Toast System ═══ */}
+      <div className="fixed bottom-8 right-8 z-[100] flex flex-col gap-3">
+        {toasts.map(t => (
+          <div key={t.id} className={`px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-4 animate-in slide-in-from-right duration-300 border ${
+            t.type === 'success' ? 'bg-[#10B981] border-[#059669] text-white' :
+            t.type === 'error' ? 'bg-[#EF4444] border-red-700 text-white' :
+            'bg-[#0F172A] border-slate-700 text-white'
+          }`}>
+            {t.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : t.type === 'error' ? <AlertCircle className="w-5 h-5" /> : <RefreshCw className="w-5 h-5 animate-spin" />}
+            <span className="font-bold text-sm">{t.message}</span>
+            <button onClick={() => setToasts(prev => prev.filter(x => x.id !== t.id))} className="ml-2 hover:opacity-70"><X className="w-4 h-4" /></button>
+          </div>
+        ))}
+      </div>
 
       {/* ═══ Archive Confirmation ═══ */}
       {archiveTenantId && (

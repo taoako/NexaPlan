@@ -125,6 +125,10 @@ namespace NexaPlan.API.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ProposalID"));
 
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
                     b.Property<int>("CreatedBy")
                         .HasColumnType("int");
 
@@ -134,14 +138,36 @@ namespace NexaPlan.API.Migrations
                     b.Property<int>("FiscalYear")
                         .HasColumnType("int");
 
-                    b.Property<bool>("Status")
-                        .HasColumnType("tinyint(1)");
+                    b.Property<string>("Justification")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Priority")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("ProposalStatus")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("ReviewNotes")
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("SubmittedAt")
+                        .HasColumnType("datetime(6)");
 
                     b.Property<int>("TenantID")
                         .HasColumnType("int");
 
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
                     b.Property<decimal>("TotalAmount")
                         .HasColumnType("decimal(65,30)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
 
                     b.HasKey("ProposalID");
 
@@ -162,14 +188,30 @@ namespace NexaPlan.API.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ScenarioID"));
 
+                    b.Property<decimal>("AdjustmentMultiplier")
+                        .HasColumnType("decimal(65,30)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
+
+                    b.Property<int>("CreatedBy")
+                        .HasColumnType("int");
 
                     b.Property<int>("DepartmentID")
                         .HasColumnType("int");
 
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
                     b.Property<decimal>("InflationAssumption")
                         .HasColumnType("decimal(65,30)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsArchived")
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<decimal>("ProjectedSpend")
                         .HasColumnType("decimal(65,30)");
@@ -181,9 +223,14 @@ namespace NexaPlan.API.Migrations
                     b.Property<int>("TargetYear")
                         .HasColumnType("int");
 
+                    b.Property<int>("TenantID")
+                        .HasColumnType("int");
+
                     b.HasKey("ScenarioID");
 
-                    b.HasIndex("DepartmentID");
+                    b.HasIndex("CreatedBy");
+
+                    b.HasIndex("TenantID");
 
                     b.ToTable("BudgetScenarios");
                 });
@@ -195,6 +242,9 @@ namespace NexaPlan.API.Migrations
                         .HasColumnType("int");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("DepartmentID"));
+
+                    b.Property<decimal>("ActualSpent")
+                        .HasColumnType("decimal(65,30)");
 
                     b.Property<decimal>("AnnualBudgetCap")
                         .HasColumnType("decimal(65,30)");
@@ -214,6 +264,61 @@ namespace NexaPlan.API.Migrations
                     b.HasIndex("TenantID");
 
                     b.ToTable("Departments");
+                });
+
+            modelBuilder.Entity("NexaPlan.API.Models.Expense", b =>
+                {
+                    b.Property<int>("ExpenseID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ExpenseID"));
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<int>("DepartmentID")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ProposalID")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ReceiptUrl")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime?>("ReconciledAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int?>("ReconciledBy")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("SubmittedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("SubmittedBy")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TenantID")
+                        .HasColumnType("int");
+
+                    b.HasKey("ExpenseID");
+
+                    b.HasIndex("DepartmentID");
+
+                    b.HasIndex("ProposalID");
+
+                    b.HasIndex("ReconciledBy");
+
+                    b.HasIndex("SubmittedBy");
+
+                    b.HasIndex("TenantID");
+
+                    b.ToTable("Expenses");
                 });
 
             modelBuilder.Entity("NexaPlan.API.Models.Forecast", b =>
@@ -301,6 +406,13 @@ namespace NexaPlan.API.Migrations
                     b.Property<string>("Category")
                         .IsRequired()
                         .HasColumnType("longtext");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<bool>("IsRejected")
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<string>("Justification")
                         .IsRequired()
@@ -630,6 +742,9 @@ namespace NexaPlan.API.Migrations
                     b.Property<DateTime?>("LastLoginAt")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<string>("LastTempPassword")
+                        .HasColumnType("longtext");
+
                     b.Property<bool>("MfaEnabled")
                         .HasColumnType("tinyint(1)");
 
@@ -759,13 +874,21 @@ namespace NexaPlan.API.Migrations
 
             modelBuilder.Entity("NexaPlan.API.Models.BudgetScenario", b =>
                 {
-                    b.HasOne("NexaPlan.API.Models.Department", "Department")
+                    b.HasOne("NexaPlan.API.Models.User", "Creator")
                         .WithMany()
-                        .HasForeignKey("DepartmentID")
+                        .HasForeignKey("CreatedBy")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Department");
+                    b.HasOne("NexaPlan.API.Models.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Creator");
+
+                    b.Navigation("Tenant");
                 });
 
             modelBuilder.Entity("NexaPlan.API.Models.Department", b =>
@@ -775,6 +898,47 @@ namespace NexaPlan.API.Migrations
                         .HasForeignKey("TenantID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("NexaPlan.API.Models.Expense", b =>
+                {
+                    b.HasOne("NexaPlan.API.Models.Department", "Department")
+                        .WithMany()
+                        .HasForeignKey("DepartmentID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("NexaPlan.API.Models.BudgetProposal", "Proposal")
+                        .WithMany()
+                        .HasForeignKey("ProposalID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("NexaPlan.API.Models.User", "Reconciler")
+                        .WithMany()
+                        .HasForeignKey("ReconciledBy");
+
+                    b.HasOne("NexaPlan.API.Models.User", "Submitter")
+                        .WithMany()
+                        .HasForeignKey("SubmittedBy")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("NexaPlan.API.Models.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Department");
+
+                    b.Navigation("Proposal");
+
+                    b.Navigation("Reconciler");
+
+                    b.Navigation("Submitter");
 
                     b.Navigation("Tenant");
                 });

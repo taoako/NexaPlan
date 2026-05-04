@@ -20,6 +20,7 @@ namespace NexaPlan.API.Data
         public DbSet<LineItem> LineItems { get; set; }
         public DbSet<Approval> Approvals { get; set; }
         public DbSet<Transaction> Transactions { get; set; }
+        public DbSet<Expense> Expenses { get; set; }
 
         // --- Forecasting & Planning ---
         public DbSet<Forecast> Forecasts { get; set; }
