@@ -14,6 +14,7 @@ interface CheckoutProps {
   setCity: (value: string) => void;
   postalCode: string;
   setPostalCode: (value: string) => void;
+  errorMessage?: string;
 }
 
 export function Checkout({
@@ -29,10 +30,20 @@ export function Checkout({
   setCity,
   postalCode,
   setPostalCode,
+  errorMessage,
 }: CheckoutProps) {
   return (
     <div className="min-h-screen bg-slate-50 pt-12 pb-24 px-8 font-['Inter']">
       <div className="max-w-6xl mx-auto">
+        {errorMessage && (
+          <div className="mb-8 p-6 bg-red-50 border border-red-200 rounded-2xl flex items-center gap-4 text-red-700 animate-in fade-in slide-in-from-top-4 duration-300">
+            <div className="shrink-0 w-12 h-12 bg-red-100 rounded-full flex items-center justify-center font-black text-xl">!</div>
+            <div className="flex-1">
+              <div className="font-black uppercase text-xs tracking-widest mb-1">Checkout Error</div>
+              <div className="font-bold">{errorMessage}</div>
+            </div>
+          </div>
+        )}
         <div className="flex items-center justify-between mb-8">
           <button onClick={() => onNavigate('landing')} className="hover:opacity-80 transition-opacity">
             <span className="font-black text-2xl">

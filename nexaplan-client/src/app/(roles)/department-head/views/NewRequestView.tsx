@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle2, Save, Plus, X, Upload } from 'lucide-react';
-import { Proposal, ModuleView, PriorityLevel } from '../DepartmentHeadSystem';
+import { ModuleView, PriorityLevel } from '../DepartmentHeadSystem';
+import { deptHeadApi } from '../../../../api/deptHeadApi';
 
 interface NewRequestViewProps {
-  proposals: Proposal[];
-  setProposals: React.Dispatch<React.SetStateAction<Proposal[]>>;
   setActiveModule: (module: ModuleView) => void;
 }
 
-export function NewRequestView({ proposals, setProposals, setActiveModule }: NewRequestViewProps) {
+export function NewRequestView({ setActiveModule }: NewRequestViewProps) {
   const [requestTitle, setRequestTitle] = useState('');
   const [requestCategory, setRequestCategory] = useState('Equipment');
   const [requestPriority, setRequestPriority] = useState<PriorityLevel>('High');
@@ -16,11 +15,10 @@ export function NewRequestView({ proposals, setProposals, setActiveModule }: New
   const [lineItems, setLineItems] = useState([
     { description: '', quantity: '', unitCost: '', total: 0 }
   ]);
-  const [attachedFiles, setAttachedFiles] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
-  // Auto-save logic
+  // Auto-save logic placeholder (could be connected to real API if wanted, but standard local save indicator for now)
   useEffect(() => {
     if (requestTitle || lineItems[0].description) {
       setIsSaving(true);
@@ -53,24 +51,29 @@ export function NewRequestView({ proposals, setProposals, setActiveModule }: New
 
   const totalRequestAmount = lineItems.reduce((sum, item) => sum + item.total, 0);
 
-  const handleSubmitRequest = () => {
-    const newProposal: Proposal = {
-      id: Math.random().toString(),
-      title: requestTitle || 'Untitled Request',
-      amount: totalRequestAmount,
-      status: 'pending',
-      submittedDate: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      category: requestCategory,
-      priority: requestPriority
-    };
-    setProposals([newProposal, ...proposals]);
-    setActiveModule('proposals');
-  };
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const newFiles = Array.from(e.target.files).map(f => f.name);
-      setAttachedFiles([...attachedFiles, ...newFiles]);
+  const handleSubmitRequest = async (saveAsDraft = false) => {
+    if (!requestTitle) return alert("Title is required");
+    try {
+      setIsSaving(true);
+      await deptHeadApi.createProposal({
+        title: requestTitle,
+        category: requestCategory,
+        priority: requestPriority,
+        justification: requestJustification,
+        saveAsDraft,
+        lineItems: lineItems.map(li => ({
+          description: li.description || "Unnamed Item",
+          quantity: parseFloat(li.quantity) || 1,
+          unitCost: parseFloat(li.unitCost) || 0
+        }))
+      });
+      alert(saveAsDraft ? "Draft saved!" : "Proposal submitted for review!");
+      setActiveModule('proposals');
+    } catch (err) {
+      console.error(err);
+      alert("Error saving request.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -94,7 +97,6 @@ export function NewRequestView({ proposals, setProposals, setActiveModule }: New
       </div>
 
       <div className="bg-white rounded-xl p-8 border border-slate-200 shadow-sm">
-        {/* Basic Information */}
         <div className="mb-8">
           <h2 className="text-xl font-bold text-slate-900 mb-4">Basic Information</h2>
           <div className="grid grid-cols-3 gap-6">
@@ -136,9 +138,17 @@ export function NewRequestView({ proposals, setProposals, setActiveModule }: New
               </select>
             </div>
           </div>
+          <div className="mt-4">
+            <label className="block text-sm font-bold text-slate-900 mb-2">Business Justification</label>
+            <textarea
+              value={requestJustification}
+              onChange={(e) => setRequestJustification(e.target.value)}
+              placeholder="Explain why this budget is necessary..."
+              className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#6366F1] outline-none h-24"
+            />
+          </div>
         </div>
 
-        {/* Line Items */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-slate-900">Line Items</h2>
@@ -210,10 +220,9 @@ export function NewRequestView({ proposals, setProposals, setActiveModule }: New
           </div>
         </div>
 
-        {/* Action Buttons */}
         <div className="flex gap-4">
           <button
-            onClick={handleSubmitRequest}
+            onClick={() => handleSubmitRequest(false)}
             disabled={totalRequestAmount === 0 || !requestTitle}
             className="flex-1 bg-[#10B981] hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg transition-all flex items-center justify-center gap-2"
           >
@@ -221,8 +230,9 @@ export function NewRequestView({ proposals, setProposals, setActiveModule }: New
             Submit for Approval
           </button>
           <button 
-            onClick={() => setActiveModule('proposals')}
-            className="px-8 py-4 border-2 border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl font-bold text-lg transition-all flex items-center gap-2"
+            onClick={() => handleSubmitRequest(true)}
+            disabled={!requestTitle}
+            className="px-8 py-4 border-2 border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl font-bold text-lg transition-all flex items-center gap-2 disabled:opacity-50"
           >
             <Save className="w-5 h-5" />
             Save as Draft

@@ -101,26 +101,40 @@ namespace NexaPlan.API.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login(LoginDto request)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+            if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
+                return BadRequest(new { message = "Email and password are required." });
+
+            var emailInput = request.Email.Trim().ToLower();
+
+            // Load all users then do case-insensitive comparison in C# to avoid
+            // EF Core MySQL translation issues with Trim() / ToLower() in LINQ.
+            var allUsers = await _context.Users
+                .Include(u => u.Tenant)
+                .ToListAsync();
+
+            var user = allUsers.FirstOrDefault(u =>
+                string.Equals(u.Email.Trim(), emailInput, StringComparison.OrdinalIgnoreCase));
+
             if (user == null)
-            {
-                return BadRequest(new { message = "Invalid credentials." });
-            }
+                return BadRequest(new { message = "No account found with that email address." });
 
             if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
-            {
-                return BadRequest(new { message = "Invalid credentials." });
-            }
+                return BadRequest(new { message = "Incorrect password. Please try again." });
 
+            if (user.IsLocked)
+                return Unauthorized(new { message = "Your account has been locked. Please contact your administrator." });
 
             if (!user.IsActive)
-            {
-                return Unauthorized(new { message = "Your workspace is still pending approval." });
-            }
+                return Unauthorized(new { message = "Your workspace is pending approval. Check your email for updates." });
 
-            return Ok(new { 
-                message = "Logged in successfully!", 
-                userId = user.UserID, 
+            // Validate tenant is active (for non-super-admin roles)
+            if (user.RoleID != 1 && user.Tenant != null &&
+                (user.Tenant.RegistrationStatus == "Locked" || user.Tenant.RegistrationStatus == "Suspended"))
+                return Unauthorized(new { message = "Your organization account is currently locked. Please contact NexaPlan support." });
+
+            return Ok(new {
+                message = "Logged in successfully!",
+                userId = user.UserID,
                 tenantId = user.TenantID,
                 roleId = user.RoleID,
                 name = user.Name,
@@ -129,3 +143,4 @@ namespace NexaPlan.API.Controllers
         }
     }
 }
+

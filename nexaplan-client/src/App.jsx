@@ -18,6 +18,9 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [rememberDevice, setRememberDevice] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const clearMessages = () => { setSuccessMessage(''); setErrorMessage(''); };
 
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
@@ -52,8 +55,29 @@ export default function App() {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
     if (paymentStatus === 'cancelled') {
-      alert('Payment was cancelled. You can try again anytime.');
+      setErrorMessage('Payment was cancelled. You can try again anytime.');
       window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      try {
+        const user = JSON.parse(savedUser);
+        // Restore session on page refresh - route by roleId
+        switch (user.roleId) {
+          case 1: setCurrentView('admin-dashboard'); break;
+          case 2: setCurrentView('main-admin'); break;
+          case 3: setCurrentView('finance-manager'); break;  // Finance Manager
+          case 4: setCurrentView('dept-head'); break;         // Department Head
+          case 5: setCurrentView('auditor'); break;
+          default:
+            // Impersonation sessions may not have roleId
+            if (user.impersonated) setCurrentView('main-admin');
+            break;
+        }
+      } catch (e) {
+        localStorage.removeItem('user');
+      }
     }
   }, []);
 
@@ -81,7 +105,7 @@ export default function App() {
 
       const data = await response.json();
       if (!response.ok) {
-        alert(`Checkout failed: ${data.message || 'Please try again.'}`);
+        setErrorMessage(data.message || 'Checkout failed. Please try again.');
         return;
       }
 
@@ -90,7 +114,7 @@ export default function App() {
       }
     } catch (error) {
       console.error('Checkout error:', error);
-      alert('Could not start checkout. Is your C# server running?');
+      setErrorMessage('Could not start checkout. Connection to backend failed.');
     } finally {
       setIsLoading(false);
     }
@@ -116,8 +140,7 @@ export default function App() {
         // Save user details
         localStorage.setItem('user', JSON.stringify(data));
         
-        // Route based on roleId
-        // 1: Super Admin, 2: Main Admin, 3: Dept Head, 4: Finance, 5: Auditor, 6: Employee
+          // 1: Super Admin, 2: Main Admin, 3: Finance Manager, 4: Dept Head, 5: Auditor, 6: Employee
         switch (data.roleId) {
           case 1:
             setCurrentView('admin-dashboard');
@@ -126,10 +149,10 @@ export default function App() {
             setCurrentView('main-admin');
             break;
           case 3:
-            setCurrentView('dept-head');
+            setCurrentView('finance-manager');  // Finance Manager
             break;
           case 4:
-            setCurrentView('finance-manager');
+            setCurrentView('dept-head');         // Department Head
             break;
           case 5:
             setCurrentView('auditor');
@@ -138,11 +161,11 @@ export default function App() {
             setCurrentView('main-admin');
         }
       } else {
-        alert(data.message || 'Login failed.');
+        setErrorMessage(data.message || 'Invalid credentials. Please try again.');
       }
     } catch (error) {
       console.error('Login error:', error);
-      alert('Could not connect to backend.');
+      setErrorMessage('Could not connect to backend.');
     } finally {
       setIsLoading(false);
     }
@@ -184,11 +207,11 @@ export default function App() {
         setSuccessMessage(data.message || 'Your trial request was received.');
         setCurrentView('success');
       } else {
-        alert(`Registration failed: ${data.message || 'Check your details.'}`);
+        setErrorMessage(data.message || 'Registration failed. Check your details.');
       }
     } catch (error) {
       console.error("Server connection error:", error);
-      alert("Could not connect to the backend. Is your C# server running?");
+      setErrorMessage("Could not connect to the backend.");
     } finally {
       setIsLoading(false);
     }
@@ -217,6 +240,8 @@ export default function App() {
         setShowPassword={setShowPassword}
         rememberDevice={rememberDevice}
         setRememberDevice={setRememberDevice}
+        errorMessage={errorMessage}
+        clearError={() => setErrorMessage('')}
       />
     );
   }
@@ -241,6 +266,7 @@ export default function App() {
         orgType={orgType}
         setOrgType={setOrgType}
         planLabel={planLabels[selectedPlan] || 'Plan'}
+        errorMessage={errorMessage}
       />
     );
   }
@@ -260,6 +286,7 @@ export default function App() {
         setCity={setCity}
         postalCode={postalCode}
         setPostalCode={setPostalCode}
+        errorMessage={errorMessage}
       />
     );
   }

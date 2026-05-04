@@ -12,7 +12,16 @@ namespace NexaPlan.API.Models
         public int CreatedBy { get; set; }
         public int FiscalYear { get; set; }
         public decimal TotalAmount { get; set; }
-        public bool Status { get; set; }
+
+        // Extended fields for full proposal lifecycle
+        public string Title { get; set; } = string.Empty;
+        public string Category { get; set; } = "Equipment";
+        public string ProposalStatus { get; set; } = "Draft"; // Draft | Pending | ChangesRequested | Approved | Rejected | Frozen
+        public string Priority { get; set; } = "High";        // Mission Critical | High | Low
+        public string Justification { get; set; } = string.Empty;
+        public string? ReviewNotes { get; set; }              // Finance Manager feedback
+        public DateTime SubmittedAt { get; set; } = DateTime.UtcNow;
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
         [ForeignKey("TenantID")]
         public Tenant? Tenant { get; set; }

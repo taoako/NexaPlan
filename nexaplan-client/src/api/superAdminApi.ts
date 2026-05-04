@@ -108,6 +108,9 @@ export const updateTenant = (id: number, data: {
 export const archiveTenant = (id: number) =>
   apiFetch<{ message: string }>(`/tenants/${id}`, { method: 'DELETE' });
 
+export const impersonateTenant = (id: number) =>
+  apiFetch<{ token: string; email: string; tenantId: number; role: string }>(`/tenants/${id}/impersonate`, { method: 'POST' });
+
 // ─── Admins ───
 export const getAdmins = () => apiFetch<AdminDto[]>('/admins');
 

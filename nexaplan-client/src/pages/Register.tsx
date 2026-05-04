@@ -18,6 +18,7 @@ interface RegisterProps {
   orgType: string;
   setOrgType: (value: string) => void;
   planLabel: string;
+  errorMessage?: string;
 }
 
 export function Register({
@@ -38,10 +39,17 @@ export function Register({
   orgType,
   setOrgType,
   planLabel,
+  errorMessage,
 }: RegisterProps) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 py-12 px-4 sm:px-6 lg:px-8 font-['Inter']">
       <div className="max-w-xl w-full bg-white rounded-2xl shadow-xl border border-slate-200 p-10">
+        {errorMessage && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3 text-red-700 animate-in fade-in slide-in-from-top-4 duration-300">
+            <div className="shrink-0 w-8 h-8 bg-red-100 rounded-full flex items-center justify-center font-bold">!</div>
+            <div className="flex-1 text-sm font-semibold">{errorMessage}</div>
+          </div>
+        )}
         <div className="text-center">
           <button onClick={() => onNavigate('landing')} className="hover:opacity-80 transition-opacity">
             <span className="font-black text-2xl">

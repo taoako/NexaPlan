@@ -1,13 +1,45 @@
-import React, { useState } from 'react';
-import { Share, SlidersHorizontal, Target, AlertCircle, TrendingUp, CheckCircle2, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Share, SlidersHorizontal, Target, AlertCircle, TrendingUp, RefreshCw } from 'lucide-react';
+import { deptHeadApi } from '../../../../api/deptHeadApi';
 
-interface ScenariosViewProps {
-  setActiveScenarioMultiplier: (val: number) => void;
-}
-
-export function ScenariosView({ setActiveScenarioMultiplier }: ScenariosViewProps) {
+export function ScenariosView() {
   const [customScenarioPercent, setCustomScenarioPercent] = useState<number>(0);
-  const baseBudget = 850000;
+  const [scenarios, setScenarios] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [baseBudget, setBaseBudget] = useState(0);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const sData = await deptHeadApi.getScenarios();
+      setScenarios(sData);
+
+      const oData = await deptHeadApi.getOverview();
+      setBaseBudget(oData.allocatedBudget || 0);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getIcon = (multiplier: number) => {
+    if (multiplier === 1.0) return <Target className="w-5 h-5 text-[#6366F1]" />;
+    if (multiplier < 1.0) return <AlertCircle className="w-5 h-5 text-[#F59E0B]" />;
+    return <TrendingUp className="w-5 h-5 text-[#10B981]" />;
+  };
+
+  const getColor = (multiplier: number) => {
+    if (multiplier === 1.0) return 'border-[#6366F1] text-[#6366F1]';
+    if (multiplier < 1.0) return 'border-[#F59E0B] text-[#F59E0B]';
+    return 'border-[#10B981] text-[#10B981]';
+  };
+
+  if (loading) return <div className="p-12 text-center flex items-center justify-center gap-3"><RefreshCw className="animate-spin w-5 h-5 text-indigo-500" /> Loading scenarios...</div>;
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -16,7 +48,7 @@ export function ScenariosView({ setActiveScenarioMultiplier }: ScenariosViewProp
           <h1 className="text-3xl font-black text-[#0A192F]">Budget Scenario Planning</h1>
           <p className="text-slate-600 mt-2">Model different budget scenarios and operational trade-offs</p>
         </div>
-        <button className="flex items-center gap-2 bg-[#10B981] hover:bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg">
+        <button className="flex items-center gap-2 bg-[#10B981] hover:bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg" onClick={() => alert("Scenario Pitch feature coming soon")}>
           <Share className="w-5 h-5" />
           Submit Scenario Pitch
         </button>
@@ -28,7 +60,7 @@ export function ScenariosView({ setActiveScenarioMultiplier }: ScenariosViewProp
           <SlidersHorizontal className="w-5 h-5 text-[#6366F1]" />
           Custom Scenario Generator
         </h2>
-        <div className="flex items-center gap-8">
+        <div className="flex flex-col lg:flex-row lg:items-center gap-8">
           <div className="flex-1">
             <div className="flex justify-between text-sm font-bold text-slate-600 mb-2">
               <span>Conservative (-50%)</span>
@@ -43,7 +75,7 @@ export function ScenariosView({ setActiveScenarioMultiplier }: ScenariosViewProp
               className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#6366F1]"
             />
           </div>
-          <div className="w-64 bg-slate-50 p-4 rounded-xl border border-slate-200 text-center">
+          <div className="w-full lg:w-64 bg-slate-50 p-4 rounded-xl border border-slate-200 text-center">
             <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Projected Budget</div>
             <div className="text-2xl font-black text-slate-900">
               ₱{(baseBudget * (1 + customScenarioPercent / 100)).toLocaleString()}
@@ -52,37 +84,23 @@ export function ScenariosView({ setActiveScenarioMultiplier }: ScenariosViewProp
         </div>
       </div>
 
-      {/* Predefined Scenarios */}
-      <div className="grid grid-cols-3 gap-6">
-        {/* Base Case */}
-        <div className="bg-white rounded-xl p-6 border-2 border-[#6366F1] shadow-lg">
-          <div className="flex items-center gap-2 mb-4">
-            <Target className="w-5 h-5 text-[#6366F1]" />
-            <h3 className="text-lg font-bold text-[#6366F1]">Base Case</h3>
+      {/* Scenarios created by Finance Manager */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {scenarios.map(s => (
+          <div key={s.id} className={`bg-white rounded-xl p-6 border-2 shadow-lg relative overflow-hidden ${s.isActive ? getColor(s.multiplier) : 'border-slate-200 text-slate-900'}`}>
+            {s.isActive && (
+              <div className="absolute top-0 right-0 bg-[#0F172A] text-white text-xs font-bold px-3 py-1 rounded-bl-lg">
+                ACTIVE
+              </div>
+            )}
+            <div className="flex items-center gap-2 mb-4">
+              {getIcon(s.multiplier)}
+              <h3 className={`text-lg font-bold ${s.isActive ? '' : 'text-slate-800'}`}>{s.name}</h3>
+            </div>
+            <div className="text-3xl font-black mb-4">₱{(baseBudget * s.multiplier).toLocaleString()}</div>
+            <p className="text-sm text-slate-600 mb-4">{s.desc}</p>
           </div>
-          <div className="text-3xl font-black text-slate-900 mb-4">₱{baseBudget.toLocaleString()}</div>
-          <p className="text-sm text-slate-600 mb-4">Current approved budget</p>
-        </div>
-
-        {/* Conservative Case */}
-        <div className="bg-white rounded-xl p-6 border-2 border-[#F59E0B] shadow-lg">
-          <div className="flex items-center gap-2 mb-4">
-            <AlertCircle className="w-5 h-5 text-[#F59E0B]" />
-            <h3 className="text-lg font-bold text-[#F59E0B]">Conservative (-20%)</h3>
-          </div>
-          <div className="text-3xl font-black text-slate-900 mb-4">₱{(baseBudget * 0.8).toLocaleString()}</div>
-          <p className="text-sm text-slate-600 mb-4">Reduced budget scenario</p>
-        </div>
-
-        {/* Growth Case */}
-        <div className="bg-white rounded-xl p-6 border-2 border-[#10B981] shadow-lg">
-          <div className="flex items-center gap-2 mb-4">
-            <TrendingUp className="w-5 h-5 text-[#10B981]" />
-            <h3 className="text-lg font-bold text-[#10B981]">Growth (+30%)</h3>
-          </div>
-          <div className="text-3xl font-black text-slate-900 mb-4">₱{(baseBudget * 1.3).toLocaleString()}</div>
-          <p className="text-sm text-slate-600 mb-4">Expansion budget</p>
-        </div>
+        ))}
       </div>
     </div>
   );

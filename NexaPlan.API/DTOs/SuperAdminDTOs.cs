@@ -32,7 +32,8 @@ namespace NexaPlan.API.DTOs
         string ContactEmail,
         string Phone,
         string SubscriptionTier,
-        string RegistrationStatus);
+        string RegistrationStatus,
+        string? TempPassword = null);
 
     // === ADMIN DTOs ===
     public record SuperAdminAdminDto(
@@ -54,7 +55,8 @@ namespace NexaPlan.API.DTOs
     public record UpdateAdminDto(
         string Name,
         string Email,
-        string Org);
+        string Org,
+        string? TempPassword = null);
 
     // === TRIAL REQUEST DTOs ===
     public record SuperAdminTrialDto(

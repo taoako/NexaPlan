@@ -11,6 +11,7 @@ namespace NexaPlan.API.Models
         public string DepartmentName { get; set; } = string.Empty;
         public int? HeadUserID { get; set; }
         public decimal AnnualBudgetCap { get; set; }
+        public decimal ActualSpent { get; set; } = 0;
 
         [ForeignKey("TenantID")]
         public Tenant? Tenant { get; set; }
