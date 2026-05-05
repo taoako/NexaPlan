@@ -7,6 +7,10 @@ export function AllocationView() {
   const [showTransfer, setShowTransfer] = useState(false);
   const [transferForm, setTransferForm] = useState({ from: '', to: '', amount: '' });
   const [allocData, setAllocData] = useState<any>(null);
+  
+  // UI Modals
+  const [showNewAlloc, setShowNewAlloc] = useState(false);
+  const [modalMessage, setModalMessage] = useState<{title: string, message: string, type: 'error' | 'success' | 'info'} | null>(null);
 
   useEffect(() => {
     fetchAllocations();
@@ -22,19 +26,19 @@ export function AllocationView() {
   };
 
   const handleTransfer = async () => {
-    if (!transferForm.from || !transferForm.to || !transferForm.amount) return alert('Please fill out all fields.');
+    if (!transferForm.from || !transferForm.to || !transferForm.amount) return setModalMessage({ title: 'Error', message: 'Please fill out all fields.', type: 'error' });
     const amt = parseFloat(transferForm.amount);
-    if (isNaN(amt) || amt <= 0) return alert('Invalid amount.');
-    if (transferForm.from === transferForm.to) return alert('Cannot transfer to the same department.');
+    if (isNaN(amt) || amt <= 0) return setModalMessage({ title: 'Error', message: 'Invalid amount.', type: 'error' });
+    if (transferForm.from === transferForm.to) return setModalMessage({ title: 'Error', message: 'Cannot transfer to the same department.', type: 'error' });
 
     try {
       await financeManagerApi.transferFunds(transferForm.from, transferForm.to, amt);
-      alert('Funds transferred successfully.');
+      setModalMessage({ title: 'Success', message: 'Funds transferred successfully.', type: 'success' });
       setShowTransfer(false);
       setTransferForm({ from: '', to: '', amount: '' });
       fetchAllocations();
     } catch (err: any) {
-      alert(err.message || 'Transfer failed');
+      setModalMessage({ title: 'Transfer Failed', message: err.message || 'An error occurred during transfer.', type: 'error' });
     }
   };
 
@@ -56,6 +60,7 @@ export function AllocationView() {
               <ArrowRightLeft className="w-4 h-4" />Transfer Funds
             </button>
             <button 
+              onClick={() => setShowNewAlloc(true)}
               className="flex items-center gap-2 bg-[#0052FF] text-white px-5 py-2.5 rounded-xl font-bold text-[13px] hover:bg-blue-700 transition-all shadow-md"
             >
               <Plus className="w-4 h-4" />New Allocation
@@ -195,6 +200,49 @@ export function AllocationView() {
                 <ArrowRightLeft className="w-4 h-4" /> Execute Transfer
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* New Allocation Modal (Coming Soon / UI only) */}
+      {showNewAlloc && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-black text-xl text-slate-900">New Allocation</h3>
+              <button onClick={() => setShowNewAlloc(false)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="text-sm text-slate-600 mb-6 text-center">
+              Global baseline allocations are typically generated at the beginning of the fiscal year by the platform engine. Manual arbitrary allocation creation is coming in a future update.
+            </div>
+            <button 
+              onClick={() => setShowNewAlloc(false)}
+              className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-xl font-bold flex items-center justify-center transition-all"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Reusable Message Modal */}
+      {modalMessage && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full animate-in zoom-in-95 duration-200">
+            <div className={`mb-4 w-12 h-12 rounded-full flex items-center justify-center mx-auto ${
+              modalMessage.type === 'error' ? 'bg-red-100 text-red-500' :
+              modalMessage.type === 'success' ? 'bg-emerald-100 text-emerald-500' : 'bg-blue-100 text-blue-500'
+            }`}>
+              {modalMessage.type === 'error' ? <X className="w-6 h-6" /> : <CheckCircle2 className="w-6 h-6" />}
+            </div>
+            <h3 className="font-black text-lg text-slate-900 text-center mb-2">{modalMessage.title}</h3>
+            <p className="text-sm text-slate-600 text-center mb-6">{modalMessage.message}</p>
+            <button 
+              onClick={() => setModalMessage(null)}
+              className="w-full bg-slate-900 hover:bg-slate-800 text-white py-2.5 rounded-xl font-bold transition-all"
+            >
+              Acknowledge
+            </button>
           </div>
         </div>
       )}

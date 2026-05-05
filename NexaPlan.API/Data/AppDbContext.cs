@@ -26,6 +26,11 @@ namespace NexaPlan.API.Data
         public DbSet<Forecast> Forecasts { get; set; }
         public DbSet<BudgetScenario> BudgetScenarios { get; set; }
 
+        // --- Auditor / Compliance ---
+        public DbSet<ComplianceRule> ComplianceRules { get; set; }
+        public DbSet<FinancialStatement> FinancialStatements { get; set; }
+        public DbSet<StatementAccessLog> StatementAccessLogs { get; set; }
+
         // --- Admin, Security, & Attachments ---
         public DbSet<WorkflowRule> WorkflowRules { get; set; }
         public DbSet<Invoice> Invoices { get; set; }
@@ -39,5 +44,65 @@ namespace NexaPlan.API.Data
         // --- Super Admin ---
         public DbSet<TrialRequest> TrialRequests { get; set; }
         public DbSet<SystemConfig> SystemConfigs { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+
+            // AuditLog: Actor and FlaggerUser are optional navigation-only references.
+            // NoAction prevents EF from adding enforced FK constraints that break on legacy data (UserID = 0).
+            modelBuilder.Entity<AuditLog>()
+                .HasOne(l => l.Actor)
+                .WithMany()
+                .HasForeignKey(l => l.UserID)
+                .OnDelete(DeleteBehavior.NoAction)
+                .IsRequired(false);
+
+            modelBuilder.Entity<AuditLog>()
+                .HasOne(l => l.FlaggerUser)
+                .WithMany()
+                .HasForeignKey(l => l.FlaggedBy)
+                .OnDelete(DeleteBehavior.NoAction)
+                .IsRequired(false);
+
+            // Expense: Submitter and Reconciler are optional navigation references.
+            modelBuilder.Entity<Expense>()
+                .HasOne(e => e.Submitter)
+                .WithMany()
+                .HasForeignKey(e => e.SubmittedBy)
+                .OnDelete(DeleteBehavior.NoAction)
+                .IsRequired(false);
+
+            modelBuilder.Entity<Expense>()
+                .HasOne(e => e.Reconciler)
+                .WithMany()
+                .HasForeignKey(e => e.ReconciledBy)
+                .OnDelete(DeleteBehavior.NoAction)
+                .IsRequired(false);
+
+            // ComplianceRule: Creator is optional.
+            modelBuilder.Entity<ComplianceRule>()
+                .HasOne(r => r.Creator)
+                .WithMany()
+                .HasForeignKey(r => r.CreatedBy)
+                .OnDelete(DeleteBehavior.NoAction)
+                .IsRequired(false);
+
+            // FinancialStatement: Creator is optional.
+            modelBuilder.Entity<FinancialStatement>()
+                .HasOne(s => s.Creator)
+                .WithMany()
+                .HasForeignKey(s => s.CreatedBy)
+                .OnDelete(DeleteBehavior.NoAction)
+                .IsRequired(false);
+
+            // StatementAccessLog: Accessor is optional.
+            modelBuilder.Entity<StatementAccessLog>()
+                .HasOne(l => l.Accessor)
+                .WithMany()
+                .HasForeignKey(l => l.UserID)
+                .OnDelete(DeleteBehavior.NoAction)
+                .IsRequired(false);
+        }
     }
 }
