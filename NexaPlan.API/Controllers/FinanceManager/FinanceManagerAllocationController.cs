@@ -29,8 +29,8 @@ namespace NexaPlan.API.Controllers.FinanceManager
             var allocations = departments.Select(d => {
                 var deptProposals = proposals.Where(p => p.DepartmentID == d.DepartmentID).ToList();
                 decimal proposalSpent = deptProposals.Sum(p => p.TotalAmount);
-                // Use reconciled ActualSpent if it's been set, otherwise fall back to approved proposal totals
-                decimal spent = d.ActualSpent > 0 ? d.ActualSpent : proposalSpent;
+                // Use reconciled ActualSpent as the authoritative actual spending figure
+                decimal spent = d.ActualSpent;
                 decimal pct = totalCap > 0 ? ((decimal)d.AnnualBudgetCap / totalCap) * 100 : 0;
 
                 return new

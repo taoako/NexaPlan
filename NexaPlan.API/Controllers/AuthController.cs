@@ -26,6 +26,12 @@ namespace NexaPlan.API.Controllers
                 return BadRequest(new { message = "User already exists." });
             }
 
+            // 1.5 Check Terms & Conditions
+            if (!request.AcceptTerms)
+            {
+                return BadRequest(new { message = "You must accept the terms and conditions." });
+            }
+
             bool isPaidAccount = request.PlanTier != "Trial";
 
             if (!isPaidAccount)
@@ -87,7 +93,9 @@ namespace NexaPlan.API.Controllers
                     PasswordHash = passwordHash,
                     TenantID = newTenant.TenantID,
                     RoleID = 2, // 2 = Main Admin
-                    IsActive = true
+                    IsActive = true,
+                    HasAcceptedTerms = true,
+                    TermsAcceptedAt = DateTime.UtcNow
                 };
 
                 _context.Users.Add(newUser);
@@ -118,11 +126,29 @@ namespace NexaPlan.API.Controllers
             if (user == null)
                 return BadRequest(new { message = "No account found with that email address." });
 
-            if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
-                return BadRequest(new { message = "Incorrect password. Please try again." });
-
             if (user.IsLocked)
                 return Unauthorized(new { message = "Your account has been locked. Please contact your administrator." });
+
+            if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+            {
+                user.AccessFailedCount += 1;
+                if (user.AccessFailedCount >= 5)
+                {
+                    user.IsLocked = true;
+                    await _context.SaveChangesAsync();
+                    return Unauthorized(new { message = "Your account has been locked due to multiple failed login attempts." });
+                }
+                
+                await _context.SaveChangesAsync();
+                return BadRequest(new { message = "Incorrect password. Please try again." });
+            }
+
+            // Reset failed login count on successful login
+            if (user.AccessFailedCount > 0)
+            {
+                user.AccessFailedCount = 0;
+                await _context.SaveChangesAsync();
+            }
 
             if (!user.IsActive)
                 return Unauthorized(new { message = "Your workspace is pending approval. Check your email for updates." });

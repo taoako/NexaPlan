@@ -23,6 +23,10 @@ namespace NexaPlan.API.Models
         // Stores the last generated temp password so Main Admin can view it
         public string? LastTempPassword { get; set; }
 
+        public bool HasAcceptedTerms { get; set; } = false;
+        public DateTime? TermsAcceptedAt { get; set; }
+        public int AccessFailedCount { get; set; } = 0;
+
         [ForeignKey("TenantID")]
         public Tenant? Tenant { get; set; }
         [ForeignKey("RoleID")]

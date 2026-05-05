@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NexaPlan.API.Data;
 
@@ -11,9 +12,11 @@ using NexaPlan.API.Data;
 namespace NexaPlan.API.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260504070750_AddAuditorTables")]
+    partial class AddAuditorTables
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -869,9 +872,6 @@ namespace NexaPlan.API.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("UserID"));
 
-                    b.Property<int>("AccessFailedCount")
-                        .HasColumnType("int");
-
                     b.Property<int?>("DepartmentID")
                         .HasColumnType("int");
 
@@ -881,9 +881,6 @@ namespace NexaPlan.API.Migrations
 
                     b.Property<int>("FailedLoginAttempts")
                         .HasColumnType("int");
-
-                    b.Property<bool>("HasAcceptedTerms")
-                        .HasColumnType("tinyint(1)");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("tinyint(1)");
@@ -913,9 +910,6 @@ namespace NexaPlan.API.Migrations
 
                     b.Property<int>("TenantID")
                         .HasColumnType("int");
-
-                    b.Property<DateTime?>("TermsAcceptedAt")
-                        .HasColumnType("datetime(6)");
 
                     b.HasKey("UserID");
 
