@@ -78,45 +78,7 @@ export function ConfigView() {
         </div>
       </div>
 
-      {/* Gateway Secrets */}
-      <div className="bg-white rounded-md border-2 border-[#F59E0B]/30 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 bg-[#F59E0B]/5 border-b border-slate-200 flex items-center gap-3">
-          <Key className="w-5 h-5 text-[#F59E0B]" />
-          <div>
-            <h2 className="text-[20px] font-semibold text-slate-900">Gateway Secrets — PayMongo</h2>
-            <p className="text-sm text-slate-500 mt-0.5">Encrypted before storage. Never share these keys.</p>
-          </div>
-        </div>
-        <div className="p-6">
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-md flex items-start gap-3 mb-6">
-            <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
-            <p className="text-sm text-amber-800"><span className="font-bold">Security Notice:</span> These keys grant full access to your PayMongo account.</p>
-          </div>
-          <div className="grid grid-cols-1 gap-5">
-            {[
-              { label: 'PayMongo Public Key', key: 'paymongo_public_key' as const, toggleKey: 'publicKey' as const },
-              { label: 'PayMongo Secret Key', key: 'paymongo_secret_key' as const, toggleKey: 'secretKey' as const },
-              { label: 'Webhook Signing Secret', key: 'paymongo_webhook_secret' as const, toggleKey: 'webhookSecret' as const },
-            ].map(({ label, key, toggleKey }) => (
-              <div key={key}>
-                <label className="block text-sm font-bold text-slate-700 mb-2">{label}</label>
-                <div className="relative">
-                  <input
-                    type={showGatewayKey[toggleKey] ? 'text' : 'password'}
-                    value={config[key] || ''}
-                    onChange={e => updateField(key, e.target.value)}
-                    className="w-full pl-4 pr-12 py-3 border border-slate-200 rounded-md text-sm font-mono focus:ring-2 focus:ring-[#F59E0B] outline-none bg-slate-50"
-                    placeholder="Enter key..."
-                  />
-                  <button type="button" onClick={() => setShowGatewayKey(prev => ({ ...prev, [toggleKey]: !prev[toggleKey] }))} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                    {showGatewayKey[toggleKey] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+      {/* Gateway Secrets Removed */}
 
       {/* API & Compute Settings */}
       <div className="grid grid-cols-2 gap-6">

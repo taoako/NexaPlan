@@ -27,7 +27,12 @@ namespace NexaPlan.API.Controllers.FinanceManager
                 .Where(e => e.TenantID == tenantId);
 
             if (!string.IsNullOrWhiteSpace(status))
-                query = query.Where(e => e.Status == status);
+            {
+                if (status == "Pending")
+                    query = query.Where(e => e.Status == "Pending" || e.Status == "Pending_Reconciliation");
+                else
+                    query = query.Where(e => e.Status == status);
+            }
 
             var expenses = await query
                 .OrderByDescending(e => e.SubmittedAt)
@@ -37,11 +42,12 @@ namespace NexaPlan.API.Controllers.FinanceManager
                     department = e.Department != null ? e.Department.DepartmentName : "Unknown",
                     proposalId = e.ProposalID,
                     proposalTitle = e.Proposal != null ? e.Proposal.Title : "Unknown",
-                    proposalBudget = e.Proposal != null ? e.Proposal.TotalAmount : 0,
+                    proposalBudget = e.Proposal != null ? (e.Proposal.RequestedAmount > 0 ? e.Proposal.RequestedAmount : e.Proposal.TotalAmount) : 0,
                     actualAmount = e.Amount,
-                    variance = (e.Proposal != null ? e.Proposal.TotalAmount : 0) - e.Amount,
+                    variance = (e.Proposal != null ? (e.Proposal.RequestedAmount > 0 ? e.Proposal.RequestedAmount : e.Proposal.TotalAmount) : 0) - e.Amount,
                     receiptUrl = e.ReceiptUrl,
-                    status = e.Status,
+                    taxPaid = e.TaxPaid,
+                    status = e.Status == "Pending_Reconciliation" ? "Pending" : e.Status,
                     submittedBy = e.Submitter != null ? e.Submitter.Name : "Unknown",
                     submittedDate = e.SubmittedAt.ToString("MMM dd, yyyy"),
                     reconciledDate = e.ReconciledAt.HasValue ? e.ReconciledAt.Value.ToString("MMM dd, yyyy") : null
@@ -67,7 +73,8 @@ namespace NexaPlan.API.Controllers.FinanceManager
                 .FirstOrDefaultAsync(e => e.ExpenseID == id && e.TenantID == tenantId);
 
             if (expense == null) return NotFound(new { message = "Expense not found." });
-            if (expense.Status != "Pending") return BadRequest(new { message = "Only pending expenses can be reconciled." });
+            if (expense.Status != "Pending" && expense.Status != "Pending_Reconciliation")
+                return BadRequest(new { message = "Only pending expenses can be reconciled." });
 
             // Mark the expense as reconciled
             expense.Status = "Reconciled";
@@ -108,7 +115,8 @@ namespace NexaPlan.API.Controllers.FinanceManager
 
             var expense = await _context.Expenses.FirstOrDefaultAsync(e => e.ExpenseID == id && e.TenantID == tenantId);
             if (expense == null) return NotFound(new { message = "Expense not found." });
-            if (expense.Status != "Pending") return BadRequest(new { message = "Only pending expenses can be rejected." });
+            if (expense.Status != "Pending" && expense.Status != "Pending_Reconciliation")
+                return BadRequest(new { message = "Only pending expenses can be rejected." });
 
             expense.Status = "Rejected";
             expense.ReconciledBy = userId;

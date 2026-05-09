@@ -200,6 +200,28 @@ export function ApprovalView() {
                 <div className="bg-slate-50 rounded-xl p-5 border border-[#e5e7eb]">
                   <h3 className="font-bold text-[14px] text-slate-900 mb-3">Finance Manager Review</h3>
                   
+                  {/* VAT Breakdown Panel */}
+                  {activeTotal > 0 && (
+                    <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
+                      <div className="font-bold text-blue-800 mb-2 text-xs uppercase tracking-wide">Tax Breakdown</div>
+                      {(() => {
+                        const vatIncItems = lineItems.filter((li: any) => !rejectedItems.includes(li.lineItemId) && li.isVatInclusive !== false);
+                        const vatExcItems = lineItems.filter((li: any) => !rejectedItems.includes(li.lineItemId) && li.isVatInclusive === false);
+                        const vatIncTotal = vatIncItems.reduce((s: number, li: any) => s + li.total, 0);
+                        const vatExcTotal = vatExcItems.reduce((s: number, li: any) => s + li.total, 0);
+                        const vat = vatIncTotal - (vatIncTotal / 1.12);
+                        const base = (vatIncTotal / 1.12) + vatExcTotal;
+                        return (
+                          <div className="space-y-1 text-xs font-mono">
+                            <div className="flex justify-between text-slate-600"><span>Requested (VAT Inclusive):</span><span className="font-bold">₱{activeTotal.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</span></div>
+                            <div className="flex justify-between text-slate-600"><span>Estimated Base Cost:</span><span className="font-bold">₱{base.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</span></div>
+                            <div className="flex justify-between text-emerald-700 font-bold"><span>Estimated 12% VAT:</span><span>₱{vat.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</span></div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+
                   {isOverBudget && (
                     <div className="mb-4 bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg flex gap-3 text-sm">
                       <TriangleAlert className="w-5 h-5 shrink-0 text-red-500" />

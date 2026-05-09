@@ -11,14 +11,36 @@ namespace NexaPlan.API.Models
         public int DepartmentID { get; set; }
         public int ProposalID { get; set; }
         public decimal Amount { get; set; }
+        public decimal TaxPaid { get; set; } = 0; // VAT amount from receipt
         public string ReceiptUrl { get; set; } = string.Empty;
-        public string Status { get; set; } = "Pending"; // Pending, Reconciled, Rejected
-        
+        public string Status { get; set; } = "Pending_Reconciliation"; // Pending_Reconciliation, Reconciled, Rejected
+
         public int SubmittedBy { get; set; }
         public DateTime SubmittedAt { get; set; } = DateTime.UtcNow;
 
         public int? ReconciledBy { get; set; }
         public DateTime? ReconciledAt { get; set; }
+
+        [NotMapped]
+        public decimal ActualAmountPaid
+        {
+            get => Amount;
+            set => Amount = value;
+        }
+
+        [NotMapped]
+        public decimal TaxAmount
+        {
+            get => TaxPaid;
+            set => TaxPaid = value;
+        }
+
+        [NotMapped]
+        public string ReceiptFileURL
+        {
+            get => ReceiptUrl;
+            set => ReceiptUrl = value;
+        }
 
         [ForeignKey("TenantID")]
         public Tenant? Tenant { get; set; }

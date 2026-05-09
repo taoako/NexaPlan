@@ -11,6 +11,7 @@ export function ExpensesView() {
   const [formData, setFormData] = useState({
     proposalId: '',
     amount: '',
+    taxPaid: '',
     receiptUrl: ''
   });
 
@@ -41,12 +42,13 @@ export function ExpensesView() {
     try {
       await deptHeadApi.submitExpense(
         parseInt(formData.proposalId), 
-        parseFloat(formData.amount), 
+        parseFloat(formData.amount),
+        formData.taxPaid ? parseFloat(formData.taxPaid) : undefined,
         formData.receiptUrl || undefined
       );
       alert('Expense submitted successfully for reconciliation.');
       setShowModal(false);
-      setFormData({ proposalId: '', amount: '', receiptUrl: '' });
+      setFormData({ proposalId: '', amount: '', taxPaid: '', receiptUrl: '' });
       fetchData();
     } catch (err: any) {
       alert(err.message || 'Failed to submit expense.');
@@ -195,6 +197,25 @@ export function ExpensesView() {
                   value={formData.amount}
                   onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-slate-500 uppercase mb-2">
+                  Tax Amount Paid ₱ <span className="normal-case font-normal text-slate-400">(optional — copy from receipt)</span>
+                </label>
+                <div className="relative">
+                  <input 
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="w-full px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none font-mono text-sm text-emerald-700"
+                    placeholder="e.g. 15536.00"
+                    value={formData.taxPaid}
+                    onChange={(e) => setFormData(prev => ({ ...prev, taxPaid: e.target.value }))}
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-emerald-500">VAT</span>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">This is the VAT line printed at the bottom of your receipt.</p>
               </div>
 
               <div>

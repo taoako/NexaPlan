@@ -28,8 +28,9 @@ namespace NexaPlan.API.Controllers.DeptHead
                     proposalId = e.ProposalID,
                     proposalTitle = e.Proposal != null ? e.Proposal.Title : "Unknown",
                     amount = e.Amount,
+                    taxPaid = e.TaxPaid,
                     receiptUrl = e.ReceiptUrl,
-                    status = e.Status,
+                    status = e.Status == "Pending_Reconciliation" ? "Pending" : e.Status,
                     submittedDate = e.SubmittedAt.ToString("MMM dd, yyyy"),
                     reconciledDate = e.ReconciledAt.HasValue ? e.ReconciledAt.Value.ToString("MMM dd, yyyy") : null
                 })
@@ -47,7 +48,7 @@ namespace NexaPlan.API.Controllers.DeptHead
 
             var proposals = await _context.BudgetProposals
                 .Where(p => p.TenantID == tenantId && p.DepartmentID == deptId && p.ProposalStatus == "Approved")
-                .Select(p => new { id = p.ProposalID, title = p.Title, amount = p.TotalAmount })
+                .Select(p => new { id = p.ProposalID, title = p.Title, amount = p.RequestedAmount > 0 ? p.RequestedAmount : p.TotalAmount })
                 .ToListAsync();
 
             return Ok(proposals);
@@ -71,8 +72,9 @@ namespace NexaPlan.API.Controllers.DeptHead
                 DepartmentID = deptId,
                 ProposalID = req.ProposalId,
                 Amount = req.Amount,
+                TaxPaid = req.TaxPaid ?? 0,
                 ReceiptUrl = req.ReceiptUrl ?? "receipt_mock.pdf",
-                Status = "Pending",
+                Status = "Pending_Reconciliation",
                 SubmittedBy = userId,
                 SubmittedAt = DateTime.UtcNow
             };
@@ -84,5 +86,5 @@ namespace NexaPlan.API.Controllers.DeptHead
         }
     }
 
-    public record SubmitExpenseRequest(int ProposalId, decimal Amount, string? ReceiptUrl);
+    public record SubmitExpenseRequest(int ProposalId, decimal Amount, decimal? TaxPaid, string? ReceiptUrl);
 }

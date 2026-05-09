@@ -11,6 +11,24 @@ namespace NexaPlan.API.Controllers.FinanceManager
     {
         public FinanceManagerScenariosController(AppDbContext context) : base(context) { }
 
+        private static int NormalizePriorityRank(BudgetProposal proposal)
+        {
+            if (proposal.PriorityRank > 0) return proposal.PriorityRank;
+
+            return proposal.Priority switch
+            {
+                "Mission Critical" => 1,
+                "High" => 2,
+                "Low" => 3,
+                _ => 4
+            };
+        }
+
+        private static decimal ResolveRequestedAmount(BudgetProposal proposal)
+        {
+            return proposal.RequestedAmount > 0 ? proposal.RequestedAmount : proposal.TotalAmount;
+        }
+
         [HttpGet("scenarios")]
         public async Task<IActionResult> GetScenarios()
         {
@@ -95,16 +113,52 @@ namespace NexaPlan.API.Controllers.FinanceManager
             // Trigger the auto-freeze logic based on priority if it's a reduction
             if (scenarioToActivate.AdjustmentMultiplier < 1.0m)
             {
-                var proposals = await _context.BudgetProposals
-                    .Where(p => p.TenantID == tenantId && (p.ProposalStatus == "Pending" || p.ProposalStatus == "Approved"))
+                var fiscalYear = DateTime.UtcNow.Year;
+                var allocations = await _context.DepartmentAllocations
+                    .Where(a => a.TenantID == tenantId && a.FiscalYear == fiscalYear)
+                    .ToDictionaryAsync(a => a.DepartmentID, a => a.TotalAllocatedCap);
+
+                var departments = await _context.Departments
+                    .Where(d => d.TenantID == tenantId)
+                    .Select(d => new { d.DepartmentID, d.AnnualBudgetCap })
                     .ToListAsync();
 
-                foreach (var p in proposals)
+                foreach (var dept in departments)
                 {
-                    if (scenarioToActivate.AdjustmentMultiplier <= 0.8m && p.Priority == "Low")
-                        p.ProposalStatus = "Frozen";
-                    else if (scenarioToActivate.AdjustmentMultiplier <= 0.7m && p.Priority == "High")
-                        p.ProposalStatus = "Frozen";
+                    var baseCap = allocations.ContainsKey(dept.DepartmentID)
+                        ? allocations[dept.DepartmentID]
+                        : dept.AnnualBudgetCap;
+
+                    var scenarioCap = baseCap * scenarioToActivate.AdjustmentMultiplier;
+
+                    var proposals = await _context.BudgetProposals
+                        .Where(p => p.TenantID == tenantId && p.DepartmentID == dept.DepartmentID && (p.ProposalStatus == "Pending" || p.ProposalStatus == "Approved"))
+                        .ToListAsync();
+
+                    var ordered = proposals
+                        .OrderBy(NormalizePriorityRank)
+                        .ThenBy(p => p.SubmittedAt)
+                        .ThenBy(p => p.ProposalID)
+                        .ToList();
+
+                    decimal runningTotal = 0;
+                    bool capExceeded = false;
+
+                    foreach (var proposal in ordered)
+                    {
+                        if (capExceeded)
+                        {
+                            proposal.ProposalStatus = "Frozen";
+                            continue;
+                        }
+
+                        runningTotal += ResolveRequestedAmount(proposal);
+
+                        if (runningTotal > scenarioCap)
+                        {
+                            capExceeded = true;
+                        }
+                    }
                 }
             }
             else

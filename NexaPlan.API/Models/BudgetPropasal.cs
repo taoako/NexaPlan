@@ -12,6 +12,9 @@ namespace NexaPlan.API.Models
         public int CreatedBy { get; set; }
         public int FiscalYear { get; set; }
         public decimal TotalAmount { get; set; }
+        public decimal RequestedAmount { get; set; }
+        public int PriorityRank { get; set; } = 2; // 1 (highest) to 4 (lowest)
+        public bool IsTaxInclusive { get; set; } = true;
 
         // Extended fields for full proposal lifecycle
         public string Title { get; set; } = string.Empty;

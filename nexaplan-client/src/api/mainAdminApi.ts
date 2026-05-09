@@ -2,10 +2,13 @@ const API_BASE = 'http://localhost:5189/api/main-admin';
 
 // ─── Generic fetch wrapper with tenant header ───
 async function apiFetch<T>(url: string, tenantId: number, options?: RequestInit): Promise<T> {
+  const userStr = localStorage.getItem('user');
+  const user = userStr ? JSON.parse(userStr) : null;
   const res = await fetch(`${API_BASE}${url}`, {
     headers: {
       'Content-Type': 'application/json',
       'X-Tenant-Id': String(tenantId),
+      'X-User-Id': user?.userId?.toString() || '',
     },
     ...options,
   });

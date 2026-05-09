@@ -23,6 +23,14 @@ namespace NexaPlan.API.Controllers.MainAdmin
             return 0;
         }
 
+        protected int GetUserId()
+        {
+            if (Request.Headers.TryGetValue("X-User-Id", out var h) && int.TryParse(h, out int uid)) return uid;
+            if (Request.Query.TryGetValue("userId", out var q) && int.TryParse(q, out int quid)) return quid;
+            return 0;
+        }
+
         protected IActionResult NoTenant() => BadRequest(new { message = "tenantId is required in X-Tenant-Id header." });
+        protected IActionResult NoUser() => BadRequest(new { message = "userId is required in X-User-Id header." });
     }
 }

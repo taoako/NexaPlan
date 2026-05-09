@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Check } from 'lucide-react';
 
 interface PricingTableProps {
@@ -7,6 +7,22 @@ interface PricingTableProps {
 }
 
 export function PricingTable({ onStartTrial, onSelectPlan }: PricingTableProps) {
+  const [prices, setPrices] = useState<any>(null);
+
+  useEffect(() => {
+    fetch('http://localhost:5189/api/pricing')
+      .then(res => res.json())
+      .then(data => setPrices(data))
+      .catch(console.error);
+  }, []);
+
+  const getPrice = (key: string, fallback: number) => {
+    if (!prices || !prices[key]) return fallback;
+    return Number(prices[key]);
+  };
+
+  const vatInclusive = prices?.pricing_vat_inclusive === 'true';
+
   return (
     <section id="pricing" className="py-24 px-8 bg-slate-50">
       <h2 className="text-5xl font-extrabold text-[#0A192F] text-center mb-4">
@@ -21,7 +37,7 @@ export function PricingTable({ onStartTrial, onSelectPlan }: PricingTableProps) 
           <div className="mb-6">
             <div className="text-sm font-bold text-slate-500 uppercase tracking-wide mb-2">Starter</div>
             <div className="flex items-baseline gap-2">
-              <span className="text-5xl font-black text-[#0A192F]">P4,950</span>
+              <span className="text-5xl font-black text-[#0A192F]">₱{getPrice('price_starter_monthly', 4950).toLocaleString()}</span>
               <span className="text-slate-500 font-semibold">/month</span>
             </div>
             <p className="text-sm text-slate-600 mt-2">Perfect for small teams starting their budget journey</p>
@@ -66,7 +82,7 @@ export function PricingTable({ onStartTrial, onSelectPlan }: PricingTableProps) 
           <div className="mb-6">
             <div className="text-sm font-bold text-blue-400 uppercase tracking-wide mb-2">Professional</div>
             <div className="flex items-baseline gap-2">
-              <span className="text-5xl font-black text-white">P12,900</span>
+              <span className="text-5xl font-black text-white">₱{getPrice('price_professional_monthly', 12900).toLocaleString()}</span>
               <span className="text-slate-300 font-semibold">/month</span>
             </div>
             <p className="text-sm text-slate-400 mt-2">For growing companies with complex budget needs</p>
@@ -115,7 +131,7 @@ export function PricingTable({ onStartTrial, onSelectPlan }: PricingTableProps) 
           <div className="mb-6">
             <div className="text-sm font-bold text-slate-500 uppercase tracking-wide mb-2">Enterprise</div>
             <div className="flex items-baseline gap-2">
-              <span className="text-5xl font-black text-[#0A192F]">P29,900</span>
+              <span className="text-5xl font-black text-[#0A192F]">₱{getPrice('price_enterprise_monthly', 29900).toLocaleString()}</span>
               <span className="text-slate-500 font-semibold">/month</span>
             </div>
             <p className="text-sm text-slate-600 mt-2">For large organizations requiring full control</p>
@@ -165,9 +181,12 @@ export function PricingTable({ onStartTrial, onSelectPlan }: PricingTableProps) 
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto mt-12 text-center">
+      <div className="max-w-4xl mx-auto mt-12 text-center space-y-2">
         <p className="text-sm text-slate-500">
-          All prices in Philippine Peso (P). Billed monthly or save 15% with annual billing. Volume discounts available for 50+ users.
+          All prices in Philippine Peso (₱). Billed monthly or save 15% with annual billing. Volume discounts available for 50+ users.
+        </p>
+        <p className="text-xs text-slate-400 font-bold">
+          {vatInclusive ? '* Prices shown are inclusive of 12% VAT.' : '* Prices shown are exclusive of 12% VAT.'}
         </p>
       </div>
     </section>

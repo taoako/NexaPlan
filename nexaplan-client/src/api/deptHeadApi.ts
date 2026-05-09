@@ -27,6 +27,7 @@ export interface LineItemReq {
   description: string;
   quantity: number;
   unitCost: number;
+  isVatInclusive?: boolean;
   justification?: string;
 }
 
@@ -34,15 +35,18 @@ export interface ProposalReq {
   title: string;
   category: string;
   priority: string;
+  priorityRank?: number;
   justification: string;
   saveAsDraft: boolean;
+  isTaxInclusive?: boolean;
   lineItems: LineItemReq[];
 }
 
 export const deptHeadApi = {
   getOverview: () => apiFetch<any>('/overview'),
+  getAllocationGuard: () => apiFetch<any>('/allocations/guard'),
   getProposals: () => apiFetch<any[]>('/proposals'),
-  createProposal: (data: any) => apiFetch<any>('/proposals', { method: 'POST', body: JSON.stringify(data) }),
+  createProposal: (data: ProposalReq) => apiFetch<any>('/proposals', { method: 'POST', body: JSON.stringify(data) }),
   submitProposal: (id: number) => apiFetch<any>(`/proposals/${id}/submit`, { method: 'POST', body: '{}' }),
   deleteProposal: (id: number) => apiFetch<any>(`/proposals/${id}`, { method: 'DELETE' }),
   getLineItems: (id: number) => apiFetch<any[]>(`/proposals/${id}/line-items`),
@@ -52,7 +56,7 @@ export const deptHeadApi = {
   // Expenses
   getExpenses: () => apiFetch<any[]>('/expenses'),
   getApprovedProposals: () => apiFetch<any[]>('/proposals/approved'),
-  submitExpense: (proposalId: number, amount: number, receiptUrl?: string) => apiFetch<any>('/expenses', { method: 'POST', body: JSON.stringify({ proposalId, amount, receiptUrl }) }),
+  submitExpense: (proposalId: number, amount: number, taxPaid?: number, receiptUrl?: string) => apiFetch<any>('/expenses', { method: 'POST', body: JSON.stringify({ proposalId, amount, taxPaid, receiptUrl }) }),
   
   cloneProposal: (id: number) => apiFetch<any>(`/proposals/${id}/clone`, { method: 'POST', body: '{}' }),
   getVariance: (period: string) => apiFetch<any>(`/variance?period=${period}`),
