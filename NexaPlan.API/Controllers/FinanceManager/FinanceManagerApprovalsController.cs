@@ -23,11 +23,19 @@ namespace NexaPlan.API.Controllers.FinanceManager
                 .OrderByDescending(p => p.UpdatedAt)
                 .ToListAsync();
 
-            var approvedTotals = await _context.BudgetProposals
+            var approvedTotalsRows = await _context.BudgetProposals
                 .Where(p => p.TenantID == tenantId && p.ProposalStatus == "Approved")
+                .Select(p => new { p.DepartmentID, p.RequestedAmount, p.TotalAmount })
+                .ToListAsync();
+
+            var approvedTotals = approvedTotalsRows
                 .GroupBy(p => p.DepartmentID)
-                .Select(g => new { DeptId = g.Key, Spent = g.Sum(x => x.TotalAmount) })
-                .ToDictionaryAsync(g => g.DeptId, g => g.Spent);
+                .ToDictionary(g => g.Key, g => g.Sum(x => x.RequestedAmount > 0 ? x.RequestedAmount : x.TotalAmount));
+
+            var fiscalYear = DateTime.UtcNow.Year;
+            var allocationCaps = await _context.DepartmentAllocations
+                .Where(a => a.TenantID == tenantId && a.FiscalYear == fiscalYear)
+                .ToDictionaryAsync(a => a.DepartmentID, a => a.TotalAllocatedCap);
 
             return Ok(proposals.Select(p => new
             {
@@ -35,9 +43,9 @@ namespace NexaPlan.API.Controllers.FinanceManager
                 title = p.Title,
                 department = p.Department?.DepartmentName ?? "Unknown",
                 departmentId = p.DepartmentID,
-                departmentCap = p.Department?.AnnualBudgetCap ?? 0,
+                departmentCap = allocationCaps.ContainsKey(p.DepartmentID) ? allocationCaps[p.DepartmentID] : (p.Department?.AnnualBudgetCap ?? 0),
                 departmentSpent = approvedTotals.ContainsKey(p.DepartmentID) ? approvedTotals[p.DepartmentID] : 0,
-                amount = p.TotalAmount,
+                amount = p.RequestedAmount > 0 ? p.RequestedAmount : p.TotalAmount,
                 status = p.ProposalStatus,
                 submittedBy = p.Creator?.Name ?? "Unknown",
                 priority = p.Priority,
@@ -67,6 +75,7 @@ namespace NexaPlan.API.Controllers.FinanceManager
                     }
                 }
                 proposal.TotalAmount = lineItems.Where(l => !l.IsRejected).Sum(l => l.Quantity * l.UnitCost);
+                proposal.RequestedAmount = proposal.TotalAmount;
             }
 
             proposal.ProposalStatus = "Approved";

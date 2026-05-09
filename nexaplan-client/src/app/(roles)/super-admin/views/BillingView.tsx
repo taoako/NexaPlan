@@ -10,6 +10,8 @@ export function BillingView() {
   const [refundType, setRefundType] = useState<'full' | 'partial'>('full');
   const [partialAmount, setPartialAmount] = useState('');
   const [refundLoading, setRefundLoading] = useState(false);
+  const [pricingConfig, setPricingConfig] = useState<api.PricingConfig | null>(null);
+  const [savingPricing, setSavingPricing] = useState(false);
 
   const fetchInvoices = async () => {
     try {
@@ -23,7 +25,16 @@ export function BillingView() {
     }
   };
 
-  useEffect(() => { fetchInvoices(); }, []);
+  const fetchPricing = async () => {
+    try {
+      const data = await api.getPricing();
+      setPricingConfig(data);
+    } catch (err) {
+      console.error('Failed to load pricing:', err);
+    }
+  };
+
+  useEffect(() => { fetchInvoices(); fetchPricing(); }, []);
 
   const handleSync = async () => {
     try {
@@ -51,6 +62,19 @@ export function BillingView() {
       alert(`❌ Error: ${err.message}`);
     } finally {
       setRefundLoading(false);
+    }
+  };
+
+  const handleSavePricing = async () => {
+    if (!pricingConfig) return;
+    setSavingPricing(true);
+    try {
+      await api.savePricing(pricingConfig);
+      alert('✅ Pricing configuration saved successfully!');
+    } catch (err: any) {
+      alert(`❌ Error: ${err.message}`);
+    } finally {
+      setSavingPricing(false);
     }
   };
 
@@ -137,6 +161,70 @@ export function BillingView() {
           </tbody>
         </table>
       </div>
+
+      {/* Pricing Management */}
+      {pricingConfig && (
+        <div className="bg-white rounded-md border border-slate-200 shadow-sm p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-[20px] font-semibold text-slate-900">SaaS Pricing Configuration</h2>
+              <p className="text-sm text-slate-500 mt-0.5">Manage live subscription tiers and global tax rules.</p>
+            </div>
+            <button onClick={handleSavePricing} disabled={savingPricing} className={`flex items-center gap-2 px-6 py-2.5 rounded-md font-bold transition-all ${savingPricing ? 'bg-slate-400 text-white' : 'bg-[#4F46E5] hover:bg-[#4338CA] text-white'}`}>
+              {savingPricing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />} Save Pricing
+            </button>
+          </div>
+
+          <div className="mb-8 bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between">
+            <div>
+              <div className="font-bold text-slate-900">Global VAT Application</div>
+              <div className="text-sm text-slate-600">If inclusive, the configured price is the final charge and 12% VAT is extracted. If exclusive, 12% VAT is added on top.</div>
+            </div>
+            <button
+              onClick={() => setPricingConfig({ ...pricingConfig, pricing_vat_inclusive: pricingConfig.pricing_vat_inclusive === 'true' ? 'false' : 'true' })}
+              className={`w-14 h-7 rounded-full relative transition-all ${pricingConfig.pricing_vat_inclusive === 'true' ? 'bg-[#10B981]' : 'bg-slate-300'}`}
+            >
+              <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all ${pricingConfig.pricing_vat_inclusive === 'true' ? 'right-1' : 'left-1'}`}></div>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-3 gap-6">
+            <div className="space-y-4 p-5 bg-slate-50 rounded-xl border border-slate-200">
+              <h3 className="font-bold text-slate-800 border-b pb-2 mb-4">Starter Tier</h3>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Monthly (₱)</label>
+                <input type="number" value={pricingConfig.price_starter_monthly} onChange={e => setPricingConfig({...pricingConfig, price_starter_monthly: e.target.value})} className="w-full px-3 py-2 border rounded-md" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Annual (₱)</label>
+                <input type="number" value={pricingConfig.price_starter_annual} onChange={e => setPricingConfig({...pricingConfig, price_starter_annual: e.target.value})} className="w-full px-3 py-2 border rounded-md" />
+              </div>
+            </div>
+            <div className="space-y-4 p-5 bg-slate-50 rounded-xl border border-slate-200">
+              <h3 className="font-bold text-blue-800 border-b pb-2 mb-4">Professional Tier</h3>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Monthly (₱)</label>
+                <input type="number" value={pricingConfig.price_professional_monthly} onChange={e => setPricingConfig({...pricingConfig, price_professional_monthly: e.target.value})} className="w-full px-3 py-2 border rounded-md focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Annual (₱)</label>
+                <input type="number" value={pricingConfig.price_professional_annual} onChange={e => setPricingConfig({...pricingConfig, price_professional_annual: e.target.value})} className="w-full px-3 py-2 border rounded-md focus:ring-blue-500" />
+              </div>
+            </div>
+            <div className="space-y-4 p-5 bg-slate-50 rounded-xl border border-slate-200">
+              <h3 className="font-bold text-slate-900 border-b pb-2 mb-4">Enterprise Tier</h3>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Monthly (₱)</label>
+                <input type="number" value={pricingConfig.price_enterprise_monthly} onChange={e => setPricingConfig({...pricingConfig, price_enterprise_monthly: e.target.value})} className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Annual (₱)</label>
+                <input type="number" value={pricingConfig.price_enterprise_annual} onChange={e => setPricingConfig({...pricingConfig, price_enterprise_annual: e.target.value})} className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500" />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Invoice Detail Modal */}
       {selectedInvoice && (

@@ -167,6 +167,7 @@ namespace NexaPlan.API.Controllers
                 email = user.Email
             });
         }
+
     }
 }
 

@@ -13,10 +13,11 @@ export function NewRequestView({ setActiveModule }: NewRequestViewProps) {
   const [requestPriority, setRequestPriority] = useState<PriorityLevel>('High');
   const [requestJustification, setRequestJustification] = useState('');
   const [lineItems, setLineItems] = useState([
-    { description: '', quantity: '', unitCost: '', total: 0 }
+    { description: '', quantity: '', unitCost: '', total: 0, isVatInclusive: true }
   ]);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [modalMessage, setModalMessage] = useState<{title: string, message: string, type: 'error' | 'success' | 'info'} | null>(null);
 
   // Auto-save logic placeholder (could be connected to real API if wanted, but standard local save indicator for now)
   useEffect(() => {
@@ -31,7 +32,7 @@ export function NewRequestView({ setActiveModule }: NewRequestViewProps) {
   }, [requestTitle, requestCategory, lineItems, requestJustification, requestPriority]);
 
   const addLineItem = () => {
-    setLineItems([...lineItems, { description: '', quantity: '', unitCost: '', total: 0 }]);
+    setLineItems([...lineItems, { description: '', quantity: '', unitCost: '', total: 0, isVatInclusive: true }]);
   };
 
   const removeLineItem = (index: number) => {
@@ -50,35 +51,66 @@ export function NewRequestView({ setActiveModule }: NewRequestViewProps) {
   };
 
   const totalRequestAmount = lineItems.reduce((sum, item) => sum + item.total, 0);
+  const VAT_RATE = 0.12;
+  const vatInclusiveTotal = lineItems.filter(li => li.isVatInclusive).reduce((s, li) => s + li.total, 0);
+  const vatExclusiveTotal = lineItems.filter(li => !li.isVatInclusive).reduce((s, li) => s + li.total, 0);
+  const estimatedVat = vatInclusiveTotal - (vatInclusiveTotal / (1 + VAT_RATE));
+  const estimatedBase = vatInclusiveTotal / (1 + VAT_RATE) + vatExclusiveTotal;
+
+  const resolvePriorityRank = (priority: PriorityLevel) => {
+    switch (priority) {
+      case 'Mission Critical': return 1;
+      case 'High': return 2;
+      case 'Low': return 3;
+      default: return 4;
+    }
+  };
 
   const handleSubmitRequest = async (saveAsDraft = false) => {
-    if (!requestTitle) return alert("Title is required");
+    if (!requestTitle) return setModalMessage({ title: 'Missing Title', message: 'Please add a request title before submitting.', type: 'error' });
     try {
       setIsSaving(true);
+      if (!saveAsDraft) {
+        const guard = await deptHeadApi.getAllocationGuard();
+        const committed = guard?.committedFunds ?? 0;
+        const cap = guard?.totalAllocatedCap ?? 0;
+        if (cap > 0 && (committed + totalRequestAmount) > cap) {
+          return setModalMessage({
+            title: 'Request Exceeds Allocation',
+            message: `Request exceeds the allocated departmental ceiling set by the Main Admin. Cap: ₱${cap.toLocaleString()} · Committed: ₱${committed.toLocaleString()} · Requested: ₱${totalRequestAmount.toLocaleString()}.`,
+            type: 'error'
+          });
+        }
+      }
       await deptHeadApi.createProposal({
         title: requestTitle,
         category: requestCategory,
         priority: requestPriority,
+        priorityRank: resolvePriorityRank(requestPriority),
         justification: requestJustification,
         saveAsDraft,
+        isTaxInclusive: lineItems.every(li => li.isVatInclusive),
         lineItems: lineItems.map(li => ({
           description: li.description || "Unnamed Item",
           quantity: parseFloat(li.quantity) || 1,
-          unitCost: parseFloat(li.unitCost) || 0
+          unitCost: parseFloat(li.unitCost) || 0,
+          isVatInclusive: li.isVatInclusive
         }))
       });
-      alert(saveAsDraft ? "Draft saved!" : "Proposal submitted for review!");
+      setModalMessage({ title: 'Success', message: saveAsDraft ? 'Draft saved.' : 'Proposal submitted for review.', type: 'success' });
       setActiveModule('proposals');
     } catch (err) {
       console.error(err);
-      alert("Error saving request.");
+      const message = err instanceof Error && err.message ? err.message : 'Unable to save the request. Please try again.';
+      setModalMessage({ title: 'Save Failed', message, type: 'error' });
     } finally {
       setIsSaving(false);
     }
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <>
+      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-black text-[#0A192F]">Submit New Budget Request</h1>
@@ -164,7 +196,7 @@ export function NewRequestView({ setActiveModule }: NewRequestViewProps) {
           <div className="space-y-3">
             {lineItems.map((item, index) => (
               <div key={index} className="grid grid-cols-12 gap-3 items-end">
-                <div className="col-span-5">
+                <div className="col-span-4">
                   <label className="block text-xs font-bold text-slate-600 mb-1">Description</label>
                   <input
                     type="text"
@@ -174,7 +206,7 @@ export function NewRequestView({ setActiveModule }: NewRequestViewProps) {
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#6366F1] outline-none"
                   />
                 </div>
-                <div className="col-span-2">
+                <div className="col-span-1">
                   <label className="block text-xs font-bold text-slate-600 mb-1">Qty</label>
                   <input
                     type="number"
@@ -200,6 +232,29 @@ export function NewRequestView({ setActiveModule }: NewRequestViewProps) {
                     ₱{item.total.toLocaleString()}
                   </div>
                 </div>
+                <div className="col-span-2">
+                  <label className="block text-xs font-bold text-slate-600 mb-1">VAT Inclusive</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const updated = [...lineItems];
+                      updated[index] = { ...updated[index], isVatInclusive: !updated[index].isVatInclusive };
+                      setLineItems(updated);
+                    }}
+                    className={`w-full flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-xs font-bold border transition-all ${
+                      item.isVatInclusive
+                        ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
+                        : 'bg-slate-50 border-slate-200 text-slate-500'
+                    }`}
+                  >
+                    <span className={`w-3 h-3 rounded border-2 flex items-center justify-center shrink-0 ${
+                      item.isVatInclusive ? 'bg-emerald-500 border-emerald-500' : 'border-slate-400'
+                    }`}>
+                      {item.isVatInclusive && <span className="text-white text-[8px] leading-none">✓</span>}
+                    </span>
+                    {item.isVatInclusive ? 'Incl. VAT' : 'Excl. VAT'}
+                  </button>
+                </div>
                 <div className="col-span-1">
                   <button
                     onClick={() => removeLineItem(index)}
@@ -213,9 +268,21 @@ export function NewRequestView({ setActiveModule }: NewRequestViewProps) {
           </div>
 
           <div className="mt-6 flex justify-end">
-            <div className="bg-[#6366F1]/10 px-6 py-4 rounded-xl">
+            <div className="bg-[#6366F1]/10 px-6 py-4 rounded-xl space-y-1">
               <div className="text-sm font-bold text-slate-600 mb-1">Total Request Amount</div>
-              <div className="text-3xl font-black text-[#6366F1]">₱{totalRequestAmount.toLocaleString()}</div>
+              <div className="text-3xl font-black text-[#6366F1]">₱{totalRequestAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+              {estimatedVat > 0 && (
+                <div className="text-xs text-slate-500 space-y-0.5 pt-1 border-t border-[#6366F1]/20 mt-2">
+                  <div className="flex justify-between gap-8">
+                    <span>Estimated Base (ex-VAT):</span>
+                    <span className="font-mono font-bold">₱{estimatedBase.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                  </div>
+                  <div className="flex justify-between gap-8 text-emerald-600">
+                    <span>Estimated 12% VAT:</span>
+                    <span className="font-mono font-bold">₱{estimatedVat.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -239,6 +306,28 @@ export function NewRequestView({ setActiveModule }: NewRequestViewProps) {
           </button>
         </div>
       </div>
-    </div>
+      </div>
+
+      {modalMessage && (
+      <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full animate-in zoom-in-95 duration-200">
+          <div className={`mb-4 w-12 h-12 rounded-full flex items-center justify-center mx-auto ${
+            modalMessage.type === 'error' ? 'bg-red-100 text-red-500' :
+            modalMessage.type === 'success' ? 'bg-emerald-100 text-emerald-500' : 'bg-blue-100 text-blue-500'
+          }`}>
+            {modalMessage.type === 'error' ? <X className="w-6 h-6" /> : <CheckCircle2 className="w-6 h-6" />}
+          </div>
+          <h3 className="font-black text-lg text-slate-900 text-center mb-2">{modalMessage.title}</h3>
+          <p className="text-sm text-slate-600 text-center mb-6">{modalMessage.message}</p>
+          <button
+            onClick={() => setModalMessage(null)}
+            className="w-full bg-slate-900 hover:bg-slate-800 text-white py-2.5 rounded-xl font-bold transition-all"
+          >
+            Acknowledge
+          </button>
+        </div>
+      </div>
+      )}
+    </>
   );
 }

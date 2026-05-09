@@ -24,26 +24,40 @@ namespace NexaPlan.API.Controllers.FinanceManager
                 .Where(p => p.TenantID == tenantId && p.ProposalStatus == "Approved")
                 .ToListAsync();
 
-            decimal totalCap = departments.Sum(d => d.AnnualBudgetCap);
+            var fiscalYear = DateTime.UtcNow.Year;
+            var allocationRows = await _context.DepartmentAllocations
+                .Where(a => a.TenantID == tenantId && a.FiscalYear == fiscalYear)
+                .ToListAsync();
 
-            var allocations = departments.Select(d => {
+            var departmentCaps = departments.Select(d => new
+            {
+                d.DepartmentID,
+                Cap = allocationRows.FirstOrDefault(a => a.DepartmentID == d.DepartmentID)?.TotalAllocatedCap ?? d.AnnualBudgetCap
+            }).ToList();
+
+            decimal totalCap = departmentCaps.Sum(d => d.Cap);
+
+            var allocationData = departments.Select(d =>
+            {
+                var allocationCap = departmentCaps.First(c => c.DepartmentID == d.DepartmentID).Cap;
                 var deptProposals = proposals.Where(p => p.DepartmentID == d.DepartmentID).ToList();
-                decimal proposalSpent = deptProposals.Sum(p => p.TotalAmount);
+                decimal proposalSpent = deptProposals.Sum(p => p.RequestedAmount > 0 ? p.RequestedAmount : p.TotalAmount);
                 // Use reconciled ActualSpent as the authoritative actual spending figure
                 decimal spent = d.ActualSpent;
-                decimal pct = totalCap > 0 ? ((decimal)d.AnnualBudgetCap / totalCap) * 100 : 0;
+                decimal pct = totalCap > 0 ? (allocationCap / totalCap) * 100 : 0;
 
                 return new
                 {
                     departmentId = d.DepartmentID,
                     name = d.DepartmentName,
-                    amount = d.AnnualBudgetCap, // Their allocation cap
+                    amount = allocationCap, // Their allocation cap
                     pct = pct,
                     spent = spent,
-                    approvedProposals = deptProposals.Select(p => new {
+                    approvedProposals = deptProposals.Select(p => new
+                    {
                         id = p.ProposalID,
                         title = p.Title,
-                        amount = p.TotalAmount,
+                        amount = p.RequestedAmount > 0 ? p.RequestedAmount : p.TotalAmount,
                         date = p.UpdatedAt.ToString("MMM dd, yyyy")
                     })
                 };
@@ -51,7 +65,11 @@ namespace NexaPlan.API.Controllers.FinanceManager
 
             var totalAllocated = totalCap;
             var pendingRequests = await _context.BudgetProposals.CountAsync(p => p.TenantID == tenantId && p.ProposalStatus == "Pending");
-            var approvedThisMonth = await _context.BudgetProposals.Where(p => p.TenantID == tenantId && p.ProposalStatus == "Approved" && p.UpdatedAt.Month == DateTime.UtcNow.Month).SumAsync(p => p.TotalAmount);
+            var approvedThisMonthRows = await _context.BudgetProposals
+                .Where(p => p.TenantID == tenantId && p.ProposalStatus == "Approved" && p.UpdatedAt.Month == DateTime.UtcNow.Month)
+                .Select(p => new { p.RequestedAmount, p.TotalAmount })
+                .ToListAsync();
+            var approvedThisMonth = approvedThisMonthRows.Sum(p => p.RequestedAmount > 0 ? p.RequestedAmount : p.TotalAmount);
             var approvedCountThisMonth = await _context.BudgetProposals.CountAsync(p => p.TenantID == tenantId && p.ProposalStatus == "Approved" && p.UpdatedAt.Month == DateTime.UtcNow.Month);
 
             return Ok(new
@@ -61,7 +79,7 @@ namespace NexaPlan.API.Controllers.FinanceManager
                 approvedThisMonth = approvedThisMonth,
                 approvedCountThisMonth = approvedCountThisMonth,
                 activeDepartments = departments.Count,
-                departments = allocations
+                departments = allocationData
             });
         }
 
@@ -83,7 +101,28 @@ namespace NexaPlan.API.Controllers.FinanceManager
             fromDept.AnnualBudgetCap -= req.Amount;
             toDept.AnnualBudgetCap += req.Amount;
 
-            _context.AuditLogs.Add(new Models.AuditLog {
+            var fiscalYear = DateTime.UtcNow.Year;
+            var fromAllocation = await _context.DepartmentAllocations
+                .FirstOrDefaultAsync(a => a.TenantID == tenantId && a.DepartmentID == fromDept.DepartmentID && a.FiscalYear == fiscalYear);
+            var toAllocation = await _context.DepartmentAllocations
+                .FirstOrDefaultAsync(a => a.TenantID == tenantId && a.DepartmentID == toDept.DepartmentID && a.FiscalYear == fiscalYear);
+
+            if (fromAllocation != null)
+            {
+                fromAllocation.TotalAllocatedCap -= req.Amount;
+                fromAllocation.SetAt = DateTime.UtcNow;
+                fromAllocation.SetByAdminID = GetUserId();
+            }
+
+            if (toAllocation != null)
+            {
+                toAllocation.TotalAllocatedCap += req.Amount;
+                toAllocation.SetAt = DateTime.UtcNow;
+                toAllocation.SetByAdminID = GetUserId();
+            }
+
+            _context.AuditLogs.Add(new Models.AuditLog
+            {
                 TenantID = tenantId,
                 UserID = GetUserId(),
                 ActionType = "FUNDS_TRANSFERRED",

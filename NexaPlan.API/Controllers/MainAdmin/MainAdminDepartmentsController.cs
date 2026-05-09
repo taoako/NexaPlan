@@ -15,11 +15,45 @@ namespace NexaPlan.API.Controllers.MainAdmin
         private async Task<string> ResolveDeptLabel(int tenantId)
         {
             var tenant = await _context.Tenants.FindAsync(tenantId);
-            return tenant?.OrgType switch {
+            return tenant?.OrgType switch
+            {
                 "Government" => "Bureau",
-                "Military"   => "Division",
-                _            => "Department"
+                "Military" => "Division",
+                _ => "Department"
             };
+        }
+
+        private async Task<bool> IsMainAdminAsync(int tenantId, int userId)
+        {
+            if (tenantId == 0 || userId == 0) return false;
+            return await _context.Users.AnyAsync(u => u.UserID == userId && u.TenantID == tenantId && u.RoleID == 2);
+        }
+
+        private async Task UpsertAllocationAsync(int tenantId, int departmentId, decimal cap, int fiscalYear, int setByAdminId)
+        {
+            var allocation = await _context.DepartmentAllocations
+                .Where(a => a.TenantID == tenantId && a.DepartmentID == departmentId && a.FiscalYear == fiscalYear)
+                .OrderByDescending(a => a.SetAt)
+                .FirstOrDefaultAsync();
+
+            if (allocation == null)
+            {
+                allocation = new DepartmentAllocation
+                {
+                    TenantID = tenantId,
+                    DepartmentID = departmentId,
+                    FiscalYear = fiscalYear,
+                    TotalAllocatedCap = cap,
+                    SetByAdminID = setByAdminId,
+                    SetAt = DateTime.UtcNow
+                };
+                _context.DepartmentAllocations.Add(allocation);
+                return;
+            }
+
+            allocation.TotalAllocatedCap = cap;
+            allocation.SetByAdminID = setByAdminId;
+            allocation.SetAt = DateTime.UtcNow;
         }
 
         [HttpGet("departments")]
@@ -32,7 +66,8 @@ namespace NexaPlan.API.Controllers.MainAdmin
             var users = await _context.Users.Where(u => u.TenantID == tenantId).ToListAsync();
             var label = await ResolveDeptLabel(tenantId);
 
-            var result = depts.Select(d => new {
+            var result = depts.Select(d => new
+            {
                 departmentId = d.DepartmentID,
                 name = d.DepartmentName,
                 headUserId = d.HeadUserID,
@@ -51,10 +86,15 @@ namespace NexaPlan.API.Controllers.MainAdmin
             int tenantId = GetTenantId();
             if (tenantId == 0) return NoTenant();
 
+            int userId = GetUserId();
+            if (userId == 0) return NoUser();
+            if (!await IsMainAdminAsync(tenantId, userId)) return Forbid();
+
             if (await _context.Departments.AnyAsync(d => d.TenantID == tenantId && d.DepartmentName == request.Name))
                 return BadRequest(new { message = "A department with that name already exists." });
 
-            var dept = new Department {
+            var dept = new Department
+            {
                 TenantID = tenantId,
                 DepartmentName = request.Name,
                 HeadUserID = request.HeadUserId > 0 ? request.HeadUserId : null,
@@ -62,6 +102,9 @@ namespace NexaPlan.API.Controllers.MainAdmin
             };
 
             _context.Departments.Add(dept);
+            await _context.SaveChangesAsync();
+
+            await UpsertAllocationAsync(tenantId, dept.DepartmentID, dept.AnnualBudgetCap, DateTime.UtcNow.Year, userId);
             await _context.SaveChangesAsync();
 
             if (dept.HeadUserID.HasValue)
@@ -86,6 +129,10 @@ namespace NexaPlan.API.Controllers.MainAdmin
             var dept = await _context.Departments.FirstOrDefaultAsync(d => d.DepartmentID == id && d.TenantID == tenantId);
             if (dept == null) return NotFound();
 
+            int userId = GetUserId();
+            if (userId == 0) return NoUser();
+            if (!await IsMainAdminAsync(tenantId, userId)) return Forbid();
+
             dept.DepartmentName = request.Name;
             dept.HeadUserID = request.HeadUserId > 0 ? request.HeadUserId : null;
             dept.AnnualBudgetCap = request.BudgetCap;
@@ -98,6 +145,8 @@ namespace NexaPlan.API.Controllers.MainAdmin
                     headUser.DepartmentID = dept.DepartmentID;
                 }
             }
+
+            await UpsertAllocationAsync(tenantId, dept.DepartmentID, dept.AnnualBudgetCap, DateTime.UtcNow.Year, userId);
 
             _context.AuditLogs.Add(new AuditLog { TenantID = tenantId, UserID = 0, ActionType = "DEPARTMENT_UPDATED", TargetResources = request.Name, IPAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown", TimeStamp = DateTime.UtcNow });
             await _context.SaveChangesAsync();

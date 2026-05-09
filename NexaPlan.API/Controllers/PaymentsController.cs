@@ -24,20 +24,45 @@ namespace NexaPlan.API.Controllers
             _configuration = configuration;
         }
 
-        private static readonly Dictionary<string, (string Name, long Amount)> PlanCatalog = new(StringComparer.OrdinalIgnoreCase)
-        {
-            { "starter", ("NexaPlan Starter (Monthly)", 4950_00) },
-            { "professional", ("NexaPlan Professional (Monthly)", 12900_00) },
-            { "enterprise", ("NexaPlan Enterprise (Monthly)", 29900_00) }
-        };
-
         [HttpPost("checkout")]
         public async Task<IActionResult> CreateCheckout([FromBody] CheckoutRequestDto request)
         {
-            if (!PlanCatalog.TryGetValue(request.PlanTier, out var plan))
-            {
+            var pricingKeys = await _context.SystemConfigs
+                .Where(c => c.ConfigKey.StartsWith("price_") || c.ConfigKey == "pricing_vat_inclusive")
+                .ToDictionaryAsync(c => c.ConfigKey, c => c.ConfigValue);
+
+            decimal basePrice = 0;
+            string planName = "";
+            
+            if (request.PlanTier.Equals("starter", StringComparison.OrdinalIgnoreCase)) {
+                basePrice = decimal.Parse(pricingKeys.GetValueOrDefault("price_starter_monthly", "4950"));
+                planName = "NexaPlan Starter (Monthly)";
+            } else if (request.PlanTier.Equals("professional", StringComparison.OrdinalIgnoreCase)) {
+                basePrice = decimal.Parse(pricingKeys.GetValueOrDefault("price_professional_monthly", "12900"));
+                planName = "NexaPlan Professional (Monthly)";
+            } else if (request.PlanTier.Equals("enterprise", StringComparison.OrdinalIgnoreCase)) {
+                basePrice = decimal.Parse(pricingKeys.GetValueOrDefault("price_enterprise_monthly", "29900"));
+                planName = "NexaPlan Enterprise (Monthly)";
+            } else {
                 return BadRequest(new { message = "Invalid plan tier." });
             }
+
+            bool vatInclusive = bool.Parse(pricingKeys.GetValueOrDefault("pricing_vat_inclusive", "true"));
+            decimal grandTotal = 0;
+            decimal taxAmount = 0;
+
+            if (vatInclusive)
+            {
+                grandTotal = basePrice;
+                taxAmount = grandTotal - (grandTotal / 1.12m);
+            }
+            else
+            {
+                taxAmount = basePrice * 0.12m;
+                grandTotal = basePrice + taxAmount;
+            }
+
+            long finalChargeCents = (long)Math.Round(grandTotal * 100);
 
             var frontendBaseUrl = _configuration["Frontend:BaseUrl"] ?? "http://localhost:5173";
             
@@ -95,7 +120,7 @@ namespace NexaPlan.API.Controllers
                 TenantID = tenant.TenantID,
                 UserID = user.UserID,
                 PlanTier = request.PlanTier,
-                Amount = plan.Amount,
+                Amount = finalChargeCents,
                 Currency = "PHP",
                 Status = "Pending",
                 CreatedAt = DateTime.UtcNow
@@ -107,7 +132,9 @@ namespace NexaPlan.API.Controllers
             var invoice = new Invoice
             {
                 TenantID = tenant.TenantID,
-                Amount = plan.Amount / 100m,
+                Amount = grandTotal,
+                TaxAmount = taxAmount,
+                VatInclusive = vatInclusive,
                 BillingDate = DateTime.UtcNow,
                 DueDate = DateTime.UtcNow.AddDays(14),
                 Status = false
@@ -139,13 +166,13 @@ namespace NexaPlan.API.Controllers
                             {
                                 new
                                 {
-                                    amount = plan.Amount,
+                                    amount = finalChargeCents,
                                     currency = "PHP",
-                                    name = plan.Name,
+                                    name = planName,
                                     quantity = 1
                                 }
                             },
-                            description = $"{plan.Name} subscription",
+                            description = $"{planName} subscription",
                             metadata = new
                             {
                                 tenantId = tenant.TenantID,

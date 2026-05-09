@@ -81,6 +81,15 @@ export function FinancialStatementsView() {
                       {doc.sha256Hash}
                     </span>
                   </div>
+                  {/* Tax Capitalized */}
+                  <div className="mt-2 flex items-center gap-2 text-xs">
+                    <span className="font-bold text-amber-600">Total Tax Capitalized:</span>
+                    <span className="font-mono font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                      {doc.totalTaxCapitalized != null
+                        ? `₱${Number(doc.totalTaxCapitalized).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                        : 'N/A — reconcile expenses to populate'}
+                    </span>
+                  </div>
                 </div>
               </div>
               <div className="flex flex-col items-end gap-3">

@@ -154,6 +154,9 @@ namespace NexaPlan.API.Migrations
                     b.Property<int>("FiscalYear")
                         .HasColumnType("int");
 
+                    b.Property<bool>("IsTaxInclusive")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<string>("Justification")
                         .IsRequired()
                         .HasColumnType("longtext");
@@ -162,9 +165,15 @@ namespace NexaPlan.API.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
+                    b.Property<int>("PriorityRank")
+                        .HasColumnType("int");
+
                     b.Property<string>("ProposalStatus")
                         .IsRequired()
                         .HasColumnType("longtext");
+
+                    b.Property<decimal>("RequestedAmount")
+                        .HasColumnType("decimal(65,30)");
 
                     b.Property<string>("ReviewNotes")
                         .HasColumnType("longtext");
@@ -329,6 +338,43 @@ namespace NexaPlan.API.Migrations
                     b.ToTable("Departments");
                 });
 
+            modelBuilder.Entity("NexaPlan.API.Models.DepartmentAllocation", b =>
+                {
+                    b.Property<int>("AllocationID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("AllocationID"));
+
+                    b.Property<int>("DepartmentID")
+                        .HasColumnType("int");
+
+                    b.Property<int>("FiscalYear")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("SetAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("SetByAdminID")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TenantID")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("TotalAllocatedCap")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.HasKey("AllocationID");
+
+                    b.HasIndex("DepartmentID");
+
+                    b.HasIndex("SetByAdminID");
+
+                    b.HasIndex("TenantID");
+
+                    b.ToTable("DepartmentAllocations");
+                });
+
             modelBuilder.Entity("NexaPlan.API.Models.Expense", b =>
                 {
                     b.Property<int>("ExpenseID")
@@ -365,6 +411,9 @@ namespace NexaPlan.API.Migrations
 
                     b.Property<int>("SubmittedBy")
                         .HasColumnType("int");
+
+                    b.Property<decimal>("TaxPaid")
+                        .HasColumnType("decimal(65,30)");
 
                     b.Property<int>("TenantID")
                         .HasColumnType("int");
@@ -496,8 +545,14 @@ namespace NexaPlan.API.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
+                    b.Property<decimal>("TaxAmount")
+                        .HasColumnType("decimal(65,30)");
+
                     b.Property<int>("TenantID")
                         .HasColumnType("int");
+
+                    b.Property<bool>("VatInclusive")
+                        .HasColumnType("tinyint(1)");
 
                     b.HasKey("InvoiceID");
 
@@ -521,6 +576,9 @@ namespace NexaPlan.API.Migrations
                         .HasColumnType("longtext");
 
                     b.Property<bool>("IsRejected")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsVatInclusive")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<string>("Justification")
@@ -1088,6 +1146,33 @@ namespace NexaPlan.API.Migrations
                         .HasForeignKey("TenantID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("NexaPlan.API.Models.DepartmentAllocation", b =>
+                {
+                    b.HasOne("NexaPlan.API.Models.Department", "Department")
+                        .WithMany()
+                        .HasForeignKey("DepartmentID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("NexaPlan.API.Models.User", "SetByAdmin")
+                        .WithMany()
+                        .HasForeignKey("SetByAdminID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("NexaPlan.API.Models.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Department");
+
+                    b.Navigation("SetByAdmin");
 
                     b.Navigation("Tenant");
                 });

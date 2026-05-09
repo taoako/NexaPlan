@@ -10,6 +10,8 @@ interface VarianceViewProps {
 export function VarianceView({ activeScenario }: VarianceViewProps) {
   const [generatingReport, setGeneratingReport] = useState<string | null>(null);
   const [allocData, setAllocData] = useState<any>(null);
+  const [showNet, setShowNet] = useState(false); // false = Gross (with tax), true = Net (without tax)
+  const VAT_RATE = 0.12;
   
   // Mock fiscal year data
   const fiscalYearElapsedPct = 65; // Let's say 65% of the year has passed
@@ -29,8 +31,10 @@ export function VarianceView({ activeScenario }: VarianceViewProps) {
   if (!allocData) return <div className="p-12 text-center text-slate-500">Loading variance data...</div>;
 
   const totalSpent = allocData.departments.reduce((acc: number, d: any) => acc + d.spent, 0);
-  const totalVariance = allocData.totalAllocated - totalSpent;
-  const utilizedPct = allocData.totalAllocated > 0 ? (totalSpent / allocData.totalAllocated) * 100 : 0;
+  const displaySpent = showNet ? totalSpent / (1 + VAT_RATE) : totalSpent;
+  const displayAllocated = showNet ? allocData.totalAllocated / (1 + VAT_RATE) : allocData.totalAllocated;
+  const totalVariance = displayAllocated - displaySpent;
+  const utilizedPct = displayAllocated > 0 ? (displaySpent / displayAllocated) * 100 : 0;
   
   let criticalCount = 0;
   allocData.departments.forEach((row: any) => {
@@ -46,7 +50,18 @@ export function VarianceView({ activeScenario }: VarianceViewProps) {
           <p className="text-[15px] text-slate-500 mt-1">Real-time tracking of budget vs. actual spending across all departments</p>
         </div>
         
-        <div className="bg-white p-3 border border-slate-200 rounded-xl shadow-sm flex items-center gap-4">
+        <div className="flex items-center gap-4">
+          {/* Gross / Net Toggle */}
+          <div className="bg-white p-2 border border-slate-200 rounded-xl shadow-sm flex items-center gap-2">
+            <span className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+              !showNet ? 'bg-[#0A192F] text-white' : 'text-slate-500 hover:bg-slate-50'
+            }`} onClick={() => setShowNet(false)}>Gross (With Tax)</span>
+            <span className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+              showNet ? 'bg-[#0A192F] text-white' : 'text-slate-500 hover:bg-slate-50'
+            }`} onClick={() => setShowNet(true)}>Net (Without Tax)</span>
+          </div>
+
+          <div className="bg-white p-3 border border-slate-200 rounded-xl shadow-sm flex items-center gap-4">
           <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center">
             <Calendar className="w-5 h-5"/>
           </div>
@@ -58,15 +73,16 @@ export function VarianceView({ activeScenario }: VarianceViewProps) {
               </div>
               <span className="text-[14px] font-black text-slate-800">{fiscalYearElapsedPct}% Elapsed</span>
             </div>
+            </div>
           </div>
         </div>
       </div>
       
       <div className="grid grid-cols-4 gap-5">
         {[
-          {l:'Total Budgeted',v:`₱${allocData.totalAllocated.toLocaleString()}`,s:'FY 2026 allocation',c:'#0A192F'},
-          {l:'Total Spent',v:`₱${totalSpent.toLocaleString()}`,s:`${utilizedPct.toFixed(1)}% utilized`,c:'#0A192F'},
-          {l:'Variance',v:`${totalVariance >= 0 ? '-' : '+'}₱${Math.abs(totalVariance).toLocaleString()}`,s:totalVariance >= 0 ? 'Under budget' : 'Over budget',c:totalVariance >= 0 ? '#10B981' : '#EF4444'},
+          {l:'Total Budgeted',v:`₱${displayAllocated.toLocaleString(undefined,{maximumFractionDigits:0})}`,s:`FY 2026 allocation ${showNet ? '(Net)' : '(Gross)'}`,c:'#0A192F'},
+          {l:'Total Spent',v:`₱${displaySpent.toLocaleString(undefined,{maximumFractionDigits:0})}`,s:`${utilizedPct.toFixed(1)}% utilized`,c:'#0A192F'},
+          {l:'Variance',v:`${totalVariance >= 0 ? '-' : '+'}₱${Math.abs(totalVariance).toLocaleString(undefined,{maximumFractionDigits:0})}`,s:totalVariance >= 0 ? 'Under budget' : 'Over budget',c:totalVariance >= 0 ? '#10B981' : '#EF4444'},
           {l:'Critical Pacing Warnings',v:criticalCount.toString(),s:'Spending faster than time elapsed',c:'#EF4444'}
         ].map((k,i)=>(
           <div key={i} className="bg-white rounded-xl p-5 border border-[#d1d5db]" style={{boxShadow:'0 2px 8px rgba(0,0,0,0.04)'}}>
@@ -95,8 +111,10 @@ export function VarianceView({ activeScenario }: VarianceViewProps) {
           </thead>
           <tbody className="divide-y divide-slate-100">
             {allocData.departments.map((row: any, i: number)=>{
-              const v = row.amount - row.spent;
-              const p = row.amount > 0 ? parseFloat(((row.spent / row.amount) * 100).toFixed(1)) : 0;
+              const displayRowSpent = showNet ? row.spent / (1 + VAT_RATE) : row.spent;
+              const displayRowBudget = showNet ? row.amount / (1 + VAT_RATE) : row.amount;
+              const v = displayRowBudget - displayRowSpent;
+              const p = displayRowBudget > 0 ? parseFloat(((displayRowSpent / displayRowBudget) * 100).toFixed(1)) : 0;
               
               // Pacing logic:
               const pacingDiff = p - fiscalYearElapsedPct;
@@ -115,10 +133,10 @@ export function VarianceView({ activeScenario }: VarianceViewProps) {
               return (
                 <tr key={i} className={`hover:bg-slate-50/60 transition-colors ${s === 'critical' ? 'bg-red-50/20' : ''}`}>
                   <td className="px-6 py-3.5 font-bold text-[14px] text-slate-900">{row.name}</td>
-                  <td className="px-6 py-3.5 font-mono text-[13px] text-slate-500">₱{row.amount.toLocaleString()}</td>
-                  <td className="px-6 py-3.5 font-mono font-bold text-[13px] text-slate-900">₱{row.spent.toLocaleString()}</td>
+                  <td className="px-6 py-3.5 font-mono text-[13px] text-slate-500">₱{displayRowBudget.toLocaleString(undefined,{maximumFractionDigits:0})}</td>
+                  <td className="px-6 py-3.5 font-mono font-bold text-[13px] text-slate-900">₱{displayRowSpent.toLocaleString(undefined,{maximumFractionDigits:0})}</td>
                   <td className={`px-6 py-3.5 font-mono font-bold text-[13px] ${v >= 0 ? 'text-[#10B981]' : 'text-red-500'}`}>
-                    {v >= 0 ? '-' : '+'}₱{Math.abs(v).toLocaleString()}
+                    {v >= 0 ? '-' : '+'}₱{Math.abs(v).toLocaleString(undefined,{maximumFractionDigits:0})}
                   </td>
                   <td className="px-6 py-3.5">
                     <div className="flex items-center gap-2">

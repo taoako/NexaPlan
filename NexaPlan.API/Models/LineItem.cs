@@ -15,6 +15,7 @@ namespace NexaPlan.API.Models
         public decimal Total => Quantity * UnitCost;             // computed
         public string Justification { get; set; } = string.Empty;
         public bool IsRejected { get; set; } = false;
+        public bool IsVatInclusive { get; set; } = true; // If true, Total includes 12% VAT
 
         [ForeignKey("ProposalID")]
         public BudgetProposal? Proposal { get; set; }
