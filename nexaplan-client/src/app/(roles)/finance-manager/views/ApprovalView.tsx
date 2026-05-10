@@ -11,6 +11,8 @@ export function ApprovalView() {
   const [reviewNotes, setReviewNotes] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadingItems, setLoadingItems] = useState(false);
+  const [modalMessage, setModalMessage] = useState<{ title: string; message: string; type: 'error' | 'success' | 'info' } | null>(null);
+  const [confirmReject, setConfirmReject] = useState(false);
 
   useEffect(() => {
     fetchProposals();
@@ -61,36 +63,44 @@ export function ApprovalView() {
     if (!selectedProposal) return;
     try {
       await financeManagerApi.approveProposal(selectedProposal.id, rejectedItems);
-      alert('Budget request approved!');
+      setModalMessage({ title: 'Approved', message: 'Budget request approved successfully.', type: 'success' });
       fetchProposals();
     } catch (err) {
       console.error(err);
+      setModalMessage({ title: 'Approval Failed', message: 'Unable to approve this request.', type: 'error' });
     }
   };
   
   const handleRequestChanges = async () => {
     if (!selectedProposal) return;
-    if (!reviewNotes) return alert('Please provide notes when requesting changes.');
+    if (!reviewNotes) return setModalMessage({ title: 'Notes Required', message: 'Please provide notes when requesting changes.', type: 'error' });
     try {
       await financeManagerApi.requestChanges(selectedProposal.id, reviewNotes);
-      alert('Change request sent.');
+      setModalMessage({ title: 'Changes Requested', message: 'Change request sent to the department head.', type: 'success' });
       fetchProposals();
     } catch (err) {
       console.error(err);
+      setModalMessage({ title: 'Request Failed', message: 'Unable to request changes.', type: 'error' });
     }
   };
   
   const handleReject = async () => {
     if (!selectedProposal) return;
-    if (!reviewNotes) return alert('Please provide a reason for rejection.');
-    if (confirm('Reject this budget request?')) {
-      try {
-        await financeManagerApi.rejectProposal(selectedProposal.id, reviewNotes);
-        alert('Budget request rejected.');
-        fetchProposals();
-      } catch (err) {
-        console.error(err);
-      }
+    if (!reviewNotes) return setModalMessage({ title: 'Notes Required', message: 'Please provide a reason for rejection.', type: 'error' });
+    setConfirmReject(true);
+  };
+
+  const confirmRejectProposal = async () => {
+    if (!selectedProposal) return;
+    try {
+      await financeManagerApi.rejectProposal(selectedProposal.id, reviewNotes);
+      setModalMessage({ title: 'Rejected', message: 'Budget request rejected.', type: 'success' });
+      setConfirmReject(false);
+      fetchProposals();
+    } catch (err) {
+      console.error(err);
+      setModalMessage({ title: 'Reject Failed', message: 'Unable to reject this request.', type: 'error' });
+      setConfirmReject(false);
     }
   };
 
@@ -260,6 +270,36 @@ export function ApprovalView() {
           )}
         </div>
       </div>
+
+      {confirmReject && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full">
+            <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center mb-4"><XCircle className="w-6 h-6 text-red-500" /></div>
+            <h3 className="font-black text-slate-900 text-lg mb-1">Reject Budget Request</h3>
+            <p className="text-slate-500 text-sm mb-6">This will mark the request as rejected and notify the department head.</p>
+            <div className="flex gap-3">
+              <button onClick={confirmRejectProposal} className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-xl font-bold">Confirm Reject</button>
+              <button onClick={() => setConfirmReject(false)} className="px-4 py-2.5 border border-slate-300 rounded-xl text-slate-700 font-bold">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modalMessage && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full animate-in zoom-in-95 duration-200">
+            <div className={`mb-4 w-12 h-12 rounded-full flex items-center justify-center mx-auto ${
+              modalMessage.type === 'error' ? 'bg-red-100 text-red-500' :
+              modalMessage.type === 'success' ? 'bg-emerald-100 text-emerald-500' : 'bg-blue-100 text-blue-500'
+            }`}>
+              {modalMessage.type === 'error' ? <XCircle className="w-6 h-6" /> : <CheckCircle2 className="w-6 h-6" />}
+            </div>
+            <h3 className="font-black text-lg text-slate-900 text-center mb-2">{modalMessage.title}</h3>
+            <p className="text-sm text-slate-600 text-center mb-6">{modalMessage.message}</p>
+            <button onClick={() => setModalMessage(null)} className="w-full bg-slate-900 hover:bg-slate-800 text-white py-2.5 rounded-xl font-bold">Acknowledge</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -14,6 +14,8 @@ export function TrialRequestsView({ onTrialCountChange }: TrialRequestsViewProps
   const [reviewNote, setReviewNote] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [approvedCredentials, setApprovedCredentials] = useState<{ email: string, tempPassword: string, company: string } | null>(null);
+  const [confirmRejectId, setConfirmRejectId] = useState<number | null>(null);
+  const [modalMessage, setModalMessage] = useState<{ title: string; message: string; type: 'error' | 'success' | 'info' } | null>(null);
 
   const fetchTrials = async () => {
     try {
@@ -46,23 +48,29 @@ export function TrialRequestsView({ onTrialCountChange }: TrialRequestsViewProps
       setReviewNote('');
       fetchTrials();
     } catch (err: any) {
-      alert(`❌ Error: ${err.message}`);
+      setModalMessage({ title: 'Approval Failed', message: err.message || 'Failed to approve request.', type: 'error' });
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleReject = async (id: number) => {
-    if (!window.confirm('Are you sure you want to reject this request?')) return;
+    setConfirmRejectId(id);
+  };
+
+  const confirmReject = async () => {
+    if (!confirmRejectId) return;
     setActionLoading(true);
     try {
-      const result = await api.rejectTrialRequest(id, reviewNote || undefined);
-      alert(`❌ ${result.message}`);
+      const result = await api.rejectTrialRequest(confirmRejectId, reviewNote || undefined);
+      setModalMessage({ title: 'Request Rejected', message: result.message, type: 'success' });
       setSelectedTrial(null);
       setReviewNote('');
+      setConfirmRejectId(null);
       fetchTrials();
     } catch (err: any) {
-      alert(`❌ Error: ${err.message}`);
+      setModalMessage({ title: 'Rejection Failed', message: err.message || 'Failed to reject request.', type: 'error' });
+      setConfirmRejectId(null);
     } finally {
       setActionLoading(false);
     }
@@ -235,6 +243,36 @@ export function TrialRequestsView({ onTrialCountChange }: TrialRequestsViewProps
           </div>
         );
       })()}
+
+      {confirmRejectId && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full">
+            <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center mb-4"><AlertTriangle className="w-6 h-6 text-red-500" /></div>
+            <h3 className="font-black text-slate-900 text-lg mb-1">Reject Trial Request</h3>
+            <p className="text-slate-500 text-sm mb-6">Are you sure you want to reject this request?</p>
+            <div className="flex gap-3">
+              <button onClick={confirmReject} className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-xl font-bold">Confirm</button>
+              <button onClick={() => setConfirmRejectId(null)} className="px-4 py-2.5 border border-slate-300 rounded-xl text-slate-700 font-bold">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modalMessage && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full animate-in zoom-in-95 duration-200">
+            <div className={`mb-4 w-12 h-12 rounded-full flex items-center justify-center mx-auto ${
+              modalMessage.type === 'error' ? 'bg-red-100 text-red-500' :
+              modalMessage.type === 'success' ? 'bg-emerald-100 text-emerald-500' : 'bg-blue-100 text-blue-500'
+            }`}>
+              {modalMessage.type === 'error' ? <AlertTriangle className="w-6 h-6" /> : <Check className="w-6 h-6" />}
+            </div>
+            <h3 className="font-black text-lg text-slate-900 text-center mb-2">{modalMessage.title}</h3>
+            <p className="text-sm text-slate-600 text-center mb-6">{modalMessage.message}</p>
+            <button onClick={() => setModalMessage(null)} className="w-full bg-slate-900 hover:bg-slate-800 text-white py-2.5 rounded-xl font-bold transition-all">Acknowledge</button>
+          </div>
+        </div>
+      )}
 
       {/* Approved Credentials Modal */}
       {approvedCredentials && (

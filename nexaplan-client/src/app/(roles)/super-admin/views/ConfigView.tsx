@@ -7,6 +7,9 @@ export function ConfigView() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showGatewayKey, setShowGatewayKey] = useState({ publicKey: false, secretKey: false, webhookSecret: false });
+  const [modalMessage, setModalMessage] = useState<{ title: string; message: string; type: 'error' | 'success' | 'info' } | null>(null);
+  const [confirmMaintenance, setConfirmMaintenance] = useState(false);
+  const [maintenanceInput, setMaintenanceInput] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -30,12 +33,22 @@ export function ConfigView() {
     setSaving(true);
     try {
       await api.updateConfig(config);
-      alert('✅ System configuration saved successfully!');
+      setModalMessage({ title: 'Saved', message: 'System configuration saved successfully.', type: 'success' });
     } catch (err: any) {
-      alert(`❌ Error: ${err.message}`);
+      setModalMessage({ title: 'Save Failed', message: err.message || 'Failed to save configuration.', type: 'error' });
     } finally {
       setSaving(false);
     }
+  };
+
+  const confirmMaintenanceToggle = () => {
+    if (maintenanceInput !== 'CONFIRM') {
+      setModalMessage({ title: 'Confirmation Failed', message: 'Type CONFIRM to enable maintenance mode.', type: 'error' });
+      return;
+    }
+    updateField('maintenance_mode', 'true');
+    setConfirmMaintenance(false);
+    setMaintenanceInput('');
   };
 
   if (loading) {
@@ -64,8 +77,8 @@ export function ConfigView() {
               <button
                 onClick={() => {
                   if (item.danger && config[item.key] !== 'true') {
-                    const confirm = window.prompt('Type "CONFIRM" to enable maintenance mode:');
-                    if (confirm !== 'CONFIRM') return;
+                    setConfirmMaintenance(true);
+                    return;
                   }
                   updateField(item.key, config[item.key] === 'true' ? 'false' : 'true');
                 }}
@@ -124,6 +137,38 @@ export function ConfigView() {
           {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} {saving ? 'Saving...' : 'Save System Configuration'}
         </button>
       </div>
+
+      {confirmMaintenance && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full">
+            <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center mb-4"><AlertTriangle className="w-6 h-6 text-red-500" /></div>
+            <h3 className="font-black text-slate-900 text-lg mb-1">Enable Maintenance Mode</h3>
+            <p className="text-slate-500 text-sm mb-4">This will invalidate all sessions and log out all tenants.</p>
+            <label className="block text-xs font-black text-slate-500 uppercase mb-2">Type CONFIRM to proceed</label>
+            <input value={maintenanceInput} onChange={e => setMaintenanceInput(e.target.value)} className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-red-500 outline-none mb-5" placeholder="CONFIRM" />
+            <div className="flex gap-3">
+              <button onClick={confirmMaintenanceToggle} className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-xl font-bold">Confirm</button>
+              <button onClick={() => { setConfirmMaintenance(false); setMaintenanceInput(''); }} className="px-4 py-2.5 border border-slate-300 rounded-xl text-slate-700 font-bold">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modalMessage && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full animate-in zoom-in-95 duration-200">
+            <div className={`mb-4 w-12 h-12 rounded-full flex items-center justify-center mx-auto ${
+              modalMessage.type === 'error' ? 'bg-red-100 text-red-500' :
+              modalMessage.type === 'success' ? 'bg-emerald-100 text-emerald-500' : 'bg-blue-100 text-blue-500'
+            }`}>
+              {modalMessage.type === 'error' ? <AlertTriangle className="w-6 h-6" /> : <Check className="w-6 h-6" />}
+            </div>
+            <h3 className="font-black text-lg text-slate-900 text-center mb-2">{modalMessage.title}</h3>
+            <p className="text-sm text-slate-600 text-center mb-6">{modalMessage.message}</p>
+            <button onClick={() => setModalMessage(null)} className="w-full bg-slate-900 hover:bg-slate-800 text-white py-2.5 rounded-xl font-bold transition-all">Acknowledge</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

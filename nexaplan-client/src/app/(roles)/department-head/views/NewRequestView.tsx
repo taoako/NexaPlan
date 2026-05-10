@@ -18,6 +18,7 @@ export function NewRequestView({ setActiveModule }: NewRequestViewProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [modalMessage, setModalMessage] = useState<{title: string, message: string, type: 'error' | 'success' | 'info'} | null>(null);
+  const [guardInfo, setGuardInfo] = useState<{ totalAllocatedCap: number; committedFunds: number; remainingCap: number } | null>(null);
 
   // Auto-save logic placeholder (could be connected to real API if wanted, but standard local save indicator for now)
   useEffect(() => {
@@ -30,6 +31,25 @@ export function NewRequestView({ setActiveModule }: NewRequestViewProps) {
       return () => clearTimeout(timer);
     }
   }, [requestTitle, requestCategory, lineItems, requestJustification, requestPriority]);
+
+  const refreshGuard = async () => {
+    try {
+      const guard = await deptHeadApi.getAllocationGuard();
+      if (guard) {
+        setGuardInfo({
+          totalAllocatedCap: guard.totalAllocatedCap ?? 0,
+          committedFunds: guard.committedFunds ?? 0,
+          remainingCap: guard.remainingCap ?? 0,
+        });
+      }
+    } catch (err) {
+      console.error('Failed to load allocation guard', err);
+    }
+  };
+
+  useEffect(() => {
+    refreshGuard();
+  }, []);
 
   const addLineItem = () => {
     setLineItems([...lineItems, { description: '', quantity: '', unitCost: '', total: 0, isVatInclusive: true }]);
@@ -98,6 +118,7 @@ export function NewRequestView({ setActiveModule }: NewRequestViewProps) {
         }))
       });
       setModalMessage({ title: 'Success', message: saveAsDraft ? 'Draft saved.' : 'Proposal submitted for review.', type: 'success' });
+      refreshGuard();
       setActiveModule('proposals');
     } catch (err) {
       console.error(err);
@@ -127,6 +148,31 @@ export function NewRequestView({ setActiveModule }: NewRequestViewProps) {
           )}
         </div>
       </div>
+
+      {guardInfo && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl px-5 py-3 flex items-center justify-between">
+          <div>
+            <div className="text-xs font-black text-blue-700 uppercase tracking-wider">Allocation Guard</div>
+            <div className="text-sm text-blue-900">Cap / Committed / Remaining</div>
+          </div>
+          <div className="flex items-center gap-6 text-sm">
+            <div className="text-right">
+              <div className="text-[11px] text-blue-600">Cap</div>
+              <div className="font-mono font-bold text-blue-900">₱{guardInfo.totalAllocatedCap.toLocaleString()}</div>
+            </div>
+            <div className="text-right">
+              <div className="text-[11px] text-blue-600">Committed</div>
+              <div className="font-mono font-bold text-blue-900">₱{guardInfo.committedFunds.toLocaleString()}</div>
+            </div>
+            <div className="text-right">
+              <div className="text-[11px] text-blue-600">Remaining</div>
+              <div className={`font-mono font-bold ${guardInfo.remainingCap < 0 ? 'text-red-600' : 'text-blue-900'}`}>
+                ₱{guardInfo.remainingCap.toLocaleString()}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-xl p-8 border border-slate-200 shadow-sm">
         <div className="mb-8">

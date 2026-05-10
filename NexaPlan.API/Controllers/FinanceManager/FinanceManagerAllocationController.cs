@@ -95,28 +95,83 @@ namespace NexaPlan.API.Controllers.FinanceManager
             if (fromDept == null || toDept == null)
                 return BadRequest(new { message = "Invalid department names." });
 
-            if (fromDept.AnnualBudgetCap < req.Amount)
-                return BadRequest(new { message = "Insufficient funds in the source department." });
-
-            fromDept.AnnualBudgetCap -= req.Amount;
-            toDept.AnnualBudgetCap += req.Amount;
+            if (req.Amount <= 0)
+                return BadRequest(new { message = "Transfer amount must be greater than zero." });
 
             var fiscalYear = DateTime.UtcNow.Year;
-            var fromAllocation = await _context.DepartmentAllocations
-                .FirstOrDefaultAsync(a => a.TenantID == tenantId && a.DepartmentID == fromDept.DepartmentID && a.FiscalYear == fiscalYear);
-            var toAllocation = await _context.DepartmentAllocations
-                .FirstOrDefaultAsync(a => a.TenantID == tenantId && a.DepartmentID == toDept.DepartmentID && a.FiscalYear == fiscalYear);
+            var allocationRows = await _context.DepartmentAllocations
+                .Where(a => a.TenantID == tenantId && a.FiscalYear == fiscalYear)
+                .ToListAsync();
 
-            if (fromAllocation != null)
+            var fromCap = allocationRows.FirstOrDefault(a => a.DepartmentID == fromDept.DepartmentID)?.TotalAllocatedCap ?? fromDept.AnnualBudgetCap;
+            var toCap = allocationRows.FirstOrDefault(a => a.DepartmentID == toDept.DepartmentID)?.TotalAllocatedCap ?? toDept.AnnualBudgetCap;
+
+            if (fromCap < req.Amount)
+                return BadRequest(new { message = "Insufficient funds in the source department." });
+
+            var approvedRows = await _context.BudgetProposals
+                .Where(p => p.TenantID == tenantId && p.DepartmentID == fromDept.DepartmentID && p.ProposalStatus == "Approved")
+                .Select(p => new { p.RequestedAmount, p.TotalAmount })
+                .ToListAsync();
+
+            var approvedTotal = approvedRows.Sum(p => p.RequestedAmount > 0 ? p.RequestedAmount : p.TotalAmount);
+            var protectedSpend = Math.Max(approvedTotal, fromDept.ActualSpent);
+            var remainingCap = fromCap - req.Amount;
+
+            if (protectedSpend > 0 && remainingCap < protectedSpend)
             {
-                fromAllocation.TotalAllocatedCap -= req.Amount;
+                return BadRequest(new
+                {
+                    message = "Transfer would compromise approved budgets for the source department.",
+                    approvedTotal = approvedTotal,
+                    actualSpent = fromDept.ActualSpent,
+                    currentCap = fromCap,
+                    proposedCap = remainingCap
+                });
+            }
+
+            fromDept.AnnualBudgetCap = remainingCap;
+            toDept.AnnualBudgetCap = toCap + req.Amount;
+
+            var fromAllocation = allocationRows.FirstOrDefault(a => a.DepartmentID == fromDept.DepartmentID);
+            var toAllocation = allocationRows.FirstOrDefault(a => a.DepartmentID == toDept.DepartmentID);
+
+            if (fromAllocation == null)
+            {
+                fromAllocation = new Models.DepartmentAllocation
+                {
+                    TenantID = tenantId,
+                    DepartmentID = fromDept.DepartmentID,
+                    FiscalYear = fiscalYear,
+                    TotalAllocatedCap = remainingCap,
+                    SetByAdminID = GetUserId(),
+                    SetAt = DateTime.UtcNow
+                };
+                _context.DepartmentAllocations.Add(fromAllocation);
+            }
+            else
+            {
+                fromAllocation.TotalAllocatedCap = remainingCap;
                 fromAllocation.SetAt = DateTime.UtcNow;
                 fromAllocation.SetByAdminID = GetUserId();
             }
 
-            if (toAllocation != null)
+            if (toAllocation == null)
             {
-                toAllocation.TotalAllocatedCap += req.Amount;
+                toAllocation = new Models.DepartmentAllocation
+                {
+                    TenantID = tenantId,
+                    DepartmentID = toDept.DepartmentID,
+                    FiscalYear = fiscalYear,
+                    TotalAllocatedCap = toCap + req.Amount,
+                    SetByAdminID = GetUserId(),
+                    SetAt = DateTime.UtcNow
+                };
+                _context.DepartmentAllocations.Add(toAllocation);
+            }
+            else
+            {
+                toAllocation.TotalAllocatedCap = toCap + req.Amount;
                 toAllocation.SetAt = DateTime.UtcNow;
                 toAllocation.SetByAdminID = GetUserId();
             }
@@ -134,7 +189,77 @@ namespace NexaPlan.API.Controllers.FinanceManager
             await _context.SaveChangesAsync();
             return Ok(new { message = "Funds transferred successfully." });
         }
+
+        [HttpPost("allocations/set")]
+        public async Task<IActionResult> SetAllocation([FromBody] SetAllocationRequest req)
+        {
+            var tenantId = GetTenantId();
+            if (tenantId == 0) return NoTenant();
+            if (req.Amount < 0) return BadRequest(new { message = "Allocation amount must be zero or greater." });
+
+            var dept = await _context.Departments.FirstOrDefaultAsync(d => d.TenantID == tenantId && d.DepartmentID == req.DepartmentId);
+            if (dept == null) return BadRequest(new { message = "Department not found." });
+
+            var approvedRows = await _context.BudgetProposals
+                .Where(p => p.TenantID == tenantId && p.DepartmentID == dept.DepartmentID && p.ProposalStatus == "Approved")
+                .Select(p => new { p.RequestedAmount, p.TotalAmount })
+                .ToListAsync();
+
+            var approvedTotal = approvedRows.Sum(p => p.RequestedAmount > 0 ? p.RequestedAmount : p.TotalAmount);
+            var protectedSpend = Math.Max(approvedTotal, dept.ActualSpent);
+
+            if (protectedSpend > 0 && req.Amount < protectedSpend)
+            {
+                return BadRequest(new
+                {
+                    message = "Allocation cannot be set below approved budgets or actual spend.",
+                    approvedTotal = approvedTotal,
+                    actualSpent = dept.ActualSpent,
+                    requestedCap = req.Amount
+                });
+            }
+
+            var fiscalYear = DateTime.UtcNow.Year;
+            var allocation = await _context.DepartmentAllocations
+                .FirstOrDefaultAsync(a => a.TenantID == tenantId && a.DepartmentID == dept.DepartmentID && a.FiscalYear == fiscalYear);
+
+            if (allocation == null)
+            {
+                allocation = new Models.DepartmentAllocation
+                {
+                    TenantID = tenantId,
+                    DepartmentID = dept.DepartmentID,
+                    FiscalYear = fiscalYear,
+                    TotalAllocatedCap = req.Amount,
+                    SetByAdminID = GetUserId(),
+                    SetAt = DateTime.UtcNow
+                };
+                _context.DepartmentAllocations.Add(allocation);
+            }
+            else
+            {
+                allocation.TotalAllocatedCap = req.Amount;
+                allocation.SetByAdminID = GetUserId();
+                allocation.SetAt = DateTime.UtcNow;
+            }
+
+            dept.AnnualBudgetCap = req.Amount;
+
+            _context.AuditLogs.Add(new Models.AuditLog
+            {
+                TenantID = tenantId,
+                UserID = GetUserId(),
+                ActionType = "ALLOCATION_SET",
+                TargetResources = $"Dept:{dept.DepartmentName} Cap:₱{req.Amount}",
+                IPAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                TimeStamp = DateTime.UtcNow
+            });
+
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Allocation updated successfully." });
+        }
     }
 
     public record TransferRequest(string From, string To, decimal Amount);
+    public record SetAllocationRequest(int DepartmentId, decimal Amount);
 }

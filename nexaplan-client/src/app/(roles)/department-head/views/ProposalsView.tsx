@@ -12,6 +12,7 @@ export function ProposalsView({ setActiveModule }: ProposalsViewProps) {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [modalMessage, setModalMessage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProposals();
@@ -167,7 +168,7 @@ export function ProposalsView({ setActiveModule }: ProposalsViewProps) {
                     View Details
                   </button>
                   {proposal.status.toLowerCase() === 'draft' || proposal.status.toLowerCase() === 'changesrequested' ? (
-                    <button onClick={() => alert("Edit not implemented in this demo")} className="flex items-center justify-center gap-2 bg-[#6366F1] hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-bold text-sm transition-all">
+                    <button onClick={() => setModalMessage('Edit is not implemented in this demo.')} className="flex items-center justify-center gap-2 bg-[#6366F1] hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-bold text-sm transition-all">
                       <Edit3 className="w-4 h-4" /> Edit
                     </button>
                   ) : (
@@ -181,6 +182,19 @@ export function ProposalsView({ setActiveModule }: ProposalsViewProps) {
           })
         )}
       </div>
+
+      {modalMessage && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full animate-in zoom-in-95 duration-200">
+            <div className="mb-4 w-12 h-12 rounded-full bg-blue-100 text-blue-500 flex items-center justify-center mx-auto">
+              <Edit3 className="w-6 h-6" />
+            </div>
+            <h3 className="font-black text-lg text-slate-900 text-center mb-2">Notice</h3>
+            <p className="text-sm text-slate-600 text-center mb-6">{modalMessage}</p>
+            <button onClick={() => setModalMessage(null)} className="w-full bg-slate-900 hover:bg-slate-800 text-white py-2.5 rounded-xl font-bold transition-all">Acknowledge</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

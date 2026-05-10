@@ -160,3 +160,22 @@ export const updateConfig = (updates: Record<string, string>) =>
   apiFetch<{ message: string }>('/config', {
     method: 'PUT', body: JSON.stringify(updates),
   });
+
+// ─── Pricing (public + admin) ───
+export interface PricingConfig {
+  price_starter_monthly: string;
+  price_starter_annual: string;
+  price_professional_monthly: string;
+  price_professional_annual: string;
+  price_enterprise_monthly: string;
+  price_enterprise_annual: string;
+  pricing_vat_inclusive: string;
+}
+
+export const getPricing = (): Promise<PricingConfig> =>
+  fetch('http://localhost:5189/api/pricing').then(r => r.json());
+
+export const savePricing = (data: PricingConfig) =>
+  apiFetch<{ message: string }>('/config', {
+    method: 'PUT', body: JSON.stringify(data),
+  });

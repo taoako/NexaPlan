@@ -201,7 +201,7 @@ export default function SuperAdminSystem({ onBack }: SuperAdminSystemProps) {
                 className="w-[320px] pl-10 pr-4 py-2 border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#4F46E5]"
               />
             </div>
-            <button className="relative p-2 hover:bg-slate-50 rounded-md transition-all" onClick={() => alert('🔔 Notifications')}>
+            <button className="relative p-2 hover:bg-slate-50 rounded-md transition-all" onClick={() => addToast('Notifications are coming soon.', 'info')}>
               <Bell className="w-5 h-5 text-slate-600" />
               {pendingTrialCount > 0 && <div className="absolute top-1 right-1 w-2 h-2 bg-[#EF4444] rounded-full border-2 border-white"></div>}
             </button>
@@ -228,7 +228,7 @@ export default function SuperAdminSystem({ onBack }: SuperAdminSystemProps) {
                   onImpersonate={(t) => setImpersonateTenant(t)}
                 />
               )}
-              {currentView === 'billing' && <BillingView />}
+              {currentView === 'billing' && <BillingView addToast={addToast} />}
               {currentView === 'admins' && <AdminsView addToast={addToast} />}
               {currentView === 'trial-requests' && <TrialRequestsView onTrialCountChange={(c) => setPendingTrialCount(c)} />}
               {currentView === 'config' && <ConfigView />}

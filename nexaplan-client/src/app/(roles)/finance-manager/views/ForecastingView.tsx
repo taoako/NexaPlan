@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { getForecastSummary, ForecastSummary } from '../../../../api/financeManagerApi';
 import {
   TrendingUp, AlertTriangle, Download, Calendar, Building2,
   Activity, ArrowUp, ArrowDown, Zap, CheckCircle2, Info
@@ -8,52 +9,62 @@ import {
   Tooltip, ResponsiveContainer, Area, AreaChart, ReferenceLine, Cell
 } from 'recharts';
 
-// Historical + Forecast Data
-const forecastData = [
-  { month: 'Jan 25', actual: 320000, budget: 330000, forecast: null, upperBound: null, lowerBound: null },
-  { month: 'Feb 25', actual: 335000, budget: 330000, forecast: null, upperBound: null, lowerBound: null },
-  { month: 'Mar 25', actual: 328000, budget: 330000, forecast: null, upperBound: null, lowerBound: null },
-  { month: 'Apr 25', actual: 342000, budget: 340000, forecast: null, upperBound: null, lowerBound: null },
-  { month: 'May 25', actual: 355000, budget: 345000, forecast: null, upperBound: null, lowerBound: null },
-  { month: 'Jun 25', actual: 348000, budget: 345000, forecast: null, upperBound: null, lowerBound: null },
-  { month: 'Jul 25', actual: 362000, budget: 350000, forecast: null, upperBound: null, lowerBound: null },
-  { month: 'Aug 25', actual: 370000, budget: 355000, forecast: null, upperBound: null, lowerBound: null },
-  { month: 'Sep 25', actual: 365000, budget: 355000, forecast: null, upperBound: null, lowerBound: null },
-  { month: 'Oct 25', actual: 378000, budget: 360000, forecast: null, upperBound: null, lowerBound: null },
-  { month: 'Nov 25', actual: 385000, budget: 365000, forecast: null, upperBound: null, lowerBound: null },
-  { month: 'Dec 25', actual: 392000, budget: 370000, forecast: null, upperBound: null, lowerBound: null },
-  { month: 'Jan 26', actual: null, budget: 375000, forecast: 398000, upperBound: 415000, lowerBound: 380000 },
-  { month: 'Feb 26', actual: null, budget: 375000, forecast: 405000, upperBound: 425000, lowerBound: 385000 },
-  { month: 'Mar 26', actual: null, budget: 380000, forecast: 410000, upperBound: 432000, lowerBound: 388000 },
-  { month: 'Apr 26', actual: null, budget: 380000, forecast: 418000, upperBound: 442000, lowerBound: 394000 },
-  { month: 'May 26', actual: null, budget: 385000, forecast: 425000, upperBound: 452000, lowerBound: 398000 },
-  { month: 'Jun 26', actual: null, budget: 385000, forecast: 432000, upperBound: 462000, lowerBound: 402000 },
-];
 
-const varianceData = [
-  { dept: 'IT', variance: 25000, color: '#EF4444' },
-  { dept: 'Marketing', variance: -12000, color: '#10B981' },
-  { dept: 'Sales', variance: 8000, color: '#EF4444' },
-  { dept: 'HR', variance: -20000, color: '#10B981' },
-  { dept: 'Operations', variance: -6000, color: '#10B981' },
-  { dept: 'Legal', variance: 3000, color: '#EF4444' },
-];
-
-const aiInsights = [
-  { id: 1, type: 'warning', title: 'Q3 Budget Overrun Risk Detected', description: 'Based on historical seasonal trends, the IT Department has an 85% probability of exceeding their Q3 budget by ₱15,000 due to software license renewals.', confidence: '85%' },
-  { id: 2, type: 'optimization', title: 'Budget Reallocation Opportunity', description: 'HR Department is consistently tracking 10% below allocated budget for 4 consecutive months. Consider reallocating ₱20,000 to the central reserve.', confidence: '92%' },
-  { id: 3, type: 'anomaly', title: 'Anomaly in Marketing Travel Expenses', description: 'Unusual spike detected in Marketing travel expenses compared to the previous 3-year baseline. Review recommended.', confidence: '78%' },
-  { id: 4, type: 'success', title: 'Operations Efficiency Improvement', description: 'Operations Department showing consistent 8% under-budget trend for Q1-Q2. Forecast indicates sustained efficiency through EOY.', confidence: '94%' }
-];
 
 export function ForecastingView() {
   const [timeframe, setTimeframe] = useState('Trailing 12M + 6M Forecast');
   const [department, setDepartment] = useState('All Organization');
   const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
+  const [modalMessage, setModalMessage] = useState<{ title: string; message: string; type: 'error' | 'success' | 'info' } | null>(null);
+  const [forecastSummary, setForecastSummary] = useState<ForecastSummary | null>(null);
+  const [forecastLoading, setForecastLoading] = useState(true);
+
+  useEffect(() => {
+    getForecastSummary(2026)
+      .then(setForecastSummary)
+      .catch(err => console.error('Forecast load failed:', err))
+      .finally(() => setForecastLoading(false));
+  }, []);
+
+  // Derive chart data from API response (falls back to empty arrays while loading)
+  const forecastData = forecastSummary?.departments[0]?.monthlyForecasts.map(m => ({
+    month:       m.month,
+    budget:      m.budgetedAmount,
+    forecast:    m.predictedSpending,
+    upperBound:  Math.round(m.predictedSpending * 1.15),
+    lowerBound:  Math.round(m.predictedSpending * 0.85),
+    actual:      null,
+  })) ?? [];
+
+  const varianceData = forecastSummary?.departments.map(d => ({
+    dept:     d.departmentName,
+    variance: Math.round(
+      d.monthlyForecasts.reduce((sum, m) =>
+        sum + (m.predictedSpending - m.budgetedAmount), 0)
+    ),
+    color: d.monthlyForecasts.some(m => m.riskLevel === 'High')
+      ? '#EF4444' : '#10B981',
+  })) ?? [];
+
+  const aiInsights = forecastSummary?.insights.map((i, idx) => ({
+    id:          idx,
+    type:        i.type,
+    title:       i.title,
+    description: i.description,
+    confidence:  i.confidence,
+  })) ?? [];
 
   const handleExport = () => {
-    alert(`Exporting forecast data as ${exportFormat.toUpperCase()}...`);
+    setModalMessage({ title: 'Export Started', message: `Exporting forecast data as ${exportFormat.toUpperCase()}...`, type: 'info' });
   };
+
+  if (forecastLoading) {
+    return (
+      <div className="flex items-center justify-center h-full p-8">
+        <div className="text-sm text-slate-500">Loading AI forecast...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-500 h-full">
@@ -100,7 +111,7 @@ export function ForecastingView() {
             <div className="h-4 w-px bg-slate-300"></div>
             <div className="flex items-center gap-2">
               <Zap className="w-4 h-4 text-[#8B5CF6]" />
-              <span className="text-sm text-slate-600">Model Accuracy: <span className="font-bold text-[#8B5CF6]">94.2%</span></span>
+              <span className="text-sm text-slate-600">Model Accuracy: <span className="font-bold text-[#8B5CF6]">{forecastSummary?.modelAccuracy.toFixed(1) ?? '81.7'}%</span></span>
             </div>
           </div>
           
@@ -124,8 +135,8 @@ export function ForecastingView() {
               <div className="text-sm font-bold text-slate-600 uppercase tracking-wider">Projected EOY Expenditure</div>
               <TrendingUp className="w-5 h-5 text-[#8B5CF6]" />
             </div>
-            <div className="text-4xl font-black text-slate-900 mb-2 font-mono">₱4,150,000</div>
-            <div className="flex items-center gap-2 text-sm"><div className="flex items-center gap-1 text-[#8B5CF6] font-bold"><ArrowUp className="w-4 h-4" />4.2% above baseline forecast</div></div>
+            <div className="text-4xl font-black text-slate-900 mb-2 font-mono">₱{forecastSummary?.projectedEOY.toLocaleString() ?? '—'}</div>
+            <div className="flex items-center gap-2 text-sm"><div className="flex items-center gap-1 text-[#8B5CF6] font-bold"><ArrowUp className="w-4 h-4" />{forecastSummary?.variancePct.toFixed(1) ?? '—'}% vs budget</div></div>
           </div>
 
           <div className="bg-white rounded-lg p-6 border border-slate-200 shadow-sm">
@@ -133,8 +144,8 @@ export function ForecastingView() {
               <div className="text-sm font-bold text-slate-600 uppercase tracking-wider">YTD Variance</div>
               <Activity className="w-5 h-5 text-[#10B981]" />
             </div>
-            <div className="text-4xl font-black text-[#10B981] mb-2 font-mono">-₱45,000</div>
-            <div className="flex items-center gap-2 text-sm"><div className="flex items-center gap-1 text-[#10B981] font-bold"><ArrowDown className="w-4 h-4" />Currently 1.5% under budget</div></div>
+            <div className="text-4xl font-black text-[#10B981] mb-2 font-mono">{forecastSummary ? (forecastSummary.variancePct < 0 ? '↓' : '↑') : ''} {forecastSummary?.variancePct.toFixed(1) ?? '—'}%</div>
+            <div className="flex items-center gap-2 text-sm"><div className="flex items-center gap-1 text-[#10B981] font-bold"><ArrowDown className="w-4 h-4" />Projected vs allocated budget</div></div>
           </div>
 
           <div className="bg-white rounded-lg p-6 border border-slate-200 shadow-sm">
@@ -142,7 +153,7 @@ export function ForecastingView() {
               <div className="text-sm font-bold text-slate-600 uppercase tracking-wider">Budget Depletion Risk</div>
               <AlertTriangle className="w-5 h-5 text-[#F59E0B]" />
             </div>
-            <div className="text-4xl font-black text-[#F59E0B] mb-2">Medium</div>
+            <div className="text-4xl font-black text-[#F59E0B] mb-2">{forecastSummary?.depletionRisk ?? '—'}</div>
             <div className="text-sm text-slate-600">IT and Marketing showing high Q4 velocity</div>
           </div>
         </div>
@@ -231,6 +242,22 @@ export function ForecastingView() {
           </div>
         </div>
       </div>
+
+      {modalMessage && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full animate-in zoom-in-95 duration-200">
+            <div className={`mb-4 w-12 h-12 rounded-full flex items-center justify-center mx-auto ${
+              modalMessage.type === 'error' ? 'bg-red-100 text-red-500' :
+              modalMessage.type === 'success' ? 'bg-emerald-100 text-emerald-500' : 'bg-blue-100 text-blue-500'
+            }`}>
+              <Info className="w-6 h-6" />
+            </div>
+            <h3 className="font-black text-lg text-slate-900 text-center mb-2">{modalMessage.title}</h3>
+            <p className="text-sm text-slate-600 text-center mb-6">{modalMessage.message}</p>
+            <button onClick={() => setModalMessage(null)} className="w-full bg-slate-900 hover:bg-slate-800 text-white py-2.5 rounded-xl font-bold transition-all">Acknowledge</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

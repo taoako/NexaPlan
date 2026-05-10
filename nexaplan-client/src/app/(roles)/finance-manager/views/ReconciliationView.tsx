@@ -8,6 +8,8 @@ export function ReconciliationView() {
   const [filterStatus, setFilterStatus] = useState('');
   const [rejectingId, setRejectingId] = useState<number | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [confirmReconcileId, setConfirmReconcileId] = useState<number | null>(null);
+  const [modalMessage, setModalMessage] = useState<{ title: string; message: string; type: 'error' | 'success' | 'info' } | null>(null);
 
   useEffect(() => {
     fetchExpenses();
@@ -26,24 +28,29 @@ export function ReconciliationView() {
   };
 
   const handleReconcile = async (id: number) => {
-    if (!confirm('Clear this expense as reconciled? This will update the department\'s actual spend.')) return;
+    setConfirmReconcileId(id);
+  };
+
+  const confirmReconcile = async () => {
+    if (!confirmReconcileId) return;
     try {
-      await financeManagerApi.reconcileExpense(id);
+      await financeManagerApi.reconcileExpense(confirmReconcileId);
       fetchExpenses();
     } catch (err: any) {
-      alert(err.message || 'Failed to reconcile.');
+      setModalMessage({ title: 'Reconcile Failed', message: err.message || 'Failed to reconcile.', type: 'error' });
     }
+    setConfirmReconcileId(null);
   };
 
   const handleReject = async () => {
-    if (!rejectingId || !rejectReason.trim()) return alert('Please provide a reason for rejection.');
+    if (!rejectingId || !rejectReason.trim()) return setModalMessage({ title: 'Reason Required', message: 'Please provide a reason for rejection.', type: 'error' });
     try {
       await financeManagerApi.rejectExpense(rejectingId, rejectReason);
       setRejectingId(null);
       setRejectReason('');
       fetchExpenses();
     } catch (err: any) {
-      alert(err.message || 'Failed to reject.');
+      setModalMessage({ title: 'Reject Failed', message: err.message || 'Failed to reject.', type: 'error' });
     }
   };
 
@@ -198,6 +205,44 @@ export function ReconciliationView() {
               <button onClick={() => { setRejectingId(null); setRejectReason(''); }} className="flex-1 py-3 rounded-xl font-bold text-sm text-slate-600 hover:bg-slate-100 transition-all">Cancel</button>
               <button onClick={handleReject} className="flex-1 py-3 rounded-xl font-bold text-sm bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/30 transition-all">Confirm Rejection</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reconcile Confirm */}
+      {confirmReconcileId !== null && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center shrink-0">
+                <CheckCircle2 className="w-6 h-6 text-emerald-500" />
+              </div>
+              <div>
+                <h3 className="font-black text-lg text-slate-900">Confirm Reconciliation</h3>
+                <p className="text-sm text-slate-500">This will update the department's actual spend.</p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={confirmReconcile} className="flex-1 py-3 rounded-xl font-bold text-sm bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/30 transition-all">Confirm</button>
+              <button onClick={() => setConfirmReconcileId(null)} className="flex-1 py-3 rounded-xl font-bold text-sm text-slate-600 hover:bg-slate-100 transition-all">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reusable Message Modal */}
+      {modalMessage && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full animate-in zoom-in-95 duration-200">
+            <div className={`mb-4 w-12 h-12 rounded-full flex items-center justify-center mx-auto ${
+              modalMessage.type === 'error' ? 'bg-red-100 text-red-500' :
+              modalMessage.type === 'success' ? 'bg-emerald-100 text-emerald-500' : 'bg-blue-100 text-blue-500'
+            }`}>
+              {modalMessage.type === 'error' ? <XCircle className="w-6 h-6" /> : <CheckCircle2 className="w-6 h-6" />}
+            </div>
+            <h3 className="font-black text-lg text-slate-900 text-center mb-2">{modalMessage.title}</h3>
+            <p className="text-sm text-slate-600 text-center mb-6">{modalMessage.message}</p>
+            <button onClick={() => setModalMessage(null)} className="w-full bg-slate-900 hover:bg-slate-800 text-white py-2.5 rounded-xl font-bold transition-all">Acknowledge</button>
           </div>
         </div>
       )}
