@@ -4,6 +4,7 @@ import { deptHeadApi } from '../../../../api/deptHeadApi';
 
 export function ScenariosView() {
   const [customScenarioPercent, setCustomScenarioPercent] = useState<number>(0);
+  const [modalMessage, setModalMessage] = useState<string | null>(null);
   const [scenarios, setScenarios] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [baseBudget, setBaseBudget] = useState(0);
@@ -48,7 +49,7 @@ export function ScenariosView() {
           <h1 className="text-3xl font-black text-[#0A192F]">Budget Scenario Planning</h1>
           <p className="text-slate-600 mt-2">Model different budget scenarios and operational trade-offs</p>
         </div>
-        <button className="flex items-center gap-2 bg-[#10B981] hover:bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg" onClick={() => alert("Scenario Pitch feature coming soon")}>
+        <button className="flex items-center gap-2 bg-[#10B981] hover:bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg" onClick={() => setModalMessage('Scenario Pitch feature coming soon.') }>
           <Share className="w-5 h-5" />
           Submit Scenario Pitch
         </button>
@@ -102,6 +103,18 @@ export function ScenariosView() {
           </div>
         ))}
       </div>
+      {modalMessage && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full animate-in zoom-in-95 duration-200">
+            <div className="mb-4 w-12 h-12 rounded-full bg-blue-100 text-blue-500 flex items-center justify-center mx-auto">
+              <Share className="w-6 h-6" />
+            </div>
+            <h3 className="font-black text-lg text-slate-900 text-center mb-2">Notice</h3>
+            <p className="text-sm text-slate-600 text-center mb-6">{modalMessage}</p>
+            <button onClick={() => setModalMessage(null)} className="w-full bg-slate-900 hover:bg-slate-800 text-white py-2.5 rounded-xl font-bold transition-all">Acknowledge</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -14,6 +14,7 @@ namespace NexaPlan.API.Data
         public DbSet<Role> Roles { get; set; }
         public DbSet<Department> Departments { get; set; }
         public DbSet<User> Users { get; set; }
+        public DbSet<DepartmentAllocation> DepartmentAllocations { get; set; }
 
         // --- Financial Engine ---
         public DbSet<BudgetProposal> BudgetProposals { get; set; }

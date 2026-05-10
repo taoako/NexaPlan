@@ -85,7 +85,7 @@ export function DepartmentsTab({ departments, users, deptLabel, loading, onRefre
             <label className="block text-xs font-black text-slate-500 uppercase mb-2">Head / Lead</label>
             <select value={form.headUserId} onChange={e => setForm(p => ({ ...p, headUserId: +e.target.value }))} className={inputCls}>
               <option value={0}>None / Unassigned</option>
-              {users.map(u => <option key={u.userId} value={u.userId}>{u.name}</option>)}
+              {users.filter(u => u.roleId === 4).map(u => <option key={u.userId} value={u.userId}>{u.name}</option>)}
             </select>
           </div>
           <div>

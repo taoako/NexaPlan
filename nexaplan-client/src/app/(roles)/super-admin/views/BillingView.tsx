@@ -3,7 +3,11 @@ import { Download, RefreshCw, CheckCircle2, DollarSign, X } from 'lucide-react';
 import * as api from '../../../../api/superAdminApi';
 import type { InvoiceDto } from '../../../../api/superAdminApi';
 
-export function BillingView() {
+interface BillingViewProps {
+  addToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+}
+
+export function BillingView({ addToast }: BillingViewProps) {
   const [invoices, setInvoices] = useState<InvoiceDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceDto | null>(null);
@@ -11,6 +15,8 @@ export function BillingView() {
   const [partialAmount, setPartialAmount] = useState('');
   const [refundLoading, setRefundLoading] = useState(false);
   const [pricingConfig, setPricingConfig] = useState<api.PricingConfig | null>(null);
+  const [pricingLoading, setPricingLoading] = useState(false);
+  const [pricingError, setPricingError] = useState<string | null>(null);
   const [savingPricing, setSavingPricing] = useState(false);
 
   const fetchInvoices = async () => {
@@ -27,10 +33,16 @@ export function BillingView() {
 
   const fetchPricing = async () => {
     try {
+      setPricingLoading(true);
+      setPricingError(null);
       const data = await api.getPricing();
       setPricingConfig(data);
     } catch (err) {
       console.error('Failed to load pricing:', err);
+      setPricingError('Unable to load pricing configuration.');
+      addToast('Failed to load pricing configuration.', 'error');
+    } finally {
+      setPricingLoading(false);
     }
   };
 
@@ -43,7 +55,8 @@ export function BillingView() {
       await fetchInvoices();
     } catch (err) {
       console.error('Failed to sync invoices:', err);
-      alert('Failed to sync with PayMongo.');
+      addToast('Failed to sync with PayMongo.', 'error');
+    } finally {
       setLoading(false);
     }
   };
@@ -54,12 +67,12 @@ export function BillingView() {
     try {
       const partial = refundType === 'partial' && partialAmount ? parseFloat(partialAmount) : undefined;
       const result = await api.refundInvoice(selectedInvoice.invoiceID, partial);
-      alert(`✅ ${result.message}`);
+      addToast(result.message, 'success');
       setSelectedInvoice(null);
       setPartialAmount('');
       fetchInvoices();
     } catch (err: any) {
-      alert(`❌ Error: ${err.message}`);
+      addToast(err.message || 'Refund failed.', 'error');
     } finally {
       setRefundLoading(false);
     }
@@ -70,9 +83,9 @@ export function BillingView() {
     setSavingPricing(true);
     try {
       await api.savePricing(pricingConfig);
-      alert('✅ Pricing configuration saved successfully!');
+      addToast('Pricing configuration saved successfully.', 'success');
     } catch (err: any) {
-      alert(`❌ Error: ${err.message}`);
+      addToast(err.message || 'Failed to save pricing.', 'error');
     } finally {
       setSavingPricing(false);
     }
@@ -163,7 +176,30 @@ export function BillingView() {
       </div>
 
       {/* Pricing Management */}
-      {pricingConfig && (
+      {pricingLoading && (
+        <div className="bg-white rounded-md border border-slate-200 shadow-sm p-6">
+          <div className="flex items-center gap-3 text-slate-600">
+            <RefreshCw className="w-4 h-4 animate-spin" />
+            <span className="text-sm font-semibold">Loading pricing configuration...</span>
+          </div>
+        </div>
+      )}
+
+      {!pricingLoading && pricingError && (
+        <div className="bg-white rounded-md border border-amber-200 shadow-sm p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-[18px] font-semibold text-slate-900">Pricing Configuration Unavailable</h2>
+              <p className="text-sm text-slate-500 mt-0.5">{pricingError} Try reloading pricing to manage tiers.</p>
+            </div>
+            <button onClick={fetchPricing} className="border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-md text-sm font-semibold flex items-center gap-2">
+              <RefreshCw className="w-4 h-4" /> Reload Pricing
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!pricingLoading && pricingConfig && (
         <div className="bg-white rounded-md border border-slate-200 shadow-sm p-6">
           <div className="flex items-center justify-between mb-6">
             <div>

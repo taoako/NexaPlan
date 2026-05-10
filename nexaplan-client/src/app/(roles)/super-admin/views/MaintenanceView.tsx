@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { CloudDownload, RefreshCw, Power, CheckCircle2, Activity, AlertTriangle, Server, Calendar, Clock, Globe } from 'lucide-react';
 
 export function MaintenanceView() {
+  const [modalMessage, setModalMessage] = useState<string | null>(null);
+  const [confirmRestart, setConfirmRestart] = useState(false);
+
   return (
     <div className="max-w-[1440px] mx-auto space-y-6">
       {/* KPI Cards */}
@@ -33,7 +36,7 @@ export function MaintenanceView() {
         <h2 className="text-[20px] font-semibold text-slate-900 mb-6">Manual Operations</h2>
         <div className="grid grid-cols-3 gap-6">
           <button
-            onClick={() => alert('💾 Manual backup initiated!\n\nEstimated completion: 4 minutes.\nDestination: AWS S3 US-East')}
+            onClick={() => setModalMessage('Manual backup initiated. Estimated completion: 4 minutes. Destination: AWS S3 US-East.')}
             className="flex flex-col items-center gap-3 p-6 border-2 border-[#4F46E5] rounded-md hover:bg-[#4F46E5]/5 transition-all group"
           >
             <CloudDownload className="w-10 h-10 text-[#4F46E5] group-hover:scale-110 transition-transform" />
@@ -41,7 +44,7 @@ export function MaintenanceView() {
             <span className="text-xs text-slate-600">Create immediate database snapshot</span>
           </button>
           <button
-            onClick={() => alert('🔄 Cache cleared!\n\nRedis clusters flushed. All caches will rebuild on next request.')}
+            onClick={() => setModalMessage('Cache cleared. Redis clusters flushed. All caches will rebuild on next request.')}
             className="flex flex-col items-center gap-3 p-6 border-2 border-slate-300 rounded-md hover:bg-slate-50 transition-all group"
           >
             <RefreshCw className="w-10 h-10 text-slate-600 group-hover:scale-110 transition-transform" />
@@ -49,10 +52,7 @@ export function MaintenanceView() {
             <span className="text-xs text-slate-600">Flush Redis cache clusters</span>
           </button>
           <button
-            onClick={() => {
-              if (window.confirm('⚠️ This will restart all microservices. ~30 seconds of downtime. Confirm?'))
-                alert('🔁 Microservices restarting. ETA: 30s.');
-            }}
+            onClick={() => setConfirmRestart(true)}
             className="flex flex-col items-center gap-3 p-6 border-2 border-[#EF4444] rounded-md hover:bg-[#EF4444]/5 transition-all group"
           >
             <Power className="w-10 h-10 text-[#EF4444] group-hover:scale-110 transition-transform" />
@@ -61,6 +61,33 @@ export function MaintenanceView() {
           </button>
         </div>
       </div>
+
+      {confirmRestart && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full">
+            <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center mb-4"><Power className="w-6 h-6 text-red-500" /></div>
+            <h3 className="font-black text-slate-900 text-lg mb-1">Restart Microservices</h3>
+            <p className="text-slate-500 text-sm mb-6">This will cause about 30 seconds of downtime.</p>
+            <div className="flex gap-3">
+              <button onClick={() => { setConfirmRestart(false); setModalMessage('Microservices restarting. ETA: 30s.'); }} className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-xl font-bold">Confirm</button>
+              <button onClick={() => setConfirmRestart(false)} className="px-4 py-2.5 border border-slate-300 rounded-xl text-slate-700 font-bold">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modalMessage && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full animate-in zoom-in-95 duration-200">
+            <div className="mb-4 w-12 h-12 rounded-full bg-blue-100 text-blue-500 flex items-center justify-center mx-auto">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
+            <h3 className="font-black text-lg text-slate-900 text-center mb-2">Operation Started</h3>
+            <p className="text-sm text-slate-600 text-center mb-6">{modalMessage}</p>
+            <button onClick={() => setModalMessage(null)} className="w-full bg-slate-900 hover:bg-slate-800 text-white py-2.5 rounded-xl font-bold transition-all">Acknowledge</button>
+          </div>
+        </div>
+      )}
 
       {/* SQL Metrics + Backup Schedule */}
       <div className="grid grid-cols-2 gap-6">

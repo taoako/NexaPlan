@@ -33,8 +33,52 @@ export const financeManagerApi = {
   activateScenario: (id: number) => apiFetch<any>(`/scenarios/${id}/activate`, { method: 'POST', body: '{}' }),
   getAllocations: () => apiFetch<any>('/allocations'),
   transferFunds: (from: string, to: string, amount: number) => apiFetch<any>('/allocations/transfer', { method: 'POST', body: JSON.stringify({ from, to, amount }) }),
+  setAllocation: (departmentId: number, amount: number) => apiFetch<any>('/allocations/set', { method: 'POST', body: JSON.stringify({ departmentId, amount }) }),
   // Expense Reconciliation
   getExpenses: (status?: string) => apiFetch<any[]>(`/expenses${status ? `?status=${status}` : ''}`),
   reconcileExpense: (id: number) => apiFetch<any>(`/expenses/${id}/reconcile`, { method: 'POST', body: '{}' }),
   rejectExpense: (id: number, reason: string) => apiFetch<any>(`/expenses/${id}/reject`, { method: 'POST', body: JSON.stringify({ reason }) })
 };
+
+// ── Forecast types ───────────────────────────────────────────────────────────
+
+export interface MonthForecast {
+  month:             string;
+  budgetedAmount:    number;
+  predictedSpending: number;
+  variancePct:       number;
+  riskLevel:         'Low' | 'Medium' | 'High';
+}
+
+export interface DeptForecast {
+  departmentId:     number;
+  departmentName:   string;
+  annualBudget:     number;
+  actualSpent:      number;
+  monthlyForecasts: MonthForecast[];
+}
+
+export interface ForecastInsight {
+  type:        string;
+  title:       string;
+  description: string;
+  confidence:  string;
+}
+
+export interface ForecastSummary {
+  projectedEOY:      number;
+  totalAnnualBudget: number;
+  variancePct:       number;
+  depletionRisk:     'Low' | 'Medium' | 'High';
+  modelAccuracy:     number;
+  departments:       DeptForecast[];
+  insights:          ForecastInsight[];
+}
+
+// ── API call ─────────────────────────────────────────────────────────────────
+
+export const getForecastSummary = (
+  fiscalYear: number = 2026
+): Promise<ForecastSummary> =>
+  apiFetch<ForecastSummary>(`/forecast?fiscalYear=${fiscalYear}`);
+

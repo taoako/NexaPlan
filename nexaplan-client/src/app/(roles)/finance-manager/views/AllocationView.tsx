@@ -6,7 +6,9 @@ export function AllocationView() {
   const [selectedDept, setSelectedDept] = useState<any>(null);
   const [showTransfer, setShowTransfer] = useState(false);
   const [transferForm, setTransferForm] = useState({ from: '', to: '', amount: '' });
+  const [pendingTransfer, setPendingTransfer] = useState<{ from: string; to: string; amount: number } | null>(null);
   const [allocData, setAllocData] = useState<any>(null);
+  const [allocForm, setAllocForm] = useState({ departmentId: '', amount: '' });
   
   // UI Modals
   const [showNewAlloc, setShowNewAlloc] = useState(false);
@@ -31,14 +33,38 @@ export function AllocationView() {
     if (isNaN(amt) || amt <= 0) return setModalMessage({ title: 'Error', message: 'Invalid amount.', type: 'error' });
     if (transferForm.from === transferForm.to) return setModalMessage({ title: 'Error', message: 'Cannot transfer to the same department.', type: 'error' });
 
+    setPendingTransfer({ from: transferForm.from, to: transferForm.to, amount: amt });
+  };
+
+  const confirmTransfer = async () => {
+    if (!pendingTransfer) return;
+
     try {
-      await financeManagerApi.transferFunds(transferForm.from, transferForm.to, amt);
+      await financeManagerApi.transferFunds(pendingTransfer.from, pendingTransfer.to, pendingTransfer.amount);
       setModalMessage({ title: 'Success', message: 'Funds transferred successfully.', type: 'success' });
       setShowTransfer(false);
       setTransferForm({ from: '', to: '', amount: '' });
+      setPendingTransfer(null);
       fetchAllocations();
     } catch (err: any) {
       setModalMessage({ title: 'Transfer Failed', message: err.message || 'An error occurred during transfer.', type: 'error' });
+      setPendingTransfer(null);
+    }
+  };
+
+  const handleSetAllocation = async () => {
+    if (!allocForm.departmentId || !allocForm.amount) return setModalMessage({ title: 'Error', message: 'Please select a department and amount.', type: 'error' });
+    const amt = parseFloat(allocForm.amount);
+    if (isNaN(amt) || amt < 0) return setModalMessage({ title: 'Error', message: 'Invalid allocation amount.', type: 'error' });
+
+    try {
+      await financeManagerApi.setAllocation(parseInt(allocForm.departmentId, 10), amt);
+      setModalMessage({ title: 'Success', message: 'Allocation updated successfully.', type: 'success' });
+      setShowNewAlloc(false);
+      setAllocForm({ departmentId: '', amount: '' });
+      fetchAllocations();
+    } catch (err: any) {
+      setModalMessage({ title: 'Update Failed', message: err.message || 'Failed to update allocation.', type: 'error' });
     }
   };
 
@@ -212,15 +238,75 @@ export function AllocationView() {
               <h3 className="font-black text-xl text-slate-900">New Allocation</h3>
               <button onClick={() => setShowNewAlloc(false)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors"><X className="w-5 h-5" /></button>
             </div>
-            <div className="text-sm text-slate-600 mb-6 text-center">
-              Global baseline allocations are typically generated at the beginning of the fiscal year by the platform engine. Manual arbitrary allocation creation is coming in a future update.
+            <div className="space-y-5">
+              <div>
+                <label className="block text-xs font-black text-slate-500 uppercase mb-2">Department</label>
+                <select
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                  value={allocForm.departmentId}
+                  onChange={(e) => setAllocForm(prev => ({ ...prev, departmentId: e.target.value }))}
+                >
+                  <option value="">Select department...</option>
+                  {allocData.departments.map((d: any) => (
+                    <option key={d.departmentId} value={d.departmentId}>{d.name} (₱{d.amount.toLocaleString()})</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-black text-slate-500 uppercase mb-2">New Allocation Cap (₱)</label>
+                <input
+                  type="number"
+                  min="0"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-mono"
+                  placeholder="e.g. 250000"
+                  value={allocForm.amount}
+                  onChange={(e) => setAllocForm(prev => ({ ...prev, amount: e.target.value }))}
+                />
+              </div>
             </div>
-            <button 
-              onClick={() => setShowNewAlloc(false)}
-              className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-xl font-bold flex items-center justify-center transition-all"
-            >
-              Close
-            </button>
+            <div className="mt-8 flex gap-3">
+              <button
+                onClick={handleSetAllocation}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30 transition-all"
+              >
+                <Plus className="w-4 h-4" /> Apply Allocation
+              </button>
+              <button
+                onClick={() => setShowNewAlloc(false)}
+                className="px-5 py-3 border border-slate-300 rounded-xl text-slate-700 font-bold hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Transfer Confirmation */}
+      {pendingTransfer && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full animate-in zoom-in-95 duration-200">
+            <div className="mb-4 w-12 h-12 rounded-full flex items-center justify-center mx-auto bg-blue-100 text-blue-500">
+              <ArrowRightLeft className="w-6 h-6" />
+            </div>
+            <h3 className="font-black text-lg text-slate-900 text-center mb-2">Confirm Transfer</h3>
+            <p className="text-sm text-slate-600 text-center mb-6">
+              Move ₱{pendingTransfer.amount.toLocaleString()} from {pendingTransfer.from} to {pendingTransfer.to}?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={confirmTransfer}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl font-bold transition-all"
+              >
+                Confirm
+              </button>
+              <button
+                onClick={() => setPendingTransfer(null)}
+                className="flex-1 border border-slate-300 text-slate-700 py-2.5 rounded-xl font-bold hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}

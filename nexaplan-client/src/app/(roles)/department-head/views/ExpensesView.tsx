@@ -7,6 +7,7 @@ export function ExpensesView() {
   const [approvedProposals, setApprovedProposals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [modalMessage, setModalMessage] = useState<{ title: string; message: string; type: 'error' | 'success' | 'info' } | null>(null);
   
   const [formData, setFormData] = useState({
     proposalId: '',
@@ -37,7 +38,7 @@ export function ExpensesView() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.proposalId || !formData.amount) return alert('Please select a proposal and enter an amount.');
+    if (!formData.proposalId || !formData.amount) return setModalMessage({ title: 'Missing Details', message: 'Please select a proposal and enter an amount.', type: 'error' });
     
     try {
       await deptHeadApi.submitExpense(
@@ -46,12 +47,12 @@ export function ExpensesView() {
         formData.taxPaid ? parseFloat(formData.taxPaid) : undefined,
         formData.receiptUrl || undefined
       );
-      alert('Expense submitted successfully for reconciliation.');
+      setModalMessage({ title: 'Submitted', message: 'Expense submitted successfully for reconciliation.', type: 'success' });
       setShowModal(false);
       setFormData({ proposalId: '', amount: '', taxPaid: '', receiptUrl: '' });
       fetchData();
     } catch (err: any) {
-      alert(err.message || 'Failed to submit expense.');
+      setModalMessage({ title: 'Submission Failed', message: err.message || 'Failed to submit expense.', type: 'error' });
     }
   };
 
@@ -243,6 +244,22 @@ export function ExpensesView() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {modalMessage && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full animate-in zoom-in-95 duration-200">
+            <div className={`mb-4 w-12 h-12 rounded-full flex items-center justify-center mx-auto ${
+              modalMessage.type === 'error' ? 'bg-red-100 text-red-500' :
+              modalMessage.type === 'success' ? 'bg-emerald-100 text-emerald-500' : 'bg-blue-100 text-blue-500'
+            }`}>
+              {modalMessage.type === 'error' ? <AlertTriangle className="w-6 h-6" /> : <CheckCircle2 className="w-6 h-6" />}
+            </div>
+            <h3 className="font-black text-lg text-slate-900 text-center mb-2">{modalMessage.title}</h3>
+            <p className="text-sm text-slate-600 text-center mb-6">{modalMessage.message}</p>
+            <button onClick={() => setModalMessage(null)} className="w-full bg-slate-900 hover:bg-slate-800 text-white py-2.5 rounded-xl font-bold transition-all">Acknowledge</button>
           </div>
         </div>
       )}

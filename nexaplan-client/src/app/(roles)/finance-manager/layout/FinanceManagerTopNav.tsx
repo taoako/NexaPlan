@@ -19,6 +19,7 @@ interface FinanceManagerTopNavProps {
 export function FinanceManagerTopNav({ activeModule, setActiveModule, navTabs, onBack }: FinanceManagerTopNavProps) {
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
+  const [modalMessage, setModalMessage] = useState<string | null>(null);
 
   // Handle clicking outside the profile dropdown to close it
   useEffect(() => {
@@ -89,10 +90,10 @@ export function FinanceManagerTopNav({ activeModule, setActiveModule, navTabs, o
                 <div className="text-xs text-slate-500">finance@nexaplan.ph</div>
               </div>
               <div className="py-1">
-                <button onClick={() => { setShowProfileDropdown(false); alert('Profile Settings — Coming Soon'); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                <button onClick={() => { setShowProfileDropdown(false); setModalMessage('Profile Settings — Coming Soon'); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
                   <User className="w-4 h-4 text-slate-400" />Profile Settings
                 </button>
-                <button onClick={() => { setShowProfileDropdown(false); alert('Security Settings — Coming Soon'); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                <button onClick={() => { setShowProfileDropdown(false); setModalMessage('Security Settings — Coming Soon'); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
                   <Lock className="w-4 h-4 text-slate-400" />Security
                 </button>
               </div>
@@ -105,6 +106,19 @@ export function FinanceManagerTopNav({ activeModule, setActiveModule, navTabs, o
           )}
         </div>
       </div>
+
+      {modalMessage && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full animate-in zoom-in-95 duration-200">
+            <div className="mb-4 w-12 h-12 rounded-full bg-blue-100 text-blue-500 flex items-center justify-center mx-auto">
+              <User className="w-6 h-6" />
+            </div>
+            <h3 className="font-black text-lg text-slate-900 text-center mb-2">Notice</h3>
+            <p className="text-sm text-slate-600 text-center mb-6">{modalMessage}</p>
+            <button onClick={() => setModalMessage(null)} className="w-full bg-slate-900 hover:bg-slate-800 text-white py-2.5 rounded-xl font-bold transition-all">Acknowledge</button>
+          </div>
+        </div>
+      )}
     </nav>
   );
 }

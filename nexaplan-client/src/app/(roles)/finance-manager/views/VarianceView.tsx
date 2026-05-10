@@ -11,6 +11,7 @@ export function VarianceView({ activeScenario }: VarianceViewProps) {
   const [generatingReport, setGeneratingReport] = useState<string | null>(null);
   const [allocData, setAllocData] = useState<any>(null);
   const [showNet, setShowNet] = useState(false); // false = Gross (with tax), true = Net (without tax)
+  const [modalMessage, setModalMessage] = useState<{ title: string; message: string; type: 'error' | 'success' | 'info' } | null>(null);
   const VAT_RATE = 0.12;
   
   // Mock fiscal year data
@@ -24,7 +25,7 @@ export function VarianceView({ activeScenario }: VarianceViewProps) {
     setGeneratingReport(dept);
     setTimeout(() => {
       setGeneratingReport(null);
-      alert(`PDF Audit Report for ${dept} generated successfully and ready to present to the CFO.`);
+      setModalMessage({ title: 'Audit Ready', message: `PDF Audit Report for ${dept} generated and ready.`, type: 'success' });
     }, 1500);
   };
 
@@ -184,6 +185,22 @@ export function VarianceView({ activeScenario }: VarianceViewProps) {
           </tbody>
         </table>
       </div>
+
+      {modalMessage && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full animate-in zoom-in-95 duration-200">
+            <div className={`mb-4 w-12 h-12 rounded-full flex items-center justify-center mx-auto ${
+              modalMessage.type === 'error' ? 'bg-red-100 text-red-500' :
+              modalMessage.type === 'success' ? 'bg-emerald-100 text-emerald-500' : 'bg-blue-100 text-blue-500'
+            }`}>
+              {modalMessage.type === 'error' ? <AlertTriangle className="w-6 h-6" /> : <CheckCircle2 className="w-6 h-6" />}
+            </div>
+            <h3 className="font-black text-lg text-slate-900 text-center mb-2">{modalMessage.title}</h3>
+            <p className="text-sm text-slate-600 text-center mb-6">{modalMessage.message}</p>
+            <button onClick={() => setModalMessage(null)} className="w-full bg-slate-900 hover:bg-slate-800 text-white py-2.5 rounded-xl font-bold transition-all">Acknowledge</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

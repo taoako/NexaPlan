@@ -7,6 +7,8 @@ export function ScenariosView() {
   const [archivedScenarios, setArchivedScenarios] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNewScenarioModal, setShowNewScenarioModal] = useState(false);
+  const [modalMessage, setModalMessage] = useState<{ title: string; message: string; type: 'error' | 'success' | 'info' } | null>(null);
+  const [confirmArchive, setConfirmArchive] = useState<any>(null);
   
   // Advanced Scenario Data
   const [newScenarioData, setNewScenarioData] = useState({ 
@@ -59,7 +61,7 @@ export function ScenariosView() {
   };
 
   const handleCreateScenario = async () => {
-    if (!newScenarioData.name) return alert("Scenario name is required");
+    if (!newScenarioData.name) return setModalMessage({ title: 'Name Required', message: 'Scenario name is required.', type: 'error' });
     try {
       // Encode overrides into the description since backend API only takes desc
       const descWithOverrides = JSON.stringify({
@@ -74,7 +76,7 @@ export function ScenariosView() {
       fetchScenarios();
     } catch (err) {
       console.error(err);
-      alert("Failed to create scenario");
+      setModalMessage({ title: 'Create Failed', message: 'Failed to create scenario.', type: 'error' });
     }
   };
 
@@ -82,31 +84,32 @@ export function ScenariosView() {
     if (!scenarioToActivate) return;
     try {
       await financeManagerApi.activateScenario(scenarioToActivate.id);
-      
-      if (scenarioToActivate.multiplier < 1.0) {
-        alert(`Notice: Global budget scenario changed to ${scenarioToActivate.name}. Exceptions applied. Automated email dispatched to Unit Heads.`);
-      } else {
-        alert(`Scenario ${scenarioToActivate.name} activated.`);
-      }
-      
+
+      const message = scenarioToActivate.multiplier < 1.0
+        ? `Global budget scenario changed to ${scenarioToActivate.name}. Department caps are now restricted.`
+        : `Scenario ${scenarioToActivate.name} activated.`;
+      setModalMessage({ title: 'Scenario Activated', message, type: 'success' });
+
       setScenarioToActivate(null);
       fetchScenarios();
       
       window.location.reload();
     } catch (err) {
       console.error(err);
-      alert("Failed to activate scenario");
+      setModalMessage({ title: 'Activation Failed', message: 'Failed to activate scenario.', type: 'error' });
     }
   };
 
   const handleArchiveScenario = (scenario: any) => {
-    if (confirm(`Archive scenario "${scenario.name}"? It will be moved to History.`)) {
-      // In a real app we'd call an API like financeManagerApi.archiveScenario(scenario.id)
-      // Here we will just update the local state to demonstrate the feature
-      setScenarios(prev => prev.filter(s => s.id !== scenario.id));
-      setArchivedScenarios(prev => [...prev, { ...scenario, isArchived: true, isActive: false }]);
-      alert(`Scenario "${scenario.name}" archived.`);
-    }
+    setConfirmArchive(scenario);
+  };
+
+  const confirmArchiveScenario = () => {
+    if (!confirmArchive) return;
+    setScenarios(prev => prev.filter(s => s.id !== confirmArchive.id));
+    setArchivedScenarios(prev => [...prev, { ...confirmArchive, isArchived: true, isActive: false }]);
+    setModalMessage({ title: 'Archived', message: `Scenario "${confirmArchive.name}" archived.`, type: 'success' });
+    setConfirmArchive(null);
   };
 
   const getColor = (multiplier: number) => {
@@ -359,6 +362,53 @@ export function ScenariosView() {
                 Confirm
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Activate Confirmation */}
+      {scenarioToActivate && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl p-8">
+            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-4"><AlertTriangle className="w-6 h-6 text-blue-500" /></div>
+            <h3 className="font-black text-slate-900 text-lg mb-1">Activate Scenario</h3>
+            <p className="text-slate-500 text-sm mb-6">Activate {scenarioToActivate.name} for this tenant?</p>
+            <div className="flex gap-3">
+              <button onClick={handleActivateScenario} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl font-bold">Confirm</button>
+              <button onClick={() => setScenarioToActivate(null)} className="px-4 py-2.5 border border-slate-300 rounded-xl text-slate-700 font-bold">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Archive Confirmation */}
+      {confirmArchive && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl p-8">
+            <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center mb-4"><Archive className="w-6 h-6 text-slate-500" /></div>
+            <h3 className="font-black text-slate-900 text-lg mb-1">Archive Scenario</h3>
+            <p className="text-slate-500 text-sm mb-6">Move {confirmArchive.name} to history?</p>
+            <div className="flex gap-3">
+              <button onClick={confirmArchiveScenario} className="flex-1 bg-slate-900 hover:bg-slate-800 text-white py-2.5 rounded-xl font-bold">Confirm</button>
+              <button onClick={() => setConfirmArchive(null)} className="px-4 py-2.5 border border-slate-300 rounded-xl text-slate-700 font-bold">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reusable Message Modal */}
+      {modalMessage && (
+        <div className="fixed inset-0 z-[120] bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full animate-in zoom-in-95 duration-200">
+            <div className={`mb-4 w-12 h-12 rounded-full flex items-center justify-center mx-auto ${
+              modalMessage.type === 'error' ? 'bg-red-100 text-red-500' :
+              modalMessage.type === 'success' ? 'bg-emerald-100 text-emerald-500' : 'bg-blue-100 text-blue-500'
+            }`}>
+              {modalMessage.type === 'error' ? <X className="w-6 h-6" /> : <Check className="w-6 h-6" />}
+            </div>
+            <h3 className="font-black text-lg text-slate-900 text-center mb-2">{modalMessage.title}</h3>
+            <p className="text-sm text-slate-600 text-center mb-6">{modalMessage.message}</p>
+            <button onClick={() => setModalMessage(null)} className="w-full bg-slate-900 hover:bg-slate-800 text-white py-2.5 rounded-xl font-bold transition-all">Acknowledge</button>
           </div>
         </div>
       )}
