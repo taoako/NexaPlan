@@ -95,7 +95,7 @@ export default function App() {
     };
 
     try {
-      const response = await fetch('http://localhost:5189/api/Payments/checkout', {
+      const response = await fetch('https://nexaplan.runasp.net/api/Payments/checkout', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -126,7 +126,7 @@ export default function App() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://localhost:5189/api/Auth/login', {
+      const response = await fetch('https://nexaplan.runasp.net/api/Auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -139,8 +139,8 @@ export default function App() {
       if (response.ok) {
         // Save user details
         localStorage.setItem('user', JSON.stringify(data));
-        
-          // 1: Super Admin, 2: Main Admin, 3: Finance Manager, 4: Dept Head, 5: Auditor, 6: Employee
+
+        // 1: Super Admin, 2: Main Admin, 3: Finance Manager, 4: Dept Head, 5: Auditor, 6: Employee
         switch (data.roleId) {
           case 1:
             setCurrentView('admin-dashboard');
@@ -193,7 +193,7 @@ export default function App() {
         return;
       }
 
-      const response = await fetch('http://localhost:5189/api/Auth/register', {
+      const response = await fetch('https://nexaplan.runasp.net/api/Auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

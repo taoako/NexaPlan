@@ -8,19 +8,21 @@ var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
+    options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString), mySqlOptions =>
+    {
+        mySqlOptions.EnableRetryOnFailure();
+    }));
 
 // --- 2. SERVICES (Add all services BEFORE building) ---
 builder.Services.AddControllers();
 builder.Services.AddHttpClient();
-
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp",
         policy =>
         {
-            policy.WithOrigins("http://localhost:5173", "http://localhost:5174")
+            policy.AllowAnyOrigin()
                   .AllowAnyHeader()
                   .AllowAnyMethod();
         });
@@ -83,7 +85,15 @@ static void SeedReferenceData(AppDbContext db)
             new SystemConfig { ConfigKey = "ml_confidence_threshold", ConfigValue = "85" },
             new SystemConfig { ConfigKey = "ml_training_cycle", ConfigValue = "Weekly" },
             new SystemConfig { ConfigKey = "api_timeout_ms", ConfigValue = "4000" },
-            new SystemConfig { ConfigKey = "max_export_rows", ConfigValue = "50000" }
+            new SystemConfig { ConfigKey = "max_export_rows", ConfigValue = "50000" },
+            // Pricing tiers (PHP)
+            new SystemConfig { ConfigKey = "price_starter_monthly", ConfigValue = "4950" },
+            new SystemConfig { ConfigKey = "price_starter_annual", ConfigValue = "4207.50" },
+            new SystemConfig { ConfigKey = "price_professional_monthly", ConfigValue = "12900" },
+            new SystemConfig { ConfigKey = "price_professional_annual", ConfigValue = "10965" },
+            new SystemConfig { ConfigKey = "price_enterprise_monthly", ConfigValue = "29900" },
+            new SystemConfig { ConfigKey = "price_enterprise_annual", ConfigValue = "25415" },
+            new SystemConfig { ConfigKey = "pricing_vat_inclusive", ConfigValue = "true" }
         );
         db.SaveChanges();
     }
