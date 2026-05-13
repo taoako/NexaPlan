@@ -2,11 +2,11 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# Copy csproj and restore as distinct layers
+# Copy the csproj and restore
 COPY ["NexaPlan.API.csproj", "./"]
 RUN dotnet restore "NexaPlan.API.csproj"
 
-# Copy everything else and build
+# Copy the rest of the code and build
 COPY . .
 RUN dotnet publish "NexaPlan.API.csproj" -c Release -o /app/publish
 
@@ -15,7 +15,6 @@ FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
 COPY --from=build /app/publish .
 
-# Explicitly set the port so Render knows where to route traffic
 EXPOSE 8080
 ENV ASPNETCORE_URLS=http://+:8080
 
