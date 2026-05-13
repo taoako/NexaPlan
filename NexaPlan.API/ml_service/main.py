@@ -1,13 +1,39 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-import joblib, numpy as np, pandas as pd, os
+import joblib, numpy as np, pandas as pd, os, requests
 from typing import List, Optional
 
 app = FastAPI(title="NexaPlan Forecast Engine")
 
-# Single Ridge model trained on raw dollars (no log transforms)
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "nexaplan_ridge_model (1).pkl")
-pipeline   = joblib.load(MODEL_PATH)
+# ── Hybrid Model Setup ────────────────────────────────────────────────────────
+# RF model:    best accuracy for USD budgets within training range (5000–19000)
+# Ridge model: linear extrapolation for budgets outside training range
+MODEL_DIR   = os.path.dirname(__file__)
+rf_pipeline  = joblib.load(os.path.join(MODEL_DIR, "nexaplan_rf_model (2).pkl"))
+ridge_pipeline = joblib.load(os.path.join(MODEL_DIR, "nexaplan_ridge_model (1).pkl"))
+
+# Routing thresholds (in USD — the currency the models were trained on)
+RF_RANGE_MIN = 5_000.0
+RF_RANGE_MAX = 19_000.0
+
+# ── Live Exchange Rate Helper ────────────────────────────────────────────────
+FALLBACK_RATE = 58.0  # PHP per 1 USD — used when the live API is unreachable
+
+def get_usd_to_php_rate() -> float:
+    """Fetch the real-time USD → PHP exchange rate.
+    Falls back to FALLBACK_RATE if the request fails or times out.
+    Critical for defense day reliability — never raises an exception.
+    """
+    try:
+        resp = requests.get(
+            "https://open.er-api.com/v6/latest/USD",
+            timeout=4
+        )
+        resp.raise_for_status()
+        rate = resp.json()["rates"]["PHP"]
+        return float(rate)
+    except Exception:
+        return FALLBACK_RATE
 
 # --- REAL HISTORICAL VOLATILITY (From EDA Notebook) ---
 DEPT_VOLATILITY = {
@@ -42,7 +68,10 @@ class PredictResponse(BaseModel):
 def health():
     return {
         "status": "ok",
-        "models": ["Ridge Regression (raw-dollar, authentic variance)"],
+        "models": [
+            "Hybrid: Random Forest (USD 5000–19000) + Ridge Regression (outside range)",
+            "Live PHP/USD currency serialization via open.er-api.com (fallback: 58.0)"
+        ],
     }
 
 
@@ -55,20 +84,47 @@ def predict(req: PredictRequest):
     if budget <= 0:
         raise HTTPException(status_code=422, detail="budgeted_amount must be > 0")
 
+    # ── Step 1: Fetch live exchange rate & convert PHP → USD ─────────────────
+    php_rate   = get_usd_to_php_rate()          # PHP per 1 USD
+    budget_usd = budget / php_rate              # incoming PHP → USD for model
+
     try:
         row = pd.DataFrame([{
-            "Budgeted_Amount": budget,
+            "Budgeted_Amount": budget_usd,      # models trained on USD values
             "Department":      dept,
             "Month":           month
         }])
 
-        predicted = round(float(pipeline.predict(row)[0]), 2)
+        # ── Step 2: Hybrid routing on USD budget ─────────────────────────────
+        if RF_RANGE_MIN <= budget_usd <= RF_RANGE_MAX:
+            log_pred   = rf_pipeline.predict(row)[0]
+            predicted_usd = float(np.expm1(log_pred))
+            model_name = "Random Forest"
+            note = (
+                f"Random Forest selected: budget ₱{budget:,.2f} = "
+                f"${budget_usd:,.2f} USD is within training range "
+                f"(${RF_RANGE_MIN:,.0f}–${RF_RANGE_MAX:,.0f}). "
+                f"Rate: ₱{php_rate:.4f}/USD."
+            )
+        else:
+            # Ridge model (1).pkl outputs raw dollars, no expm1 needed
+            raw_pred   = ridge_pipeline.predict(row)[0]
+            predicted_usd = float(raw_pred)
+            model_name = "Ridge Regression"
+            note = (
+                f"Ridge Regression selected: budget ₱{budget:,.2f} = "
+                f"${budget_usd:,.2f} USD is outside RF training range "
+                f"(${RF_RANGE_MIN:,.0f}–${RF_RANGE_MAX:,.0f}). "
+                f"Rate: ₱{php_rate:.4f}/USD."
+            )
 
-        # Confidence bands based on REAL dept volatility × seasonal risk multiplier
-        # Fallback to 0.36 (average) if dept/month somehow missing
+        # ── Step 3: Convert predicted USD back to PHP ────────────────────────
+        predicted = round(predicted_usd * php_rate, 2)  # → PHP
+
+        # ── Step 4: Confidence bands (authentic volatility, in PHP) ──────────
         vol      = DEPT_VOLATILITY.get(dept, 0.36)
         risk_mul = MONTH_RISK.get(month, 0.36)
-        sigma    = vol * risk_mul  # Calculates real statistical uncertainty band
+        sigma    = vol * risk_mul
 
         upper_bound = predicted * (1 + sigma)
         lower_bound = predicted * (1 - sigma)
@@ -79,23 +135,22 @@ def predict(req: PredictRequest):
     variance_amt = predicted - budget
     variance_pct = (variance_amt / budget) * 100
 
-    # ---------------------------------------------------------
-    # NEW DYNAMIC RISK LOGIC (Thesis-ready)
-    # ---------------------------------------------------------
-    if predicted >= budget:
-        # High Risk: The baseline prediction is already over the 100% budget
+    # ── Step 5: Risk classification (relaxed thresholds for currency-converted data) ─
+    if predicted >= (budget * 1.05):
+        # High Risk: mathematically projected to go 5%+ over budget
         risk = "High"
-    elif upper_bound >= (budget * 1.10):
-        # Medium Risk: Prediction is safe, but the statistical UPPER BOUND breaks the budget
+    elif upper_bound >= (budget * 1.15):
+        # Medium Risk: worst-case historical volatility band breaches +15% buffer
         risk = "Medium"
     else:
-        # Low Risk: Even the worst-case historical volatility is safely under budget
+        # Low Risk: normal, stable spending behaviour
         risk = "Low"
 
     # Console log for every call
     print(
-        f"[PREDICT] model=Ridge | dept={dept} | month={month} | "
-        f"budget={budget:.2f} | predicted={predicted:.2f} | risk={risk}"
+        f"[PREDICT] model={model_name} | dept={dept} | month={month} | "
+        f"budget_php={budget:.2f} | budget_usd={budget_usd:.2f} | "
+        f"predicted_php={predicted:.2f} | rate={php_rate:.4f} | risk={risk}"
     )
 
     return PredictResponse(
@@ -105,8 +160,8 @@ def predict(req: PredictRequest):
         risk_level         = risk,
         upper_bound        = round(upper_bound, 2),
         lower_bound        = round(max(lower_bound, 0), 2),
-        model_used         = "Ridge",
-        confidence_note    = "Raw-dollar Ridge Regression with data-driven historical volatility bands."
+        model_used         = model_name,
+        confidence_note    = note
     )
 
 
