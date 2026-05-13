@@ -10,7 +10,6 @@ namespace NexaPlan.API.Controllers.FinanceManager
     public class FinanceManagerExpensesController : FinanceManagerBaseController
     {
         private readonly IHttpClientFactory _httpClientFactory;
-        private const string ML_SERVICE_URL = "https://nexaplan-ml-engine.onrender.com/predict";
 
         private static readonly string[] MonthOrder =
             { "JAN","FEB","MAR","APR","MAY","JUN",
@@ -87,7 +86,7 @@ namespace NexaPlan.API.Controllers.FinanceManager
                 return BadRequest(new { message = "Only pending expenses can be reconciled." });
 
             // Mark the expense as reconciled
-            expense.Status      = "Reconciled";
+            expense.Status = "Reconciled";
             expense.ReconciledBy = userId;
             expense.ReconciledAt = DateTime.UtcNow;
 
@@ -114,8 +113,8 @@ namespace NexaPlan.API.Controllers.FinanceManager
             await _context.SaveChangesAsync();
 
             // ── ML Anomaly Detection (non-blocking) ───────────────────────────
-            bool   anomalyDetected = false;
-            string anomalyMessage  = string.Empty;
+            bool anomalyDetected = false;
+            string anomalyMessage = string.Empty;
             try
             {
                 var dept = expense.Department;
@@ -125,38 +124,38 @@ namespace NexaPlan.API.Controllers.FinanceManager
                     var fiscalYear = DateTime.UtcNow.Year;
                     var allocation = await _context.DepartmentAllocations
                         .FirstOrDefaultAsync(a => a.TenantID == tenantId && a.DepartmentID == dept.DepartmentID && a.FiscalYear == fiscalYear);
-                    var annualCap  = allocation?.TotalAllocatedCap ?? dept.AnnualBudgetCap;
+                    var annualCap = allocation?.TotalAllocatedCap ?? dept.AnnualBudgetCap;
                     var monthlyCap = (double)(annualCap / 12m);
 
                     var currentMonthIdx = DateTime.UtcNow.Month;
                     var currentMonth = MonthOrder[currentMonthIdx - 1];
-                    
+
                     // Monthly actual: sum reconciled expenses for this department in the current month
                     var monthStart = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
                     var monthEnd = monthStart.AddMonths(1).AddDays(-1);
-                    
+
                     var monthlyActualSpent = await _context.Expenses
-                        .Where(e => e.DepartmentID == dept.DepartmentID && e.TenantID == tenantId && e.Status == "Reconciled" 
-                                 && (e.ExpenseDate ?? e.ReconciledAt ?? e.SubmittedAt) >= monthStart 
+                        .Where(e => e.DepartmentID == dept.DepartmentID && e.TenantID == tenantId && e.Status == "Reconciled"
+                                 && (e.ExpenseDate ?? e.ReconciledAt ?? e.SubmittedAt) >= monthStart
                                  && (e.ExpenseDate ?? e.ReconciledAt ?? e.SubmittedAt) <= monthEnd)
                         .SumAsync(e => e.Amount);
 
-                    var payload      = new DTOs.MlPredictRequest(monthlyCap, dept.DepartmentName, currentMonth);
-                    var client       = _httpClientFactory.CreateClient();
-                    var mlResp       = await client.PostAsJsonAsync($"{ML_SERVICE_URL}/predict", payload);
+                    var payload = new DTOs.MlPredictRequest(monthlyCap, dept.DepartmentName, currentMonth);
+                    var client = _httpClientFactory.CreateClient("MlService");
+                    var mlResp = await client.PostAsJsonAsync("predict", payload);
 
                     if (mlResp.IsSuccessStatusCode)
                     {
                         var pred = await mlResp.Content.ReadFromJsonAsync<DTOs.MlPredictResponse>();
                         if (pred != null)
                         {
-                            var mlExpected  = pred.predicted_spending;
+                            var mlExpected = pred.predicted_spending;
                             var actualSpent = (double)monthlyActualSpent;
                             if (actualSpent > mlExpected * 1.20)
                             {
-                                var overPct    = ((actualSpent - mlExpected) / mlExpected) * 100;
+                                var overPct = ((actualSpent - mlExpected) / mlExpected) * 100;
                                 anomalyDetected = true;
-                                anomalyMessage  = $"{dept.DepartmentName}'s monthly spend is {overPct:F0}% above ML expectation for {currentMonth}. Review recommended.";
+                                anomalyMessage = $"{dept.DepartmentName}'s monthly spend is {overPct:F0}% above ML expectation for {currentMonth}. Review recommended.";
                             }
                         }
                     }

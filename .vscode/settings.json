@@ -1,5 +1,7 @@
 {
     "chat.tools.terminal.autoApprove": {
         "dotnet ef": true
-    }
+    },
+    "appService.defaultWebAppToDeploy": "/subscriptions/c5bcc59e-75ab-4b09-9580-138eac2870d3/resourceGroups/nexaplan-rg/providers/Microsoft.Web/sites/nexaplan-backend",
+    "appService.deploySubpath": "NexaPlan.API"
 }

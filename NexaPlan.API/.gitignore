@@ -5,6 +5,9 @@ obj/
 # Ignore development secrets
 appsettings.Development.json
 
+# Do not commit production appsettings with secrets
+appsettings.json
+
 # Ignore user-specific files
 *.user
 *.suo

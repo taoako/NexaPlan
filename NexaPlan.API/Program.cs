@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using NexaPlan.API.Configuration;
 using NexaPlan.API.Data;
 using NexaPlan.API.Models;
 
@@ -15,15 +17,41 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 // --- 2. SERVICES (Add all services BEFORE building) ---
 builder.Services.AddControllers();
+
+builder.Services.Configure<FrontendOptions>(builder.Configuration.GetSection(FrontendOptions.SectionName));
+builder.Services.Configure<ExternalServicesOptions>(builder.Configuration.GetSection(ExternalServicesOptions.SectionName));
+
 builder.Services.AddHttpClient();
+builder.Services.AddHttpClient("MlService", (sp, client) =>
+{
+    var opts = sp.GetRequiredService<IOptions<ExternalServicesOptions>>().Value;
+    if (!string.IsNullOrWhiteSpace(opts.MlService.BaseUrl))
+    {
+        client.BaseAddress = new Uri(opts.MlService.BaseUrl.TrimEnd('/') + "/");
+    }
+});
+
+builder.Services.AddHttpClient("PayMongo", (sp, client) =>
+{
+    var opts = sp.GetRequiredService<IOptions<ExternalServicesOptions>>().Value;
+    if (!string.IsNullOrWhiteSpace(opts.PayMongo.BaseUrl))
+    {
+        client.BaseAddress = new Uri(opts.PayMongo.BaseUrl.TrimEnd('/') + "/");
+    }
+});
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowReactApp", policy =>
+    options.AddPolicy(FrontendOptions.CorsPolicyName, policy =>
     {
-        policy.WithOrigins("http://nexaplan-client.vercel.app") // Put your actual Vercel link here
-              .AllowAnyHeader()
-              .AllowAnyMethod();
+        var frontend = builder.Configuration.GetSection(FrontendOptions.SectionName).Get<FrontendOptions>() ?? new();
+        var origins = (frontend.AllowedOrigins != null && frontend.AllowedOrigins.Length > 0)
+            ? frontend.AllowedOrigins
+            : new[] { frontend.BaseUrl };
+
+        policy.WithOrigins(origins)
+            .AllowAnyHeader()
+            .AllowAnyMethod();
     });
 });
 
@@ -50,7 +78,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 // Enable CORS before mapping controllers
-app.UseCors("AllowVercel");
+app.UseCors(FrontendOptions.CorsPolicyName);
 
 app.MapControllers();
 

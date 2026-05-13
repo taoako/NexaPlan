@@ -10,7 +10,6 @@ namespace NexaPlan.API.Controllers.DeptHead
     public class DeptHeadForecastController : DeptHeadBaseController
     {
         private readonly IHttpClientFactory _httpClientFactory;
-        private const string ML_SERVICE_URL = "https://nexaplan-ml-engine.onrender.com/predict";
 
         public DeptHeadForecastController(AppDbContext context, IHttpClientFactory httpClientFactory) : base(context)
         {
@@ -33,18 +32,18 @@ namespace NexaPlan.API.Controllers.DeptHead
             var fiscalYear = DateTime.UtcNow.Year;
             var allocation = await _context.DepartmentAllocations
                 .FirstOrDefaultAsync(a => a.TenantID == tenantId && a.DepartmentID == deptId && a.FiscalYear == fiscalYear);
-            
+
             var annualCap = allocation?.TotalAllocatedCap ?? dept.AnnualBudgetCap;
             var monthlyCap = (double)(annualCap / 12m);
             if (monthlyCap <= 0) monthlyCap = 1000;
 
             var month = DateTime.UtcNow.ToString("MMM").ToUpper();
             var payload = new MlPredictRequest(monthlyCap, dept.DepartmentName, month);
-            
+
             try
             {
-                var client = _httpClientFactory.CreateClient();
-                var response = await client.PostAsJsonAsync($"{ML_SERVICE_URL}/predict", payload);
+                var client = _httpClientFactory.CreateClient("MlService");
+                var response = await client.PostAsJsonAsync("predict", payload);
                 if (response.IsSuccessStatusCode)
                 {
                     var pred = await response.Content.ReadFromJsonAsync<MlPredictResponse>();

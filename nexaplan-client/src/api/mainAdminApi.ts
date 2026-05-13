@@ -1,4 +1,6 @@
-const API_BASE = 'https://nexaplan.runasp.net/api/main-admin';
+import { apiRoleBase } from '../config/api';
+
+const API_BASE = apiRoleBase('main-admin');
 
 // ─── Generic fetch wrapper with tenant header ───
 async function apiFetch<T>(url: string, tenantId: number, options?: RequestInit): Promise<T> {

@@ -1,4 +1,6 @@
-const API_BASE = 'https://nexaplan.runasp.net/api/auditor';
+import { apiRoleBase } from '../config/api';
+
+const API_BASE = apiRoleBase('auditor');
 
 function getHeaders() {
   const userStr = localStorage.getItem('user');

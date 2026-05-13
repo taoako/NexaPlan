@@ -1,4 +1,6 @@
-const API_BASE = 'https://nexaplan.runasp.net/api/super-admin';
+import { apiRoleBase, apiUrl } from '../config/api';
+
+const API_BASE = apiRoleBase('super-admin');
 
 // ─── Generic fetch wrapper ───
 async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
@@ -191,7 +193,7 @@ export interface PricingConfig {
 }
 
 async function pricingFetch<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`https://nexaplan.runasp.net/api${url}`, {
+  const res = await fetch(apiUrl(`/api${url}`), {
     headers: { 'Content-Type': 'application/json' },
     ...options,
   });
