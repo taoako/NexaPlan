@@ -28,7 +28,7 @@ export function PricingTable({ onStartTrial, onSelectPlan }: PricingTableProps) 
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('http://nexaplan.runasp.net/api/pricing')
+    fetch('https://nexaplan.runasp.net/api/pricing')
       .then(res => res.json())
       .then(data => {
         setPlans(data);
