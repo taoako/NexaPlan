@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:5189/api/finance-manager';
+const API_BASE = 'https://nexaplan.runasp.net/api/finance-manager';
 
 function getHeaders() {
   const userStr = localStorage.getItem('user');
@@ -44,42 +44,42 @@ export const financeManagerApi = {
 // ── Forecast types ───────────────────────────────────────────────────────────
 
 export interface MonthForecast {
-  month:             string;
-  budgetedAmount:    number;
-  actualSpent:       number;
+  month: string;
+  budgetedAmount: number;
+  actualSpent: number;
   predictedSpending: number;
-  variancePct:       number;
-  riskLevel:         'Low' | 'Medium' | 'High';
+  variancePct: number;
+  riskLevel: 'Low' | 'Medium' | 'High';
   mlPredictedSpending: number;
-  mlRiskLevel:       'Low' | 'Medium' | 'High';
-  mlUpperBound:      number;
-  mlLowerBound:      number;
-  mlConfidenceNote:  string;
+  mlRiskLevel: 'Low' | 'Medium' | 'High';
+  mlUpperBound: number;
+  mlLowerBound: number;
+  mlConfidenceNote: string;
 }
 
 export interface DeptForecast {
-  departmentId:     number;
-  departmentName:   string;
-  annualBudget:     number;
-  actualSpent:      number;
+  departmentId: number;
+  departmentName: string;
+  annualBudget: number;
+  actualSpent: number;
   monthlyForecasts: MonthForecast[];
 }
 
 export interface ForecastInsight {
-  type:        string;
-  title:       string;
+  type: string;
+  title: string;
   description: string;
-  confidence:  string;
+  confidence: string;
 }
 
 export interface ForecastSummary {
-  projectedEOY:      number;
+  projectedEOY: number;
   totalAnnualBudget: number;
-  variancePct:       number;
-  depletionRisk:     'Low' | 'Medium' | 'High';
-  modelAccuracy:     number;
-  departments:       DeptForecast[];
-  insights:          ForecastInsight[];
+  variancePct: number;
+  depletionRisk: 'Low' | 'Medium' | 'High';
+  modelAccuracy: number;
+  departments: DeptForecast[];
+  insights: ForecastInsight[];
 }
 
 // ── API call ─────────────────────────────────────────────────────────────────
@@ -92,34 +92,34 @@ export const getForecastSummary = (
 // ── Variance types ──────────────────────────────────────────────────────────
 
 export interface MonthlyVariance {
-  month:          string;
+  month: string;
   budgetedAmount: number;
-  actualSpent:    number;
+  actualSpent: number;
   varianceAmount: number;
-  variancePct:    number;
+  variancePct: number;
 }
 
 export interface DeptVariance {
-  departmentId:        number;
-  departmentName:      string;
-  budgetedAmount:      number;
-  actualSpent:         number;
-  varianceAmount:      number;
-  variancePct:         number;
-  status:              'Over' | 'Under';
-  monthlyBreakdown:    MonthlyVariance[];
-  mlExpectedSpending:  number;   // RF model prediction
-  isAnomaly:           boolean;  // actual >> ML expected
-  mlConfidenceNote:    string;
+  departmentId: number;
+  departmentName: string;
+  budgetedAmount: number;
+  actualSpent: number;
+  varianceAmount: number;
+  variancePct: number;
+  status: 'Over' | 'Under';
+  monthlyBreakdown: MonthlyVariance[];
+  mlExpectedSpending: number;   // RF model prediction
+  isAnomaly: boolean;  // actual >> ML expected
+  mlConfidenceNote: string;
 }
 
 export interface VarianceSummary {
-  fiscalYear:    number;
+  fiscalYear: number;
   selectedMonth: string;
   totalBudgeted: number;
-  totalActual:   number;
+  totalActual: number;
   totalVariance: number;
-  departments:   DeptVariance[];
+  departments: DeptVariance[];
 }
 
 export const getVarianceData = async (

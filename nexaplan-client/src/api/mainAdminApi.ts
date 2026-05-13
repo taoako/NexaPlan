@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:5189/api/main-admin';
+const API_BASE = 'https://nexaplan.runasp.net/api/main-admin';
 
 // ─── Generic fetch wrapper with tenant header ───
 async function apiFetch<T>(url: string, tenantId: number, options?: RequestInit): Promise<T> {

@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:5189/api/dept-head';
+const API_BASE = 'https://nexaplan.runasp.net/api/dept-head';
 
 function getHeaders() {
   const userStr = localStorage.getItem('user');
@@ -54,12 +54,12 @@ export const deptHeadApi = {
   getLineItems: (id: number) => apiFetch<any[]>(`/proposals/${id}/line-items`),
   addLineItem: (id: number, data: any) => apiFetch<any>(`/proposals/${id}/line-items`, { method: 'POST', body: JSON.stringify(data) }),
   removeLineItem: (id: number, itemId: number) => apiFetch<any>(`/proposals/${id}/line-items/${itemId}`, { method: 'DELETE' }),
-  
+
   // Expenses
   getExpenses: () => apiFetch<any[]>('/expenses'),
   getApprovedProposals: () => apiFetch<any[]>('/proposals/approved'),
   submitExpense: (proposalId: number, amount: number, taxPaid?: number, receiptUrl?: string) => apiFetch<any>('/expenses', { method: 'POST', body: JSON.stringify({ proposalId, amount, taxPaid, receiptUrl }) }),
-  
+
   cloneProposal: (id: number) => apiFetch<any>(`/proposals/${id}/clone`, { method: 'POST', body: '{}' }),
   getVariance: (period: string) => apiFetch<any>(`/variance?period=${period}`),
   getScenarios: () => apiFetch<any[]>('/scenarios'),

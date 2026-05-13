@@ -10,7 +10,7 @@ namespace NexaPlan.API.Controllers.DeptHead
     public class DeptHeadForecastController : DeptHeadBaseController
     {
         private readonly IHttpClientFactory _httpClientFactory;
-        private const string ML_SERVICE_URL = "http://localhost:8001";
+        private const string ML_SERVICE_URL = "https://nexaplan-ml-engine.onrender.com/predict";
 
         public DeptHeadForecastController(AppDbContext context, IHttpClientFactory httpClientFactory) : base(context)
         {

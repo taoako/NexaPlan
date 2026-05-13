@@ -28,7 +28,7 @@ export function PricingTable({ onStartTrial, onSelectPlan }: PricingTableProps) 
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('http://localhost:5189/api/pricing')
+    fetch('https://nexaplan.runasp.net/api/pricing')
       .then(res => res.json())
       .then(data => {
         setPlans(data);
@@ -63,13 +63,12 @@ export function PricingTable({ onStartTrial, onSelectPlan }: PricingTableProps) 
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
           {plans.map((plan) => (
-            <div 
-              key={plan.planID} 
-              className={`flex flex-col bg-white p-8 rounded-3xl border-2 transition-all duration-300 relative ${
-                plan.isPopular 
-                  ? 'border-[#0052FF] shadow-2xl scale-105 z-10' 
+            <div
+              key={plan.planID}
+              className={`flex flex-col bg-white p-8 rounded-3xl border-2 transition-all duration-300 relative ${plan.isPopular
+                  ? 'border-[#0052FF] shadow-2xl scale-105 z-10'
                   : 'border-slate-200 hover:border-[#0052FF]/50 hover:shadow-xl'
-              }`}
+                }`}
             >
               {plan.isPopular && (
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-[#0052FF] text-white px-5 py-1.5 rounded-full text-xs font-black uppercase tracking-widest shadow-lg">
@@ -97,11 +96,10 @@ export function PricingTable({ onStartTrial, onSelectPlan }: PricingTableProps) 
 
               <button
                 onClick={() => plan.name === 'Starter' ? onStartTrial() : onSelectPlan(plan.name.toLowerCase())}
-                className={`w-full py-4 rounded-xl font-black transition-all duration-300 mb-8 shadow-lg ${
-                  plan.isPopular 
-                    ? 'bg-[#0052FF] text-white hover:bg-blue-600 shadow-blue-200' 
+                className={`w-full py-4 rounded-xl font-black transition-all duration-300 mb-8 shadow-lg ${plan.isPopular
+                    ? 'bg-[#0052FF] text-white hover:bg-blue-600 shadow-blue-200'
                     : 'bg-[#0A192F] text-white hover:bg-slate-800 shadow-slate-200'
-                }`}
+                  }`}
               >
                 {plan.name === 'Starter' ? 'Start 14-Day Free Trial' : `Choose ${plan.name}`}
               </button>
@@ -132,7 +130,7 @@ export function PricingTable({ onStartTrial, onSelectPlan }: PricingTableProps) 
 
         <div className="max-w-4xl mx-auto mt-16 text-center space-y-4">
           <p className="text-sm text-slate-500 font-medium">
-            All prices in Philippine Peso (₱). Save up to 15% with annual billing. 
+            All prices in Philippine Peso (₱). Save up to 15% with annual billing.
             <span className="text-[#0052FF] cursor-pointer hover:underline ml-1">View annual pricing →</span>
           </p>
           <div className="flex items-center justify-center gap-4">

@@ -9,7 +9,7 @@ namespace NexaPlan.API.Controllers.FinanceManager
     public class FinanceManagerAllocationController : FinanceManagerBaseController
     {
         private readonly IHttpClientFactory _httpClientFactory;
-        private const string ML_SERVICE_URL = "http://localhost:8001";
+        private const string ML_SERVICE_URL = "https://nexaplan-ml-engine.onrender.com/predict";
 
         public FinanceManagerAllocationController(AppDbContext context, IHttpClientFactory httpClientFactory) : base(context) 
         { 

@@ -10,7 +10,7 @@ namespace NexaPlan.API.Controllers.FinanceManager;
 public class FinanceManagerAnalyticsController : FinanceManagerBaseController
 {
     private readonly IHttpClientFactory _http;
-    private const string ML_URL = "http://localhost:8001";
+    private const string ML_URL = "https://nexaplan-ml-engine.onrender.com/predict";
 
     private static readonly string[] MonthNames =
         { "JAN","FEB","MAR","APR","MAY","JUN",
@@ -276,36 +276,62 @@ public class FinanceManagerAnalyticsController : FinanceManagerBaseController
         });
     }
 
+    // ── Hybrid Insight Engine (DB utilization + ML risk, mutually exclusive rules) ──
     private static List<InsightDto> GenerateInsights(List<DeptForecastDto> depts)
     {
         var insights = new List<InsightDto>();
+
         foreach (var dept in depts)
         {
             if (!dept.MonthlyForecasts.Any()) continue;
 
-            var highRiskMonths = dept.MonthlyForecasts.Where(m => m.MlRiskLevel == "High").ToList();
-            if (highRiskMonths.Any())
-                insights.Add(new InsightDto("warning",
-                    $"Budget overrun risk — {dept.DepartmentName}",
-                    $"ML model signals {dept.DepartmentName} may exceed its monthly budget in {highRiskMonths.Count} month(s) based on historical spending patterns.",
-                    "RF Model"));
+            // ── DB utilization: committed funds (sum of approved proposals) vs annual cap ──
+            var committedFunds      = dept.MonthlyForecasts.Sum(m => m.PredictedSpending);
+            var currentUtilizationPct = dept.AnnualBudget > 0
+                ? (committedFunds / dept.AnnualBudget) * 100.0
+                : 0.0;
+            var utilizationDisplay  = Math.Round(currentUtilizationPct, 1);
 
-            var underMonths = dept.MonthlyForecasts.Where(m => m.VariancePct < -8).ToList();
-            if (underMonths.Count >= 3)
+            // ── Dominant ML risk across all months for this dept ──────────────────────
+            var mlRisk = dept.MonthlyForecasts.Any(m => m.MlRiskLevel == "High") ? "High"
+                       : dept.MonthlyForecasts.Any(m => m.MlRiskLevel == "Medium") ? "Medium"
+                       : "Low";
+
+            var modelUsed = dept.MonthlyForecasts
+                .Where(m => !string.IsNullOrEmpty(m.MlModelUsed))
+                .Select(m => m.MlModelUsed)
+                .FirstOrDefault() ?? "ML Model";
+
+            // ── Rule 1 — Critical Overrun (High/Medium ML risk AND >= 75% DB utilization) ─
+            if ((mlRisk == "High" || mlRisk == "Medium") && currentUtilizationPct >= 75)
             {
-                var savings = underMonths.Sum(m => Math.Abs(m.PredictedSpending - m.BudgetedAmount));
-                insights.Add(new InsightDto("optimization",
-                    $"Reallocation opportunity — {dept.DepartmentName}",
-                    $"{dept.DepartmentName} committed significantly below budget in {underMonths.Count} months. ₱{savings:N0} could be reallocated.",
-                    "DB Data"));
+                insights.Add(new InsightDto(
+                    "Warning",
+                    $"Budget Overrun Risk — {dept.DepartmentName}",
+                    $"Live DB data shows {utilizationDisplay}% of funds are already committed. The {modelUsed} model confirms a high probability of exceeding the budget cap by end-of-year.",
+                    "Hybrid (DB + ML)"));
             }
-
-            if (dept.MonthlyForecasts.All(m => m.MlRiskLevel == "Low"))
-                insights.Add(new InsightDto("success",
-                    $"Consistent efficiency — {dept.DepartmentName}",
-                    $"ML model sees no overspend risk for {dept.DepartmentName} across all months.",
-                    "RF Model"));
+            // ── Rule 2 — Late Surge (High/Medium ML risk AND < 75% DB utilization) ──────
+            else if ((mlRisk == "High" || mlRisk == "Medium") && currentUtilizationPct < 75)
+            {
+                insights.Add(new InsightDto(
+                    "Caution",
+                    $"Hidden Burn Rate — {dept.DepartmentName}",
+                    $"Current DB commitments are low ({utilizationDisplay}%), but the {modelUsed} model predicts standard enterprise utilization by EOY. Do not reallocate funds prematurely.",
+                    "Hybrid (DB + ML)"));
+            }
+            // ── Rule 3 — Safe Reallocation (Low ML risk AND < 60% DB utilization) ────────
+            else if (mlRisk == "Low" && currentUtilizationPct < 60)
+            {
+                var safeToMove = Math.Round(dept.AnnualBudget * (1.0 - currentUtilizationPct / 100.0) * 0.5);
+                insights.Add(new InsightDto(
+                    "Opportunity",
+                    $"Safe Reallocation — {dept.DepartmentName}",
+                    $"Both live DB activity and the {modelUsed} model project a stable surplus. Approximately ₱{safeToMove:N0} could be safely reallocated to at-risk departments.",
+                    "Hybrid (DB + ML)"));
+            }
         }
+
         return insights.Take(4).ToList();
     }
 

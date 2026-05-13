@@ -12,7 +12,7 @@ public class FinanceManagerVarianceController : FinanceManagerBaseController
 {
     private readonly AppDbContext _db;
     private readonly IHttpClientFactory _http;
-    private const string ML_URL = "http://localhost:8001";
+    private const string ML_URL = "https://nexaplan-ml-engine.onrender.com/predict";
 
     private static readonly string[] MonthOrder =
         { "JAN","FEB","MAR","APR","MAY","JUN",
