@@ -1,4 +1,4 @@
-const API_BASE = 'https://nexaplan.runasp.net/api/finance-manager';
+const API_BASE = 'http://nexaplan.runasp.net/api/finance-manager';
 
 function getHeaders() {
   const userStr = localStorage.getItem('user');

@@ -1,4 +1,4 @@
-const API_BASE = 'https://nexaplan.runasp.net/api/auditor';
+const API_BASE = 'http://nexaplan.runasp.net/api/auditor';
 
 function getHeaders() {
   const userStr = localStorage.getItem('user');

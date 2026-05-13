@@ -28,7 +28,7 @@ export function PricingTable({ onStartTrial, onSelectPlan }: PricingTableProps) 
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('https://nexaplan.runasp.net/api/pricing')
+    fetch('http://nexaplan.runasp.net/api/pricing')
       .then(res => res.json())
       .then(data => {
         setPlans(data);
@@ -66,8 +66,8 @@ export function PricingTable({ onStartTrial, onSelectPlan }: PricingTableProps) 
             <div
               key={plan.planID}
               className={`flex flex-col bg-white p-8 rounded-3xl border-2 transition-all duration-300 relative ${plan.isPopular
-                  ? 'border-[#0052FF] shadow-2xl scale-105 z-10'
-                  : 'border-slate-200 hover:border-[#0052FF]/50 hover:shadow-xl'
+                ? 'border-[#0052FF] shadow-2xl scale-105 z-10'
+                : 'border-slate-200 hover:border-[#0052FF]/50 hover:shadow-xl'
                 }`}
             >
               {plan.isPopular && (
@@ -97,8 +97,8 @@ export function PricingTable({ onStartTrial, onSelectPlan }: PricingTableProps) 
               <button
                 onClick={() => plan.name === 'Starter' ? onStartTrial() : onSelectPlan(plan.name.toLowerCase())}
                 className={`w-full py-4 rounded-xl font-black transition-all duration-300 mb-8 shadow-lg ${plan.isPopular
-                    ? 'bg-[#0052FF] text-white hover:bg-blue-600 shadow-blue-200'
-                    : 'bg-[#0A192F] text-white hover:bg-slate-800 shadow-slate-200'
+                  ? 'bg-[#0052FF] text-white hover:bg-blue-600 shadow-blue-200'
+                  : 'bg-[#0A192F] text-white hover:bg-slate-800 shadow-slate-200'
                   }`}
               >
                 {plan.name === 'Starter' ? 'Start 14-Day Free Trial' : `Choose ${plan.name}`}

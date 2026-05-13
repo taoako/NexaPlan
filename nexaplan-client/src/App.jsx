@@ -95,7 +95,7 @@ export default function App() {
     };
 
     try {
-      const response = await fetch('https://nexaplan.runasp.net/api/Payments/checkout', {
+      const response = await fetch('http://nexaplan.runasp.net/api/Payments/checkout', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -126,7 +126,7 @@ export default function App() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('https://nexaplan.runasp.net/api/Auth/login', {
+      const response = await fetch('http://nexaplan.runasp.net/api/Auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -193,7 +193,7 @@ export default function App() {
         return;
       }
 
-      const response = await fetch('https://nexaplan.runasp.net/api/Auth/register', {
+      const response = await fetch('http://nexaplan.runasp.net/api/Auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

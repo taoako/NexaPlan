@@ -1,4 +1,4 @@
-const API_BASE = 'https://nexaplan.runasp.net/api/super-admin';
+const API_BASE = 'http://nexaplan.runasp.net/api/super-admin';
 
 // ─── Generic fetch wrapper ───
 async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
@@ -191,7 +191,7 @@ export interface PricingConfig {
 }
 
 async function pricingFetch<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`https://nexaplan.runasp.net/api${url}`, {
+  const res = await fetch(`http://nexaplan.runasp.net/api${url}`, {
     headers: { 'Content-Type': 'application/json' },
     ...options,
   });

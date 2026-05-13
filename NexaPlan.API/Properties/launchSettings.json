@@ -5,7 +5,7 @@
       "commandName": "Project",
       "dotnetRunMessages": true,
       "launchBrowser": false,
-      "applicationUrl": "https://nexaplan.runasp.net",
+      "applicationUrl": "http://nexaplan.runasp.net",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       }
@@ -14,7 +14,7 @@
       "commandName": "Project",
       "dotnetRunMessages": true,
       "launchBrowser": false,
-      "applicationUrl": "https://localhost:7214;https://nexaplan.runasp.net",
+      "applicationUrl": "https://localhost:7214;http://nexaplan.runasp.net",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       }

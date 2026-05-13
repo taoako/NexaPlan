@@ -19,13 +19,12 @@ builder.Services.AddHttpClient();
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowReactApp",
-        policy =>
-        {
-            policy.AllowAnyOrigin()
-                  .AllowAnyHeader()
-                  .AllowAnyMethod();
-        });
+    options.AddPolicy("AllowReactApp", policy =>
+    {
+        policy.WithOrigins("http://nexaplan-client.vercel.app") // Put your actual Vercel link here
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
 });
 
 builder.Services.AddEndpointsApiExplorer();
@@ -51,7 +50,7 @@ if (app.Environment.IsDevelopment())
 // app.UseHttpsRedirection();
 
 // Enable CORS before mapping controllers
-app.UseCors("AllowReactApp");
+app.UseCors("AllowVercel");
 
 app.MapControllers();
 
