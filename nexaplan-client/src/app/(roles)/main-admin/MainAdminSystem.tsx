@@ -21,7 +21,12 @@ export function MainAdminSystem({ onBack }: Props) {
   const storedUser = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
   const tenantId: number = storedUser.tenantId ?? 0;
   const currentUserId: number = storedUser.userId ?? 0;
-  const userName: string = storedUser.name ?? 'Main Admin';
+  const userName: string = storedUser.firstName && storedUser.lastName 
+    ? `${storedUser.firstName} ${storedUser.lastName}` 
+    : (storedUser.name ?? 'Main Admin');
+  const userInitials: string = storedUser.firstName && storedUser.lastName
+    ? (storedUser.firstName[0] + storedUser.lastName[0]).toUpperCase()
+    : userName.charAt(0).toUpperCase();
 
   // ── UI State ──
   const [activeTab, setActiveTab] = useState<Tab>('overview');
@@ -151,7 +156,7 @@ export function MainAdminSystem({ onBack }: Props) {
             className="flex items-center gap-2 px-3 py-1.5 hover:bg-white/10 rounded-lg transition-all"
           >
             <div className="w-7 h-7 bg-indigo-500 rounded-full flex items-center justify-center text-white font-black text-sm">
-              {userName.charAt(0).toUpperCase()}
+              {userInitials}
             </div>
             <span className="text-white text-sm font-semibold max-w-[120px] truncate">{userName}</span>
             <ChevronDown className="w-4 h-4 text-slate-400" />

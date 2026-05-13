@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Plus, Edit, Archive, LogIn } from 'lucide-react';
 import type { TenantDto } from '../../../../api/superAdminApi';
+import { TablePagination } from '../../../../components/TablePagination';
 
 interface TenantsViewProps {
   tenants: TenantDto[];
@@ -11,6 +12,14 @@ interface TenantsViewProps {
 }
 
 export function TenantsView({ tenants, onProvision, onEdit, onArchive, onImpersonate }: TenantsViewProps) {
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+  const pagedTenants = tenants.slice((page - 1) * pageSize, page * pageSize);
+
+  useEffect(() => {
+    setPage(1);
+  }, [tenants.length]);
+
   return (
     <div className="max-w-[1440px] mx-auto space-y-6">
       {/* Quick Stats */}
@@ -56,7 +65,7 @@ export function TenantsView({ tenants, onProvision, onEdit, onArchive, onImperso
           <tbody className="divide-y divide-slate-100">
             {tenants.length === 0 ? (
               <tr><td colSpan={7} className="px-6 py-12 text-center text-slate-500">No tenants found. Click "Provision New Tenant" to create one.</td></tr>
-            ) : tenants.map((tenant) => (
+            ) : pagedTenants.map((tenant) => (
               <tr key={tenant.tenantID} className="hover:bg-[#F8FAFC] transition-colors">
                 <td className="px-6 py-4">
                   <div className="text-sm font-bold text-slate-900">{tenant.companyName}</div>
@@ -100,6 +109,12 @@ export function TenantsView({ tenants, onProvision, onEdit, onArchive, onImperso
             ))}
           </tbody>
         </table>
+        <TablePagination
+          page={page}
+          pageSize={pageSize}
+          totalItems={tenants.length}
+          onPageChange={setPage}
+        />
       </div>
     </div>
   );

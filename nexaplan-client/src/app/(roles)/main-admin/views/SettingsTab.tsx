@@ -1,25 +1,43 @@
 import React, { useEffect, useState } from 'react';
-import { Save, RefreshCw, Shield, Clock, Globe, Calendar } from 'lucide-react';
+import { Save, RefreshCw, Shield, Clock, Globe, Calendar, Building2, User, Mail, Phone } from 'lucide-react';
 import type { MainAdminSettings } from '../../../../api/mainAdminApi';
 
 interface Props {
   settings: MainAdminSettings | null;
   loading: boolean;
-  addToast: (msg: string, type: 'success' | 'error' | 'info') => void;
-  onSave: (data: { fiscalYearStartMonth: number; defaultCurrency: string; requireMfa: boolean }) => Promise<void>;
+  addToast: (msg: string, type: 'success' | 'error') => void;
+  onSave: (data: Partial<MainAdminSettings>) => Promise<void>;
 }
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const CURRENCIES = ['PHP','USD','EUR','SGD','JPY'];
 
 export function SettingsTab({ settings, loading, addToast, onSave }: Props) {
-  const [form, setForm] = useState({ fiscalYearStartMonth: 1, defaultCurrency: 'PHP', requireMfa: false });
+  const [form, setForm] = useState({ 
+    fiscalYearStartMonth: 1, 
+    defaultCurrency: 'PHP', 
+    requireMfa: false, 
+    totalCompanyBudget: 0,
+    companyName: '',
+    contactPerson: '',
+    contactEmail: '',
+    phone: ''
+  });
   const [isDirty, setIsDirty] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (settings) {
-      setForm({ fiscalYearStartMonth: settings.fiscalYearStartMonth, defaultCurrency: settings.defaultCurrency, requireMfa: settings.requireMfa });
+      setForm({ 
+        fiscalYearStartMonth: settings.fiscalYearStartMonth, 
+        defaultCurrency: settings.defaultCurrency, 
+        requireMfa: settings.requireMfa,
+        totalCompanyBudget: settings.totalCompanyBudget || 0,
+        companyName: settings.companyName || '',
+        contactPerson: settings.contactPerson || '',
+        contactEmail: settings.contactEmail || '',
+        phone: settings.phone || ''
+      });
       setIsDirty(false);
     }
   }, [settings]);
@@ -32,7 +50,7 @@ export function SettingsTab({ settings, loading, addToast, onSave }: Props) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await onSave(form);
+      await onSave(form as any);
       addToast('Settings saved successfully.', 'success');
       setIsDirty(false);
     } catch (e: any) { addToast(e.message, 'error'); }
@@ -60,6 +78,43 @@ export function SettingsTab({ settings, loading, addToast, onSave }: Props) {
         </div>
       )}
 
+      {/* Company Details */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+        {sectionHdr(<Building2 className="w-4 h-4 text-indigo-600" />, 'Company Information', 'Manage your organization details')}
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-black text-slate-500 uppercase mb-2">Company Name</label>
+            <div className="relative">
+              <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+              <input type="text" value={form.companyName} onChange={e => update('companyName', e.target.value)} className={`${inputCls} pl-11`} placeholder="Organization Name" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-black text-slate-500 uppercase mb-2">Primary Contact Person</label>
+              <div className="relative">
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                <input type="text" value={form.contactPerson} onChange={e => update('contactPerson', e.target.value)} className={`${inputCls} pl-11`} placeholder="Full Name" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-black text-slate-500 uppercase mb-2">Contact Phone</label>
+              <div className="relative">
+                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                <input type="text" value={form.phone} onChange={e => update('phone', e.target.value)} className={`${inputCls} pl-11`} placeholder="+63..." />
+              </div>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-black text-slate-500 uppercase mb-2">Organization Email</label>
+            <div className="relative">
+              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+              <input type="email" value={form.contactEmail} onChange={e => update('contactEmail', e.target.value)} className={`${inputCls} pl-11`} placeholder="billing@company.com" />
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Security */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
         {sectionHdr(<Shield className="w-4 h-4 text-indigo-600" />, 'Security Policy', 'Control authentication and access requirements')}
@@ -81,6 +136,20 @@ export function SettingsTab({ settings, loading, addToast, onSave }: Props) {
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
         {sectionHdr(<Calendar className="w-4 h-4 text-indigo-600" />, 'Fiscal & Reporting', 'Configure your financial reporting periods')}
         <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-black text-slate-500 uppercase mb-2">Annual Company Budget (Total Cap)</label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₱</span>
+              <input 
+                type="number" 
+                value={form.totalCompanyBudget} 
+                onChange={e => update('totalCompanyBudget', +e.target.value)} 
+                className={`${inputCls} pl-8 font-mono`}
+                placeholder="0"
+              />
+            </div>
+            <p className="text-[10px] text-slate-400 mt-2 italic">This is the total pool available for the Finance Manager to allocate across all departments.</p>
+          </div>
           <div>
             <label className="block text-xs font-black text-slate-500 uppercase mb-2">Fiscal Year Start Month</label>
             <select value={form.fiscalYearStartMonth} onChange={e => update('fiscalYearStartMonth', +e.target.value)} className={inputCls}>

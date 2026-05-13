@@ -88,6 +88,8 @@ namespace NexaPlan.API.Controllers
                 // 5. Create the User and link them to the Workspace
                 var newUser = new User
                 {
+                    FirstName = request.FirstName,
+                    LastName = request.LastName,
                     Name = $"{request.FirstName} {request.LastName}".Trim(),
                     Email = request.Email,
                     PasswordHash = passwordHash,
@@ -164,6 +166,8 @@ namespace NexaPlan.API.Controllers
                 tenantId = user.TenantID,
                 roleId = user.RoleID,
                 name = user.Name,
+                firstName = user.FirstName,
+                lastName = user.LastName,
                 email = user.Email
             });
         }

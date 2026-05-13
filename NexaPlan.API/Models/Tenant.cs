@@ -11,6 +11,7 @@ namespace NexaPlan.API.Models
         public bool IsActive { get; set; }
         public string RegistrationStatus { get; set; } = "Pending";
         public DateTime CreatedAt { get; set; }
+        public decimal TotalCompanyBudget { get; set; } = 0;
 
         // Super Admin extensions
         public string OrgType { get; set; } = "Corporate";          // Corporate | Government

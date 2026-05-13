@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, CheckCircle2, AlertTriangle, Eye, ChevronRight, XCircle } from 'lucide-react';
 import { auditorApi } from '../../../../api/auditorApi';
+import { TablePagination } from '../../../../components/TablePagination';
 
 import { useAuditorModal } from '../ComplianceAuditSystem';
 
@@ -14,9 +15,12 @@ export function AuditTrailsView() {
   const [expandedRow, setExpandedRow] = useState<number | null>(null);
   const [flagReason, setFlagReason] = useState('');
   const [flaggingId, setFlaggingId] = useState<number | null>(null);
+  const [page, setPage] = useState(1);
+  const pageSize = 15;
 
   useEffect(() => {
     fetchLogs();
+    setPage(1);
   }, [actionType, flaggedOnly]);
 
   const fetchLogs = async () => {
@@ -33,6 +37,7 @@ export function AuditTrailsView() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
+    setPage(1);
     fetchLogs();
   };
 
@@ -57,6 +62,8 @@ export function AuditTrailsView() {
       showAlert('Error', err.message || 'Failed to unflag log', 'error');
     }
   };
+
+  const pagedLogs = logs.slice((page - 1) * pageSize, page * pageSize);
 
   return (
     <div className="p-8 max-w-[1400px] mx-auto animate-in fade-in duration-500">
@@ -118,7 +125,7 @@ export function AuditTrailsView() {
                 <tr><td colSpan={7} className="text-center p-8 text-slate-500">Loading audit trails...</td></tr>
               ) : logs.length === 0 ? (
                 <tr><td colSpan={7} className="text-center p-8 text-slate-500">No logs found matching criteria.</td></tr>
-              ) : logs.map(log => (
+              ) : pagedLogs.map(log => (
                 <React.Fragment key={log.id}>
                   <tr className={`hover:bg-slate-50/50 transition-colors ${log.isFlagged ? 'bg-red-50/30' : ''}`}>
                     <td className="px-5 py-3.5 text-xs text-slate-500 whitespace-nowrap">{log.timestamp}</td>
@@ -193,6 +200,12 @@ export function AuditTrailsView() {
             </tbody>
           </table>
         </div>
+        <TablePagination
+          page={page}
+          pageSize={pageSize}
+          totalItems={logs.length}
+          onPageChange={setPage}
+        />
       </div>
 
       {/* Flagging Modal */}

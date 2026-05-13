@@ -4,6 +4,7 @@ import { SuperAdminTopNav } from './layout/SuperAdminTopNav';
 import { OverviewView } from './views/OverviewView';
 import { TenantsView } from './views/TenantsView';
 import { BillingView } from './views/BillingView';
+import { PricingCRUDView } from './views/PricingCRUDView';
 import { AdminsView } from './views/AdminsView';
 import { TrialRequestsView } from './views/TrialRequestsView';
 import { ConfigView } from './views/ConfigView';
@@ -11,7 +12,7 @@ import { MaintenanceView } from './views/MaintenanceView';
 import * as api from '../../../api/superAdminApi';
 import type { TenantDto, SummaryDto } from '../../../api/superAdminApi';
 
-export type DashboardView = 'overview' | 'tenants' | 'billing' | 'admins' | 'config' | 'maintenance' | 'trial-requests';
+export type DashboardView = 'overview' | 'tenants' | 'billing' | 'pricing' | 'admins' | 'config' | 'maintenance' | 'trial-requests';
 
 interface SuperAdminSystemProps { onBack: () => void; }
 
@@ -229,6 +230,7 @@ export default function SuperAdminSystem({ onBack }: SuperAdminSystemProps) {
                 />
               )}
               {currentView === 'billing' && <BillingView addToast={addToast} />}
+              {currentView === 'pricing' && <PricingCRUDView />}
               {currentView === 'admins' && <AdminsView addToast={addToast} />}
               {currentView === 'trial-requests' && <TrialRequestsView onTrialCountChange={(c) => setPendingTrialCount(c)} />}
               {currentView === 'config' && <ConfigView />}

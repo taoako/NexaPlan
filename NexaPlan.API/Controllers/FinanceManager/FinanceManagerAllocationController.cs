@@ -8,7 +8,13 @@ namespace NexaPlan.API.Controllers.FinanceManager
     [ApiController]
     public class FinanceManagerAllocationController : FinanceManagerBaseController
     {
-        public FinanceManagerAllocationController(AppDbContext context) : base(context) { }
+        private readonly IHttpClientFactory _httpClientFactory;
+        private const string ML_SERVICE_URL = "http://localhost:8001";
+
+        public FinanceManagerAllocationController(AppDbContext context, IHttpClientFactory httpClientFactory) : base(context) 
+        { 
+            _httpClientFactory = httpClientFactory;
+        }
 
         [HttpGet("allocations")]
         public async Task<IActionResult> GetAllocations()
@@ -72,8 +78,12 @@ namespace NexaPlan.API.Controllers.FinanceManager
             var approvedThisMonth = approvedThisMonthRows.Sum(p => p.RequestedAmount > 0 ? p.RequestedAmount : p.TotalAmount);
             var approvedCountThisMonth = await _context.BudgetProposals.CountAsync(p => p.TenantID == tenantId && p.ProposalStatus == "Approved" && p.UpdatedAt.Month == DateTime.UtcNow.Month);
 
+            var tenant = await _context.Tenants.FindAsync(tenantId);
+            decimal totalCompanyBudget = tenant?.TotalCompanyBudget ?? 0;
+
             return Ok(new
             {
+                totalCompanyBudget = totalCompanyBudget,
                 totalAllocated = totalAllocated,
                 pendingRequests = pendingRequests,
                 approvedThisMonth = approvedThisMonth,
@@ -256,7 +266,28 @@ namespace NexaPlan.API.Controllers.FinanceManager
             });
 
             await _context.SaveChangesAsync();
-            return Ok(new { message = "Allocation updated successfully." });
+
+            // Phase 2: ML Placement 1 - Budget Sufficiency Warning
+            string? mlWarning = null;
+            try
+            {
+                var monthlyAverage = (double)(req.Amount / 12m);
+                var payload = new DTOs.MlPredictRequest(monthlyAverage, dept.DepartmentName, "DEC");
+                var client = _httpClientFactory.CreateClient();
+                var response = await client.PostAsJsonAsync($"{ML_SERVICE_URL}/predict", payload);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var pred = await response.Content.ReadFromJsonAsync<DTOs.MlPredictResponse>();
+                    if (pred != null && pred.risk_level == "High")
+                    {
+                        mlWarning = $"Model predicts {dept.DepartmentName} may exceed this monthly cap in high-spend months. Consider raising by 10–15%.";
+                    }
+                }
+            }
+            catch { /* Ignore ML errors to not block allocation */ }
+
+            return Ok(new { message = "Allocation updated successfully.", warning = mlWarning });
         }
     }
 

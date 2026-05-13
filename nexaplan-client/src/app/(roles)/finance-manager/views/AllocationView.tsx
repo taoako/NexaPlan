@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, ArrowRightLeft, X, FileText, CheckCircle2, Building2 } from 'lucide-react';
+import { Plus, ArrowRightLeft, X, FileText, CheckCircle2, Building2, AlertTriangle } from 'lucide-react';
 import { financeManagerApi } from '../../../../api/financeManagerApi';
 
 export function AllocationView() {
@@ -9,6 +9,7 @@ export function AllocationView() {
   const [pendingTransfer, setPendingTransfer] = useState<{ from: string; to: string; amount: number } | null>(null);
   const [allocData, setAllocData] = useState<any>(null);
   const [allocForm, setAllocForm] = useState({ departmentId: '', amount: '' });
+  const [capWarning, setCapWarning] = useState<string | null>(null);
   
   // UI Modals
   const [showNewAlloc, setShowNewAlloc] = useState(false);
@@ -58,15 +59,23 @@ export function AllocationView() {
     if (isNaN(amt) || amt < 0) return setModalMessage({ title: 'Error', message: 'Invalid allocation amount.', type: 'error' });
 
     try {
-      await financeManagerApi.setAllocation(parseInt(allocForm.departmentId, 10), amt);
-      setModalMessage({ title: 'Success', message: 'Allocation updated successfully.', type: 'success' });
-      setShowNewAlloc(false);
-      setAllocForm({ departmentId: '', amount: '' });
-      fetchAllocations();
+      const result = await financeManagerApi.setAllocation(parseInt(allocForm.departmentId, 10), amt);
+      if (result.warning) {
+        setCapWarning(result.warning);
+        fetchAllocations();
+      } else {
+        setModalMessage({ title: 'Success', message: 'Allocation updated successfully.', type: 'success' });
+        setShowNewAlloc(false);
+        setAllocForm({ departmentId: '', amount: '' });
+        setCapWarning(null);
+        fetchAllocations();
+      }
     } catch (err: any) {
       setModalMessage({ title: 'Update Failed', message: err.message || 'Failed to update allocation.', type: 'error' });
     }
   };
+
+  const safeLocale = (val: any) => (val || 0).toLocaleString();
 
   if (!allocData) return <div className="p-12 text-center text-slate-500">Loading allocations...</div>;
 
@@ -96,15 +105,20 @@ export function AllocationView() {
         
         <div className="grid grid-cols-4 gap-5 mb-6">
           {[
-            {label:'Total Allocated',val:`₱${allocData.totalAllocated.toLocaleString()}`,sub:'100% distributed',c:'#10B981'},
-            {label:'Pending Requests',val:allocData.pendingRequests.toString(),sub:'Requires review',c:'#D97706'},
-            {label:'Approved This Month',val:allocData.approvedCountThisMonth.toString(),sub:`₱${allocData.approvedThisMonth.toLocaleString()} total`,c:'#10B981'},
-            {label:'Departments',val:allocData.activeDepartments.toString(),sub:'All active',c:'#0A192F'}
+            {label:'Company Budget',val:`₱${safeLocale(allocData.totalCompanyBudget)}`,sub:'Total pool',c:'#0F172A'},
+            {label:'Total Allocated',val:`₱${safeLocale(allocData.totalAllocated)}`,sub:`${(((allocData.totalAllocated || 0) / (allocData.totalCompanyBudget || 1)) * 100).toFixed(1)}% distributed`,c:'#0052FF'},
+            {label:'Pending Requests',val:(allocData.pendingRequests || 0).toString(),sub:'Requires review',c:'#D97706'},
+            {label:'Approved This Month',val:(allocData.approvedCountThisMonth || 0).toString(),sub:`₱${safeLocale(allocData.approvedThisMonth)} total`,c:'#10B981'},
           ].map((k,i)=>(
-            <div key={i} className="bg-white rounded-xl p-5 border border-[#d1d5db] shadow-sm">
-              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">{k.label}</div>
-              <div className="text-[28px] font-black mb-1" style={{color:k.c}}>{k.val}</div>
-              <div className="text-[13px] text-slate-500">{k.sub}</div>
+            <div key={i} className="bg-white rounded-xl p-5 border border-[#d1d5db] shadow-sm relative overflow-hidden group">
+              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 relative z-10">{k.label}</div>
+              <div className="text-[26px] font-black mb-1 relative z-10" style={{color:k.c}}>{k.val}</div>
+              <div className="text-[13px] text-slate-500 relative z-10">{k.sub}</div>
+              {i === 1 && (
+                <div className="absolute bottom-0 left-0 h-1 bg-blue-100 w-full">
+                  <div className="h-full bg-blue-600 transition-all duration-1000" style={{width: `${Math.min(100, ((allocData.totalAllocated || 0) / (allocData.totalCompanyBudget || 1)) * 100)}%`}} />
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -122,10 +136,10 @@ export function AllocationView() {
                 >
                   <div className="w-28 font-bold text-[14px] text-slate-800">{dept.name}</div>
                   <div className="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden">
-                    <div className="bg-[#0052FF] h-2 rounded-full transition-all duration-500" style={{width:`${dept.pct}%`}}/>
+                    <div className="bg-[#0052FF] h-2 rounded-full transition-all duration-500" style={{width:`${dept.pct || 0}%`}}/>
                   </div>
-                  <div className="w-32 text-right font-mono font-bold text-[13px] text-slate-800">₱{dept.amount.toLocaleString()}</div>
-                  <div className="w-12 text-right text-[13px] text-slate-500">{dept.pct.toFixed(1)}%</div>
+                  <div className="w-32 text-right font-mono font-bold text-[13px] text-slate-800">₱{safeLocale(dept.amount)}</div>
+                  <div className="w-12 text-right text-[13px] text-slate-500">{(dept.pct || 0).toFixed(1)}%</div>
                 </div>
               );
             })}
@@ -158,14 +172,14 @@ export function AllocationView() {
                 </div>
                 <div className="flex justify-between items-center text-xs text-slate-500">
                   <div className="flex items-center gap-1"><FileText className="w-3.5 h-3.5" /> ID: PRJ-{prop.id}</div>
-                  <div className="font-mono font-bold text-slate-700 text-sm">₱{prop.amount.toLocaleString()}</div>
+                  <div className="font-mono font-bold text-slate-700 text-sm">₱{safeLocale(prop.amount)}</div>
                 </div>
               </div>
             ))}
             <div className="mt-6 p-4 bg-blue-50 border border-blue-100 rounded-xl">
               <div className="text-xs font-bold text-blue-800 uppercase mb-1">Total Analyzed</div>
-              <div className="text-xl font-black text-blue-900">₱{selectedDept.spent.toLocaleString()}</div>
-              <div className="text-xs text-blue-600 mt-1">Remaining unallocated: ₱{(selectedDept.amount - selectedDept.spent).toLocaleString()}</div>
+              <div className="text-xl font-black text-blue-900">₱{safeLocale(selectedDept.spent)}</div>
+              <div className="text-xs text-blue-600 mt-1">Remaining unallocated: ₱{safeLocale((selectedDept.amount || 0) - (selectedDept.spent || 0))}</div>
             </div>
           </div>
         </div>
@@ -189,7 +203,7 @@ export function AllocationView() {
                   onChange={(e) => setTransferForm(prev => ({ ...prev, from: e.target.value }))}
                 >
                   <option value="">Select source department...</option>
-                  {allocData.departments.map((d: any) => <option key={d.name} value={d.name}>{d.name} (₱{d.amount.toLocaleString()})</option>)}
+                  {allocData.departments.map((d: any) => <option key={d.name} value={d.name}>{d.name} (₱{safeLocale(d.amount)})</option>)}
                 </select>
               </div>
               
@@ -201,7 +215,7 @@ export function AllocationView() {
                   onChange={(e) => setTransferForm(prev => ({ ...prev, to: e.target.value }))}
                 >
                   <option value="">Select target department...</option>
-                  {allocData.departments.map((d: any) => <option key={d.name} value={d.name}>{d.name} (₱{d.amount.toLocaleString()})</option>)}
+                  {allocData.departments.map((d: any) => <option key={d.name} value={d.name}>{d.name} (₱{safeLocale(d.amount)})</option>)}
                 </select>
               </div>
               
@@ -230,52 +244,96 @@ export function AllocationView() {
         </div>
       )}
 
-      {/* New Allocation Modal (Coming Soon / UI only) */}
+      {/* New Allocation Modal */}
       {showNewAlloc && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full animate-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-lg w-full animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="font-black text-xl text-slate-900">New Allocation</h3>
-              <button onClick={() => setShowNewAlloc(false)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors"><X className="w-5 h-5" /></button>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600">
+                  <Building2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-xl text-slate-900">Set Department Cap</h3>
+                  <p className="text-xs text-slate-500">Update the annual budget ceiling for a department</p>
+                </div>
+              </div>
+              <button onClick={() => { setShowNewAlloc(false); setCapWarning(null); }} className="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors"><X className="w-5 h-5" /></button>
             </div>
-            <div className="space-y-5">
+
+            <div className="space-y-6">
               <div>
-                <label className="block text-xs font-black text-slate-500 uppercase mb-2">Department</label>
+                <label className="block text-xs font-black text-slate-500 uppercase mb-2">Select Department</label>
                 <select
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-700"
                   value={allocForm.departmentId}
                   onChange={(e) => setAllocForm(prev => ({ ...prev, departmentId: e.target.value }))}
                 >
-                  <option value="">Select department...</option>
+                  <option value="">-- Choose a Department --</option>
                   {allocData.departments.map((d: any) => (
-                    <option key={d.departmentId} value={d.departmentId}>{d.name} (₱{d.amount.toLocaleString()})</option>
+                    <option key={d.departmentId} value={d.departmentId}>{d.name}</option>
                   ))}
                 </select>
               </div>
+
+              {allocForm.departmentId && (() => {
+                const d = allocData.departments.find((x: any) => x.departmentId === parseInt(allocForm.departmentId));
+                if (!d) return null;
+                const remainingGlobal = allocData.totalCompanyBudget - allocData.totalAllocated + d.amount;
+                
+                return (
+                  <div className="grid grid-cols-2 gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div>
+                      <div className="text-[10px] font-bold text-slate-400 uppercase">Current Allocation</div>
+                      <div className="font-mono font-bold text-slate-700">₱{safeLocale(d.amount)}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-bold text-slate-400 uppercase">Actual Spent</div>
+                      <div className="font-mono font-bold text-emerald-600">₱{safeLocale(d.spent)}</div>
+                    </div>
+                    <div className="col-span-2 pt-2 border-t border-slate-200">
+                      <div className="text-[10px] font-bold text-slate-400 uppercase">Global Budget Remaining</div>
+                      <div className="font-mono font-bold text-blue-600">₱{safeLocale(remainingGlobal)}</div>
+                      <div className="text-[9px] text-slate-400 mt-0.5 leading-tight italic">
+                        Max amount you can allocate to this department without exceeding the company's total annual budget.
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {capWarning && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
+                  <div>
+                    <div className="text-xs font-bold text-amber-800 uppercase tracking-wide mb-0.5">ML Allocation Advisory</div>
+                    <p className="text-xs text-amber-700 leading-relaxed">{capWarning}</p>
+                  </div>
+                </div>
+              )}
+
               <div>
-                <label className="block text-xs font-black text-slate-500 uppercase mb-2">New Allocation Cap (₱)</label>
-                <input
-                  type="number"
-                  min="0"
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-mono"
-                  placeholder="e.g. 250000"
-                  value={allocForm.amount}
-                  onChange={(e) => setAllocForm(prev => ({ ...prev, amount: e.target.value }))}
-                />
+                <label className="block text-xs font-black text-slate-500 uppercase mb-2">New Annual Cap (₱)</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₱</span>
+                  <input
+                    type="number"
+                    min="0"
+                    className="w-full px-10 py-4 bg-white border-2 border-slate-200 rounded-xl focus:border-blue-500 outline-none font-mono text-xl font-black text-slate-900"
+                    placeholder="0"
+                    value={allocForm.amount}
+                    onChange={(e) => setAllocForm(prev => ({ ...prev, amount: e.target.value }))}
+                  />
+                </div>
               </div>
             </div>
+
             <div className="mt-8 flex gap-3">
               <button
                 onClick={handleSetAllocation}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30 transition-all"
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-black flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30 transition-all hover:-translate-y-0.5 active:translate-y-0"
               >
-                <Plus className="w-4 h-4" /> Apply Allocation
-              </button>
-              <button
-                onClick={() => setShowNewAlloc(false)}
-                className="px-5 py-3 border border-slate-300 rounded-xl text-slate-700 font-bold hover:bg-slate-50"
-              >
-                Cancel
+                <CheckCircle2 className="w-5 h-5" /> Update Allocation
               </button>
             </div>
           </div>

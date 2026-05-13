@@ -149,8 +149,23 @@ export function ApprovalView() {
                   <h2 className="text-[24px] font-bold text-slate-900">{selectedProposal.title}</h2>
                   <p className="text-sm text-slate-500 mt-1">{selectedProposal.department} · {selectedProposal.category}</p>
                 </div>
-                <div className="text-right">
+                <div className="text-right flex flex-col items-end gap-2">
                   <span className="px-3 py-1 bg-slate-100 rounded-lg text-xs font-bold text-slate-600">Priority: {selectedProposal.priority}</span>
+                  {selectedProposal.mlRiskLevel && (
+                    <div className="flex flex-col items-end gap-1">
+                      <span className={`px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1 ${
+                        selectedProposal.mlRiskLevel === 'High' ? 'bg-red-50 text-red-600 border border-red-200' :
+                        selectedProposal.mlRiskLevel === 'Medium' ? 'bg-amber-50 text-amber-600 border border-amber-200' :
+                        'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                      }`}>
+                        <Activity className="w-3 h-3" />
+                        ML Signal: {selectedProposal.department} in {selectedProposal.plannedMonth || new Date().toLocaleString('default', { month: 'short' }).toUpperCase()} — {selectedProposal.mlRiskLevel} Risk
+                      </span>
+                      {selectedProposal.mlContext && (
+                        <span className="text-[10px] text-slate-400 font-medium italic">{selectedProposal.mlContext}</span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 

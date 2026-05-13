@@ -45,6 +45,8 @@ namespace NexaPlan.API.Data
         // --- Super Admin ---
         public DbSet<TrialRequest> TrialRequests { get; set; }
         public DbSet<SystemConfig> SystemConfigs { get; set; }
+        public DbSet<PricingPlan> PricingPlans { get; set; }
+        public DbSet<PricingBenefit> PricingBenefits { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

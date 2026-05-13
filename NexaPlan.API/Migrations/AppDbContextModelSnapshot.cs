@@ -161,6 +161,12 @@ namespace NexaPlan.API.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
+                    b.Property<string>("PlannedMonth")
+                        .HasColumnType("longtext");
+
+                    b.Property<int?>("PlannedYear")
+                        .HasColumnType("int");
+
                     b.Property<string>("Priority")
                         .IsRequired()
                         .HasColumnType("longtext");
@@ -388,6 +394,9 @@ namespace NexaPlan.API.Migrations
 
                     b.Property<int>("DepartmentID")
                         .HasColumnType("int");
+
+                    b.Property<DateTime?>("ExpenseDate")
+                        .HasColumnType("datetime(6)");
 
                     b.Property<int>("ProposalID")
                         .HasColumnType("int");
@@ -677,6 +686,76 @@ namespace NexaPlan.API.Migrations
                     b.ToTable("PaymentSessions");
                 });
 
+            modelBuilder.Entity("NexaPlan.API.Models.PricingBenefit", b =>
+                {
+                    b.Property<int>("BenefitID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("BenefitID"));
+
+                    b.Property<string>("BenefitText")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<bool>("IsIncluded")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("PlanID")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("PricingPlanPlanID")
+                        .HasColumnType("int");
+
+                    b.HasKey("BenefitID");
+
+                    b.HasIndex("PricingPlanPlanID");
+
+                    b.ToTable("PricingBenefits");
+                });
+
+            modelBuilder.Entity("NexaPlan.API.Models.PricingPlan", b =>
+                {
+                    b.Property<int>("PlanID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("PlanID"));
+
+                    b.Property<decimal>("AnnualPrice")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsPopular")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("MaxSeats")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("MonthlyPrice")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("PlanID");
+
+                    b.ToTable("PricingPlans");
+                });
+
             modelBuilder.Entity("NexaPlan.API.Models.Role", b =>
                 {
                     b.Property<int>("RoleID")
@@ -802,6 +881,9 @@ namespace NexaPlan.API.Migrations
                     b.Property<string>("SubscriptionTier")
                         .IsRequired()
                         .HasColumnType("longtext");
+
+                    b.Property<decimal>("TotalCompanyBudget")
+                        .HasColumnType("decimal(65,30)");
 
                     b.HasKey("TenantID");
 
@@ -940,6 +1022,10 @@ namespace NexaPlan.API.Migrations
                     b.Property<int>("FailedLoginAttempts")
                         .HasColumnType("int");
 
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
                     b.Property<bool>("HasAcceptedTerms")
                         .HasColumnType("tinyint(1)");
 
@@ -951,6 +1037,10 @@ namespace NexaPlan.API.Migrations
 
                     b.Property<DateTime?>("LastLoginAt")
                         .HasColumnType("datetime(6)");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasColumnType("longtext");
 
                     b.Property<string>("LastTempPassword")
                         .HasColumnType("longtext");
@@ -1247,6 +1337,13 @@ namespace NexaPlan.API.Migrations
                     b.Navigation("Proposal");
                 });
 
+            modelBuilder.Entity("NexaPlan.API.Models.PricingBenefit", b =>
+                {
+                    b.HasOne("NexaPlan.API.Models.PricingPlan", null)
+                        .WithMany("Benefits")
+                        .HasForeignKey("PricingPlanPlanID");
+                });
+
             modelBuilder.Entity("NexaPlan.API.Models.StatementAccessLog", b =>
                 {
                     b.HasOne("NexaPlan.API.Models.FinancialStatement", "Statement")
@@ -1310,6 +1407,11 @@ namespace NexaPlan.API.Migrations
                         .IsRequired();
 
                     b.Navigation("RequiredRole");
+                });
+
+            modelBuilder.Entity("NexaPlan.API.Models.PricingPlan", b =>
+                {
+                    b.Navigation("Benefits");
                 });
 #pragma warning restore 612, 618
         }

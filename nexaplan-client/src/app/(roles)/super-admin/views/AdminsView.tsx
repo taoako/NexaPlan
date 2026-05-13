@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Shield, AlertCircle, Clock, Key, CheckCircle2, Check, X, RefreshCw, Lock, Unlock, Eye, EyeOff } from 'lucide-react';
 import * as api from '../../../../api/superAdminApi';
 import type { AdminDto } from '../../../../api/superAdminApi';
+import { TablePagination } from '../../../../components/TablePagination';
 
 interface AdminsViewProps { addToast: (msg: string, type?: 'success' | 'error' | 'info') => void; }
 
@@ -17,6 +18,8 @@ export function AdminsView({ addToast }: AdminsViewProps) {
   const [editAdminData, setEditAdminData] = useState<Partial<AdminDto>>({});
   const [tenants, setTenants] = useState<api.TenantDto[]>([]);
   const [showNewPwd, setShowNewPwd] = useState(false);
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
 
   const fetchAdmins = async () => {
     try {
@@ -35,6 +38,7 @@ export function AdminsView({ addToast }: AdminsViewProps) {
   };
 
   useEffect(() => { fetchAdmins(); }, []);
+  useEffect(() => { setPage(1); }, [admins.length]);
 
   const handleCreateAdmin = async () => {
     setCreateLoading(true);
@@ -108,6 +112,7 @@ export function AdminsView({ addToast }: AdminsViewProps) {
   if (loading) {
     return <div className="flex items-center justify-center h-64"><RefreshCw className="w-8 h-8 text-[#4F46E5] animate-spin" /></div>;
   }
+  const pagedAdmins = admins.slice((page - 1) * pageSize, page * pageSize);
 
   return (
     <div className="max-w-[1440px] mx-auto space-y-6">
@@ -176,7 +181,7 @@ export function AdminsView({ addToast }: AdminsViewProps) {
           <tbody className="divide-y divide-slate-100">
             {admins.length === 0 ? (
               <tr><td colSpan={7} className="px-6 py-12 text-center text-slate-500">No admin accounts found.</td></tr>
-            ) : admins.map((admin) => (
+            ) : pagedAdmins.map((admin) => (
               <tr key={admin.userID} className={`hover:bg-[#F8FAFC] transition-colors ${admin.isLocked ? 'bg-red-50/30' : ''}`}>
                 <td className="px-6 py-4 text-sm font-bold text-slate-900">{admin.name}</td>
                 <td className="px-6 py-4 text-sm text-slate-700 font-mono">{admin.email}</td>
@@ -210,6 +215,12 @@ export function AdminsView({ addToast }: AdminsViewProps) {
             ))}
           </tbody>
         </table>
+        <TablePagination
+          page={page}
+          pageSize={pageSize}
+          totalItems={admins.length}
+          onPageChange={setPage}
+        />
       </div>
 
       {/* Create Modal */}

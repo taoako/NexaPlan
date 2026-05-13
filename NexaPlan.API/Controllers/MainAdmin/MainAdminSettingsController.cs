@@ -26,11 +26,19 @@ namespace NexaPlan.API.Controllers.MainAdmin
                 await _context.SaveChangesAsync();
             }
 
+            var tenant = await _context.Tenants.FindAsync(tenantId);
+
             return Ok(new {
                 settingsId = settings.SettingsID,
                 fiscalYearStartMonth = settings.FiscalYearStartMonth,
                 defaultCurrency = settings.DefaultCurrency,
-                requireMfa = settings.RequireMFA
+                requireMfa = settings.RequireMFA,
+                totalCompanyBudget = tenant?.TotalCompanyBudget ?? 0,
+                // Company Details
+                companyName = tenant?.CompanyName ?? "",
+                contactPerson = tenant?.ContactPerson ?? "",
+                contactEmail = tenant?.ContactEmail ?? "",
+                phone = tenant?.Phone ?? ""
             });
         }
 
@@ -51,9 +59,60 @@ namespace NexaPlan.API.Controllers.MainAdmin
             settings.DefaultCurrency = request.DefaultCurrency;
             settings.RequireMFA = request.RequireMfa;
 
-            _context.AuditLogs.Add(new AuditLog { TenantID = tenantId, UserID = 0, ActionType = "SETTINGS_UPDATED", TargetResources = "System Settings", IPAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown", TimeStamp = DateTime.UtcNow });
+            var tenant = await _context.Tenants.FindAsync(tenantId);
+            if (tenant != null)
+            {
+                tenant.TotalCompanyBudget = request.TotalCompanyBudget;
+                tenant.CompanyName = request.CompanyName;
+                tenant.ContactPerson = request.ContactPerson;
+                tenant.ContactEmail = request.ContactEmail;
+                tenant.Phone = request.Phone;
+            }
+
+            _context.AuditLogs.Add(new AuditLog { 
+                TenantID = tenantId, 
+                UserID = GetUserId(), 
+                ActionType = "SETTINGS_UPDATED", 
+                TargetResources = $"Company: {request.CompanyName}, Budget: ₱{request.TotalCompanyBudget:N0}", 
+                IPAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown", 
+                TimeStamp = DateTime.UtcNow 
+            });
             await _context.SaveChangesAsync();
-            return Ok(new { message = "Settings saved." });
+            return Ok(new { message = "Settings saved successfully." });
+        }
+
+        // ── Company Budget ──────────────────────────────────────────────────
+        [HttpGet("budget")]
+        public async Task<IActionResult> GetBudget()
+        {
+            int tenantId = GetTenantId();
+            if (tenantId == 0) return NoTenant();
+            var tenant = await _context.Tenants.FindAsync(tenantId);
+            if (tenant == null) return NotFound();
+            return Ok(new { totalCompanyBudget = tenant.TotalCompanyBudget });
+        }
+
+        [HttpPut("budget")]
+        public async Task<IActionResult> SetBudget([FromBody] SetBudgetRequest request)
+        {
+            int tenantId = GetTenantId();
+            if (tenantId == 0) return NoTenant();
+            var tenant = await _context.Tenants.FindAsync(tenantId);
+            if (tenant == null) return NotFound();
+            if (request.TotalCompanyBudget < 0) return BadRequest(new { message = "Budget cannot be negative." });
+            tenant.TotalCompanyBudget = request.TotalCompanyBudget;
+            _context.AuditLogs.Add(new AuditLog
+            {
+                TenantID = tenantId, UserID = GetUserId(),
+                ActionType = "COMPANY_BUDGET_SET",
+                TargetResources = $"TotalCompanyBudget=₱{request.TotalCompanyBudget:N0}",
+                IPAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                TimeStamp = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Company budget updated successfully." });
         }
     }
+
+    public record SetBudgetRequest(decimal TotalCompanyBudget);
 }

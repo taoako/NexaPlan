@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Zap, AlertTriangle, Check, X, RefreshCw } from 'lucide-react';
 import * as api from '../../../../api/superAdminApi';
 import type { TrialDto } from '../../../../api/superAdminApi';
+import { TablePagination } from '../../../../components/TablePagination';
 
 interface TrialRequestsViewProps {
   onTrialCountChange: (count: number) => void;
@@ -16,6 +17,8 @@ export function TrialRequestsView({ onTrialCountChange }: TrialRequestsViewProps
   const [approvedCredentials, setApprovedCredentials] = useState<{ email: string, tempPassword: string, company: string } | null>(null);
   const [confirmRejectId, setConfirmRejectId] = useState<number | null>(null);
   const [modalMessage, setModalMessage] = useState<{ title: string; message: string; type: 'error' | 'success' | 'info' } | null>(null);
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
 
   const fetchTrials = async () => {
     try {
@@ -31,6 +34,7 @@ export function TrialRequestsView({ onTrialCountChange }: TrialRequestsViewProps
   };
 
   useEffect(() => { fetchTrials(); }, []);
+  useEffect(() => { setPage(1); }, [trials.length]);
 
   const handleApprove = async (id: number) => {
     setActionLoading(true);
@@ -79,6 +83,7 @@ export function TrialRequestsView({ onTrialCountChange }: TrialRequestsViewProps
   if (loading) {
     return <div className="flex items-center justify-center h-64"><RefreshCw className="w-8 h-8 text-[#4F46E5] animate-spin" /></div>;
   }
+  const pagedTrials = trials.slice((page - 1) * pageSize, page * pageSize);
 
   return (
     <div className="max-w-[1440px] mx-auto space-y-6">
@@ -133,7 +138,7 @@ export function TrialRequestsView({ onTrialCountChange }: TrialRequestsViewProps
           <tbody className="divide-y divide-slate-100">
             {trials.length === 0 ? (
               <tr><td colSpan={8} className="px-6 py-12 text-center text-slate-500">No trial requests found.</td></tr>
-            ) : trials.map((req) => (
+            ) : pagedTrials.map((req) => (
               <tr key={req.trialRequestID} className={`hover:bg-[#F8FAFC] transition-colors ${selectedTrial === req.trialRequestID ? 'bg-indigo-50/60' : ''} ${req.riskLevel === 'high' && req.status === 'Pending' ? 'border-l-4 border-l-[#EF4444]' : ''}`}>
                 <td className="px-6 py-4 text-sm font-mono font-bold text-[#4F46E5]">TR-{String(req.trialRequestID).padStart(3, '0')}</td>
                 <td className="px-6 py-4 text-sm font-bold text-slate-900">{req.companyName}</td>
@@ -172,6 +177,12 @@ export function TrialRequestsView({ onTrialCountChange }: TrialRequestsViewProps
             ))}
           </tbody>
         </table>
+        <TablePagination
+          page={page}
+          pageSize={pageSize}
+          totalItems={trials.length}
+          onPageChange={setPage}
+        />
       </div>
 
       {/* Review Dossier */}
