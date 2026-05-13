@@ -9,10 +9,9 @@ namespace NexaPlan.API.Controllers.FinanceManager
     public class FinanceManagerApprovalsController : FinanceManagerBaseController
     {
         private readonly IHttpClientFactory _httpClientFactory;
-        private const string ML_SERVICE_URL = "https://nexaplan-ml-engine.onrender.com/predict";
 
-        public FinanceManagerApprovalsController(AppDbContext context, IHttpClientFactory httpClientFactory) : base(context) 
-        { 
+        public FinanceManagerApprovalsController(AppDbContext context, IHttpClientFactory httpClientFactory) : base(context)
+        {
             _httpClientFactory = httpClientFactory;
         }
 
@@ -44,7 +43,7 @@ namespace NexaPlan.API.Controllers.FinanceManager
                 .ToDictionaryAsync(a => a.DepartmentID, a => a.TotalAllocatedCap);
 
             var resultList = new List<object>();
-            var client = _httpClientFactory.CreateClient();
+            var client = _httpClientFactory.CreateClient("MlService");
 
             foreach (var p in proposals)
             {
@@ -58,13 +57,12 @@ namespace NexaPlan.API.Controllers.FinanceManager
                     {
                         var deptName = p.Department?.DepartmentName ?? "Unknown";
                         var month = !string.IsNullOrEmpty(p.PlannedMonth) ? p.PlannedMonth : DateTime.UtcNow.ToString("MMM").ToUpper();
-                        
+
                         decimal deptCap = allocationCaps.ContainsKey(p.DepartmentID) ? allocationCaps[p.DepartmentID] : (p.Department?.AnnualBudgetCap ?? 0);
                         double monthlyCap = (double)(deptCap / 12);
                         if (monthlyCap <= 0) monthlyCap = 1000; // Fallback for ML model safety
-
                         var payload = new DTOs.MlPredictRequest(monthlyCap, deptName, month);
-                        var response = await client.PostAsJsonAsync($"{ML_SERVICE_URL}/predict", payload);
+                        var response = await client.PostAsJsonAsync("predict", payload);
                         if (response.IsSuccessStatusCode)
                         {
                             var pred = await response.Content.ReadFromJsonAsync<DTOs.MlPredictResponse>();
@@ -82,7 +80,6 @@ namespace NexaPlan.API.Controllers.FinanceManager
                 resultList.Add(new
                 {
                     id = p.ProposalID,
-                    title = p.Title,
                     department = p.Department?.DepartmentName ?? "Unknown",
                     departmentId = p.DepartmentID,
                     departmentCap = allocationCaps.ContainsKey(p.DepartmentID) ? allocationCaps[p.DepartmentID] : (p.Department?.AnnualBudgetCap ?? 0),

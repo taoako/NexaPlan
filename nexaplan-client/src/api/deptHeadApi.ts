@@ -1,4 +1,6 @@
-const API_BASE = 'https://nexaplan.runasp.net/api/dept-head';
+import { apiRoleBase } from '../config/api';
+
+const API_BASE = apiRoleBase('dept-head');
 
 function getHeaders() {
   const userStr = localStorage.getItem('user');

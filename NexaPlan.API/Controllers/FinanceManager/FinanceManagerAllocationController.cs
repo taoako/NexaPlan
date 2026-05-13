@@ -9,10 +9,9 @@ namespace NexaPlan.API.Controllers.FinanceManager
     public class FinanceManagerAllocationController : FinanceManagerBaseController
     {
         private readonly IHttpClientFactory _httpClientFactory;
-        private const string ML_SERVICE_URL = "https://nexaplan-ml-engine.onrender.com/predict";
 
-        public FinanceManagerAllocationController(AppDbContext context, IHttpClientFactory httpClientFactory) : base(context) 
-        { 
+        public FinanceManagerAllocationController(AppDbContext context, IHttpClientFactory httpClientFactory) : base(context)
+        {
             _httpClientFactory = httpClientFactory;
         }
 
@@ -273,8 +272,8 @@ namespace NexaPlan.API.Controllers.FinanceManager
             {
                 var monthlyAverage = (double)(req.Amount / 12m);
                 var payload = new DTOs.MlPredictRequest(monthlyAverage, dept.DepartmentName, "DEC");
-                var client = _httpClientFactory.CreateClient();
-                var response = await client.PostAsJsonAsync($"{ML_SERVICE_URL}/predict", payload);
+                var client = _httpClientFactory.CreateClient("MlService");
+                var response = await client.PostAsJsonAsync("predict", payload);
 
                 if (response.IsSuccessStatusCode)
                 {

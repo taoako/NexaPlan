@@ -33,17 +33,24 @@ namespace NexaPlan.API.Controllers
 
             decimal basePrice = 0;
             string planName = "";
-            
-            if (request.PlanTier.Equals("starter", StringComparison.OrdinalIgnoreCase)) {
+
+            if (request.PlanTier.Equals("starter", StringComparison.OrdinalIgnoreCase))
+            {
                 basePrice = decimal.Parse(pricingKeys.GetValueOrDefault("price_starter_monthly", "4950"));
                 planName = "NexaPlan Starter (Monthly)";
-            } else if (request.PlanTier.Equals("professional", StringComparison.OrdinalIgnoreCase)) {
+            }
+            else if (request.PlanTier.Equals("professional", StringComparison.OrdinalIgnoreCase))
+            {
                 basePrice = decimal.Parse(pricingKeys.GetValueOrDefault("price_professional_monthly", "12900"));
                 planName = "NexaPlan Professional (Monthly)";
-            } else if (request.PlanTier.Equals("enterprise", StringComparison.OrdinalIgnoreCase)) {
+            }
+            else if (request.PlanTier.Equals("enterprise", StringComparison.OrdinalIgnoreCase))
+            {
                 basePrice = decimal.Parse(pricingKeys.GetValueOrDefault("price_enterprise_monthly", "29900"));
                 planName = "NexaPlan Enterprise (Monthly)";
-            } else {
+            }
+            else
+            {
                 return BadRequest(new { message = "Invalid plan tier." });
             }
 
@@ -64,12 +71,14 @@ namespace NexaPlan.API.Controllers
 
             long finalChargeCents = (long)Math.Round(grandTotal * 100);
 
-            var frontendBaseUrl = _configuration["Frontend:BaseUrl"] ?? "http://localhost:5173";
-            
+            var frontendBaseUrl = _configuration["Frontend:BaseUrl"];
+            if (string.IsNullOrWhiteSpace(frontendBaseUrl))
+                return BadRequest(new { message = "Frontend BaseUrl is not configured." });
+
             // Check database config first
             var dbConfigSecret = await _context.SystemConfigs.FirstOrDefaultAsync(c => c.ConfigKey == "PayMongoSecret");
             var secretKey = dbConfigSecret?.ConfigValue;
-            
+
             if (string.IsNullOrWhiteSpace(secretKey))
             {
                 secretKey = _configuration["PayMongo:SecretKey"];
@@ -147,8 +156,7 @@ namespace NexaPlan.API.Controllers
 
             try
             {
-                var client = _httpClientFactory.CreateClient();
-                client.BaseAddress = new Uri("https://api.paymongo.com/v1/");
+                var client = _httpClientFactory.CreateClient("PayMongo");
 
                 var authValue = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{secretKey}:"));
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", authValue);

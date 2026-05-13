@@ -10,6 +10,7 @@ import { BudgetPlanningSystem } from './app/(roles)/budget-planning/BudgetPlanni
 import { ComplianceAuditSystem } from './app/(roles)/compliance-audit/ComplianceAuditSystem';
 import { DepartmentHeadSystem } from './app/(roles)/department-head/DepartmentHeadSystem';
 import { FinanceManagerSystem } from './app/(roles)/finance-manager/FinanceManagerSystem';
+import { apiUrl } from './config/api';
 
 export default function App() {
   const [currentView, setCurrentView] = useState('landing');
@@ -95,7 +96,7 @@ export default function App() {
     };
 
     try {
-      const response = await fetch('https://nexaplan.runasp.net/api/Payments/checkout', {
+      const response = await fetch(apiUrl('/api/Payments/checkout'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -126,7 +127,7 @@ export default function App() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('https://nexaplan.runasp.net/api/Auth/login', {
+      const response = await fetch(apiUrl('/api/Auth/login'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -193,7 +194,7 @@ export default function App() {
         return;
       }
 
-      const response = await fetch('https://nexaplan.runasp.net/api/Auth/register', {
+      const response = await fetch(apiUrl('/api/Auth/register'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

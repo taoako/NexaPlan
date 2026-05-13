@@ -12,7 +12,6 @@ public class FinanceManagerVarianceController : FinanceManagerBaseController
 {
     private readonly AppDbContext _db;
     private readonly IHttpClientFactory _http;
-    private const string ML_URL = "https://nexaplan-ml-engine.onrender.com/predict";
 
     private static readonly string[] MonthOrder =
         { "JAN","FEB","MAR","APR","MAY","JUN",
@@ -20,7 +19,7 @@ public class FinanceManagerVarianceController : FinanceManagerBaseController
 
     public FinanceManagerVarianceController(AppDbContext db, IHttpClientFactory http) : base(db)
     {
-        _db  = db;
+        _db = db;
         _http = http;
     }
 
@@ -28,11 +27,11 @@ public class FinanceManagerVarianceController : FinanceManagerBaseController
     // month is optional — omit for full year view
     [HttpGet]
     public async Task<IActionResult> GetVariance(
-        [FromQuery] int    fiscalYear = 2026,
-        [FromQuery] string? month     = null)
+        [FromQuery] int fiscalYear = 2026,
+        [FromQuery] string? month = null)
     {
-        var tenantId     = GetTenantId();
-        var filterMonth  = month?.ToUpper().Trim();
+        var tenantId = GetTenantId();
+        var filterMonth = month?.ToUpper().Trim();
         if (filterMonth != null && filterMonth.Length >= 3) filterMonth = filterMonth[..3];
 
         var departments = await _db.Departments
@@ -107,7 +106,7 @@ public class FinanceManagerVarianceController : FinanceManagerBaseController
             .ToList();
 
         var results = new List<DeptVarianceDto>();
-        var client  = _http.CreateClient();
+        var client = _http.CreateClient("MlService");
         client.Timeout = TimeSpan.FromSeconds(4);
 
         foreach (var dept in departments)
@@ -132,7 +131,7 @@ public class FinanceManagerVarianceController : FinanceManagerBaseController
                 ? plannedBudget
                 : (filterMonth != null ? cap / 12 : cap);
 
-            var variance    = budgetReference - actualSpent; // Adjusted the logic to budget - actual, because positive variance usually means under budget
+            var variance = budgetReference - actualSpent; // Adjusted the logic to budget - actual, because positive variance usually means under budget
             var variancePct = budgetReference > 0
                 ? (double)(variance / budgetReference * 100) : 0;
 
@@ -144,7 +143,7 @@ public class FinanceManagerVarianceController : FinanceManagerBaseController
 
             // ML: get expected YTD spending for this dept+period
             double mlExpected;
-            bool   isAnomaly;
+            bool isAnomaly;
             string mlNote;
             string mlModel;
 
@@ -164,15 +163,15 @@ public class FinanceManagerVarianceController : FinanceManagerBaseController
                     var (mExp, _, mNote, mMod) = await GetMlExpected(
                         client, dept.DepartmentName, mStr, monthlyBudgetProbe, 0);
                     ytdMlTotal += mExp;
-                    if (!string.IsNullOrEmpty(mNote))  lastNote  = mNote;
-                    if (!string.IsNullOrEmpty(mMod))   lastModel = mMod;
+                    if (!string.IsNullOrEmpty(mNote)) lastNote = mNote;
+                    if (!string.IsNullOrEmpty(mMod)) lastModel = mMod;
                 }
 
                 mlExpected = Math.Round(ytdMlTotal, 2);
-                isAnomaly  = actualSpent > 0 && mlExpected > 0
+                isAnomaly = actualSpent > 0 && mlExpected > 0
                              && ((double)actualSpent - mlExpected) / mlExpected * 100 > 20;
-                mlNote     = lastNote;
-                mlModel    = lastModel;
+                mlNote = lastNote;
+                mlModel = lastModel;
             }
             else
             {
@@ -216,12 +215,12 @@ public class FinanceManagerVarianceController : FinanceManagerBaseController
         try
         {
             if (budgetRef <= 0) return (0, false, "", "");
-            var payload  = new { budgeted_amount = budgetRef, department = deptName, month };
-            var response = await client.PostAsJsonAsync($"{ML_URL}/predict", payload);
+            var payload = new { budgeted_amount = budgetRef, department = deptName, month };
+            var response = await client.PostAsJsonAsync("predict", payload);
             if (!response.IsSuccessStatusCode) return (0, false, "", "");
             var pred = await response.Content.ReadFromJsonAsync<MlPredictResponse>();
             if (pred == null) return (0, false, "", "");
-            
+
             var mlExp = pred.predicted_spending;
             // Anomaly: actual is > 20% above what ML expected
             var isAnomaly = actualSpent > 0 && mlExp > 0 && ((actualSpent - mlExp) / mlExp * 100) > 20;
@@ -270,13 +269,13 @@ public class FinanceManagerVarianceController : FinanceManagerBaseController
         if (!string.IsNullOrWhiteSpace(monthText))
         {
             var normalized = monthText.Trim().ToUpperInvariant();
-            
+
             // Handle numeric months if entered as strings
             if (int.TryParse(normalized, out var m) && m >= 1 && m <= 12) return MonthOrder[m - 1];
 
             // Handle full names or 3-letter abbreviations
             var fullMonthNames = new[] { "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER" };
-            
+
             for (int i = 0; i < 12; i++)
             {
                 if (normalized == MonthOrder[i] || normalized == fullMonthNames[i] || (normalized.Length >= 3 && normalized.StartsWith(MonthOrder[i])))
@@ -300,7 +299,7 @@ public record MonthlyVarianceDto(
     double VariancePct);
 
 public record DeptVarianceDto(
-    int    DepartmentId,
+    int DepartmentId,
     string DepartmentName,
     double BudgetedAmount,
     double ActualSpent,
@@ -309,12 +308,12 @@ public record DeptVarianceDto(
     string Status,
     List<MonthlyVarianceDto> MonthlyBreakdown,
     double MlExpectedSpending,   // RF model's predicted spending for this period
-    bool   IsAnomaly,            // actual >> ML expected → flag for investigation
+    bool IsAnomaly,            // actual >> ML expected → flag for investigation
     string MlModelUsed,
     string MlConfidenceNote);
 
 public record VarianceSummaryDto(
-    int    FiscalYear,
+    int FiscalYear,
     string SelectedMonth,    // "ALL" or "JAN"-"DEC"
     double TotalBudgeted,
     double TotalActual,

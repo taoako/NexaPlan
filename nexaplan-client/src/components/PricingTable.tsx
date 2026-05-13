@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Check, Zap, Shield, Rocket } from 'lucide-react';
+import { apiUrl } from '../config/api';
 
 interface PricingBenefit {
   benefitID: number;
@@ -28,7 +29,7 @@ export function PricingTable({ onStartTrial, onSelectPlan }: PricingTableProps) 
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('https://nexaplan.runasp.net/api/pricing')
+    fetch(apiUrl('/api/pricing'))
       .then(res => res.json())
       .then(data => {
         setPlans(data);

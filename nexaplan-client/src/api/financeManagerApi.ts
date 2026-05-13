@@ -1,4 +1,6 @@
-const API_BASE = 'https://nexaplan.runasp.net/api/finance-manager';
+import { apiRoleBase } from '../config/api';
+
+const API_BASE = apiRoleBase('finance-manager');
 
 function getHeaders() {
   const userStr = localStorage.getItem('user');

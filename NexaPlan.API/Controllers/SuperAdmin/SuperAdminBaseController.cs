@@ -53,8 +53,7 @@ namespace NexaPlan.API.Controllers.SuperAdmin
             if (!string.IsNullOrWhiteSpace(dbSecret?.ConfigValue)) secretKey = dbSecret.ConfigValue;
             if (string.IsNullOrWhiteSpace(secretKey)) return;
 
-            var client = clientFactory.CreateClient();
-            client.BaseAddress = new Uri("https://api.paymongo.com/v1/");
+            var client = clientFactory.CreateClient("PayMongo");
             var auth = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"{secretKey}:"));
             client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", auth);
 

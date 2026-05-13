@@ -34,14 +34,16 @@ namespace NexaPlan.API.Controllers.MainAdmin
 
             var nextInvoice = invoices.FirstOrDefault(i => !i.Status && i.DueDate >= DateTime.UtcNow);
 
-            return Ok(new {
+            return Ok(new
+            {
                 plan = tenant?.SubscriptionTier ?? "Unknown",
                 status = tenant?.RegistrationStatus ?? "Unknown",
                 nextBillingDate = nextInvoice?.DueDate,
                 daysUntilDue = nextInvoice != null
                     ? (int?)(nextInvoice.DueDate - DateTime.UtcNow).TotalDays
                     : null,
-                invoices = invoices.Select(inv => new {
+                invoices = invoices.Select(inv => new
+                {
                     invoiceId = inv.InvoiceID,
                     invoiceNumber = $"INV-{inv.InvoiceID:D6}",
                     amount = inv.Amount,
@@ -75,15 +77,20 @@ namespace NexaPlan.API.Controllers.MainAdmin
             if (string.IsNullOrWhiteSpace(secretKey))
                 return BadRequest(new { message = "Payment gateway not configured." });
 
-            var frontendBase = _configuration["Frontend:BaseUrl"] ?? "http://localhost:5173";
-            var client = _clientFactory.CreateClient();
-            client.BaseAddress = new Uri("https://api.paymongo.com/v1/");
+            var frontendBase = _configuration["Frontend:BaseUrl"];
+            if (string.IsNullOrWhiteSpace(frontendBase))
+                return BadRequest(new { message = "Frontend BaseUrl is not configured." });
+
+            var client = _clientFactory.CreateClient("PayMongo");
             var authValue = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"{secretKey}:"));
             client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", authValue);
 
-            var payload = System.Text.Json.JsonSerializer.Serialize(new {
-                data = new {
-                    attributes = new {
+            var payload = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                data = new
+                {
+                    attributes = new
+                    {
                         cancel_url = $"{frontendBase}/?payment=cancelled",
                         success_url = $"{frontendBase}/?payment=success",
                         payment_method_types = new[] { "card", "gcash", "paymaya" },

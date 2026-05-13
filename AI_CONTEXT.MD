@@ -51,6 +51,26 @@ This document provides essential context about the NexaPlan platform's architect
 - **Review/View Details (Action):** Every row in the trial table is clickable. Pending requests say "Review →", while approved/rejected requests say "View Details", opening a comprehensive verification dossier.
 - **Approval Transaction:** Clicking "Approve" triggers a cascade of backend events: The account status shifts to "Active", the MySQL database allocates workspace storage, the PayMongo customer profile is drafted (awaiting future payment details), a 14-day trial countdown timer is initiated in the UI.
   - **Password Retrieval:** The system retrieves the original password hash the user submitted during the registration step, ensuring they can log in seamlessly with the credentials they initially created.
+
+## Recent Automation Log
+
+- **Date:** 2026-05-14
+- **Actions performed by automation:**
+  - Centralized backend external service base URLs in `appsettings.json` (`ExternalServices: MlService`, `PayMongo`).
+  - Introduced named `HttpClient` usage across backend: `MlService`, `PayMongo`.
+  - Centralized frontend API base via Vite env `VITE_API_BASE_URL` and refactored client call sites to use `src/config/api.ts`.
+  - Fixed syntax corruption in `NexaPlan.API/Controllers/FinanceManager/FinanceManagerApprovalsController.cs` (removed stray statements and consolidated `MlService` client usage).
+  - Built frontend successfully (`nexaplan-client` production build) and validated no runtime hard-coded `nexaplan.runasp.net` calls remain.
+  - Sanitized plaintext secrets in `NexaPlan.API/appsettings.json` and added `NexaPlan.API/appsettings.example.json` with placeholders.
+  - Added `NexaPlan.API/appsettings.json` to `.gitignore` and removed it from tracking in the next commit (so secrets should be stored via user-secrets or environment variables).
+
+- **Important security note:** The repository previously contained plaintext secrets in history (appsettings). The automation removed them from the current HEAD by replacing values with placeholders, but the secrets still exist in the git history. If you want those secrets purged from the repository history, I can help run a history rewrite (BFG or git filter-repo) — note that rewriting history requires coordination for any collaborators and force-pushing the branch.
+
+**Next recommended steps:**
+
+- Move real secrets into Dotnet `user-secrets` or environment variables and document their names in `NexaPlan.API/appsettings.example.json`.
+- If you want full removal of secrets from git history, request the history-scrub step and tell me whether it's OK to force-push `main`.
+
   - **Email Notification:** Uses an integrated `SmtpClient` implementation (configured in `appsettings.json`) to securely dispatch live welcome emails upon approval.
   - **UI Modal:** A UI modal also immediately presents confirmation to the Super Admin upon clicking Approve.
 - **Rejection Transaction:** Deletes the pending request from the queue and adds the applicant's email domain or IP address to a blacklist table to prevent repeated spam submissions.
