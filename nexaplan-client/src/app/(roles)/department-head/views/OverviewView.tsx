@@ -4,13 +4,18 @@ import { Activity } from 'lucide-react';
 
 export function OverviewView() {
   const [data, setData] = useState<any>(null);
+  const [riskData, setRiskData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await deptHeadApi.getOverview();
-        setData(res);
+        const [overview, risk] = await Promise.all([
+          deptHeadApi.getOverview(),
+          deptHeadApi.getSpendingRisk().catch(() => null)
+        ]);
+        setData(overview);
+        setRiskData(risk);
       } catch (err) {
         console.error(err);
       } finally {
@@ -29,6 +34,36 @@ export function OverviewView() {
         <h1 className="text-3xl font-black text-[#0A192F]">{data.departmentName} Overview</h1>
         <p className="text-slate-600 mt-2">Budget performance and departmental metrics</p>
       </div>
+
+      {riskData && (
+        <div className={`rounded-xl p-5 border shadow-sm flex items-center justify-between ${
+          riskData.riskLevel === 'High' ? 'bg-red-50 border-red-200' :
+          riskData.riskLevel === 'Medium' ? 'bg-amber-50 border-amber-200' :
+          'bg-emerald-50 border-emerald-200'
+        }`}>
+          <div className="flex items-center gap-4">
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+              riskData.riskLevel === 'High' ? 'bg-red-100 text-red-600' :
+              riskData.riskLevel === 'Medium' ? 'bg-amber-100 text-amber-600' :
+              'bg-emerald-100 text-emerald-600'
+            }`}>
+              <Activity className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-0.5">AI Spending Signal — {riskData.month}</div>
+              <div className="text-lg font-black text-slate-900">{riskData.riskLevel} Risk Level</div>
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-sm font-semibold text-slate-700">Predicted Utilization: {((riskData.predictedSpending / riskData.budgetCap) * 100).toFixed(1)}%</div>
+            <p className="text-xs text-slate-500 mt-1 max-w-xs ml-auto italic">
+              {riskData.riskLevel === 'Low' 
+                ? 'Historical patterns suggest this department stays within budget for this month.'
+                : `Warning: Historical data shows ${riskData.deptName} often exceeds budget caps in ${riskData.month}.`}
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-4 gap-6">
         <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">

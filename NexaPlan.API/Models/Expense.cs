@@ -17,6 +17,7 @@ namespace NexaPlan.API.Models
 
         public int SubmittedBy { get; set; }
         public DateTime SubmittedAt { get; set; } = DateTime.UtcNow;
+        public DateTime? ExpenseDate { get; set; } // When the expense was actually incurred
 
         public int? ReconciledBy { get; set; }
         public DateTime? ReconciledAt { get; set; }

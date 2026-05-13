@@ -36,6 +36,14 @@ export function BudgetPlanningSystem({ onBack }: BudgetPlanningSystemProps) {
   const [selectedProposal, setSelectedProposal] = useState<string>('1');
   const [reviewNotes, setReviewNotes] = useState('');
 
+  const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const userName = storedUser.firstName && storedUser.lastName 
+    ? `${storedUser.firstName} ${storedUser.lastName}` 
+    : (storedUser.name ?? 'Finance Manager');
+  const userInitials = storedUser.firstName && storedUser.lastName
+    ? (storedUser.firstName[0] + storedUser.lastName[0]).toUpperCase()
+    : userName.substring(0, 2).toUpperCase();
+
   const proposals: Proposal[] = [
     {
       id: '1',

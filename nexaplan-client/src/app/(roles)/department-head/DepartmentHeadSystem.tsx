@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import logoImg from "../../../assets/brand/nexaplan-logo.png";
-import { Search, Bell, LogOut, Plus, BarChart3, FileText, Activity, User, Lock, ChevronDown, GitBranch, AlertTriangle, Receipt } from 'lucide-react';
+import { Search, Bell, LogOut, Plus, BarChart3, FileText, Activity, User, Lock, ChevronDown, GitBranch, AlertTriangle, Receipt, X, CheckCircle2, Info } from 'lucide-react';
 
 import { OverviewView } from './views/OverviewView';
 import { ProposalsView } from './views/ProposalsView';
@@ -16,13 +16,28 @@ interface DepartmentHeadSystemProps {
 
 export type ModuleView = 'overview' | 'proposals' | 'new-request' | 'variance' | 'scenarios' | 'expenses';
 
+interface Toast { id: number; message: string; type: 'success' | 'error' | 'info' | 'warning'; }
+
 export function DepartmentHeadSystem({ onBack }: DepartmentHeadSystemProps) {
   const [activeModule, setActiveModule] = useState<ModuleView>('overview');
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const [toasts, setToasts] = useState<Toast[]>([]);
   const profileRef = useRef<HTMLDivElement>(null);
   
   const [activeScenario, setActiveScenario] = useState<any>(null);
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const userName = storedUser.firstName && storedUser.lastName 
+    ? `${storedUser.firstName} ${storedUser.lastName}` 
+    : (storedUser.name ?? 'Dept Head');
+  const userInitials = storedUser.firstName && storedUser.lastName
+    ? (storedUser.firstName[0] + storedUser.lastName[0]).toUpperCase()
+    : userName.substring(0, 2).toUpperCase();
+
+  const addToast = useCallback((message: string, type: 'success' | 'error' | 'info' | 'warning' = 'info') => {
+    const id = Date.now();
+    setToasts(p => [...p, { id, message, type }]);
+    setTimeout(() => setToasts(p => p.filter(t => t.id !== id)), 5000);
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -95,10 +110,10 @@ export function DepartmentHeadSystem({ onBack }: DepartmentHeadSystemProps) {
               className="flex items-center gap-2.5 hover:bg-white/10 px-3 py-2 rounded-lg transition-all"
             >
               <div className="w-9 h-9 bg-gradient-to-br from-[#4F46E5] to-[#6366F1] rounded-full flex items-center justify-center font-bold text-white text-sm uppercase">
-                {user.name ? user.name.substring(0, 2) : 'DH'}
+                {userInitials}
               </div>
               <div className="text-left">
-                <div className="text-sm font-bold text-white leading-none">{user.name || 'Dept Head'}</div>
+                <div className="text-sm font-bold text-white leading-none">{userName}</div>
                 <div className="text-xs text-slate-400 mt-0.5">Department Head</div>
               </div>
               <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${showProfileDropdown ? 'rotate-180' : ''}`} />
@@ -107,8 +122,8 @@ export function DepartmentHeadSystem({ onBack }: DepartmentHeadSystemProps) {
             {showProfileDropdown && (
               <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden z-50">
                 <div className="px-4 py-3 bg-slate-50 border-b border-slate-200">
-                  <div className="text-sm font-bold text-slate-900">{user.name || 'Dept Head'}</div>
-                  <div className="text-xs text-slate-500">{user.email || 'depthead@nexaplan.ph'}</div>
+                  <div className="text-sm font-bold text-slate-900">{userName}</div>
+                  <div className="text-xs text-slate-500">{storedUser.email || 'depthead@nexaplan.ph'}</div>
                 </div>
                 <div className="py-1">
                   <button onClick={() => { setShowProfileDropdown(false); onBack(); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#EF4444] hover:bg-red-50 transition-colors font-semibold">
@@ -123,11 +138,32 @@ export function DepartmentHeadSystem({ onBack }: DepartmentHeadSystemProps) {
 
       <div className="p-8">
         {activeModule === 'overview' && <OverviewView />}
-        {activeModule === 'proposals' && <ProposalsView setActiveModule={setActiveModule} />}
-        {activeModule === 'new-request' && <NewRequestView setActiveModule={setActiveModule} />}
-        {activeModule === 'expenses' && <ExpensesView />}
+        {activeModule === 'proposals' && <ProposalsView setActiveModule={setActiveModule} addToast={addToast} />}
+        {activeModule === 'new-request' && <NewRequestView setActiveModule={setActiveModule} addToast={addToast} />}
+        {activeModule === 'expenses' && <ExpensesView addToast={addToast} />}
         {activeModule === 'variance' && <VarianceView />}
         {activeModule === 'scenarios' && <ScenariosView />}
+      </div>
+
+      {/* Toast Container */}
+      <div className="fixed bottom-6 right-6 z-[100] flex flex-col gap-3">
+        {toasts.map(t => (
+          <div key={t.id} className={`flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl border animate-in slide-in-from-right-10 duration-300 min-w-[320px] max-w-md ${
+            t.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' :
+            t.type === 'error' ? 'bg-red-50 border-red-200 text-red-800' :
+            t.type === 'warning' ? 'bg-amber-50 border-amber-200 text-amber-800' :
+            'bg-blue-50 border-blue-200 text-blue-800'
+          }`}>
+            {t.type === 'success' && <CheckCircle2 className="w-5 h-5 text-emerald-500" />}
+            {t.type === 'error' && <X className="w-5 h-5 text-red-500" />}
+            {t.type === 'warning' && <AlertTriangle className="w-5 h-5 text-amber-500" />}
+            {t.type === 'info' && <Info className="w-5 h-5 text-blue-500" />}
+            <span className="text-[13px] font-bold flex-1">{t.message}</span>
+            <button onClick={() => setToasts(p => p.filter(x => x.id !== t.id))} className="text-slate-400 hover:text-slate-600">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ))}
       </div>
     </div>
   );

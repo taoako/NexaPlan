@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Download, RefreshCw, CheckCircle2, DollarSign, X } from 'lucide-react';
 import * as api from '../../../../api/superAdminApi';
 import type { InvoiceDto } from '../../../../api/superAdminApi';
+import { TablePagination } from '../../../../components/TablePagination';
 
 interface BillingViewProps {
   addToast: (message: string, type?: 'success' | 'error' | 'info') => void;
@@ -18,6 +19,8 @@ export function BillingView({ addToast }: BillingViewProps) {
   const [pricingLoading, setPricingLoading] = useState(false);
   const [pricingError, setPricingError] = useState<string | null>(null);
   const [savingPricing, setSavingPricing] = useState(false);
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
 
   const fetchInvoices = async () => {
     try {
@@ -36,7 +39,15 @@ export function BillingView({ addToast }: BillingViewProps) {
       setPricingLoading(true);
       setPricingError(null);
       const data = await api.getPricing();
-      setPricingConfig(data);
+      setPricingConfig({
+        price_starter_monthly: data.price_starter_monthly || '0',
+        price_starter_annual: data.price_starter_annual || '0',
+        price_professional_monthly: data.price_professional_monthly || '0',
+        price_professional_annual: data.price_professional_annual || '0',
+        price_enterprise_monthly: data.price_enterprise_monthly || '0',
+        price_enterprise_annual: data.price_enterprise_annual || '0',
+        pricing_vat_inclusive: data.pricing_vat_inclusive || 'false'
+      });
     } catch (err) {
       console.error('Failed to load pricing:', err);
       setPricingError('Unable to load pricing configuration.');
@@ -47,6 +58,7 @@ export function BillingView({ addToast }: BillingViewProps) {
   };
 
   useEffect(() => { fetchInvoices(); fetchPricing(); }, []);
+  useEffect(() => { setPage(1); }, [invoices.length]);
 
   const handleSync = async () => {
     try {
@@ -82,7 +94,20 @@ export function BillingView({ addToast }: BillingViewProps) {
     if (!pricingConfig) return;
     setSavingPricing(true);
     try {
-      await api.savePricing(pricingConfig);
+      const sanitizeMoney = (value: string) => {
+        const n = Number(value);
+        return Number.isFinite(n) && n >= 0 ? String(n) : '0';
+      };
+      await api.savePricing({
+        ...pricingConfig,
+        price_starter_monthly: sanitizeMoney(pricingConfig.price_starter_monthly),
+        price_starter_annual: sanitizeMoney(pricingConfig.price_starter_annual),
+        price_professional_monthly: sanitizeMoney(pricingConfig.price_professional_monthly),
+        price_professional_annual: sanitizeMoney(pricingConfig.price_professional_annual),
+        price_enterprise_monthly: sanitizeMoney(pricingConfig.price_enterprise_monthly),
+        price_enterprise_annual: sanitizeMoney(pricingConfig.price_enterprise_annual),
+      });
+      await fetchPricing();
       addToast('Pricing configuration saved successfully.', 'success');
     } catch (err: any) {
       addToast(err.message || 'Failed to save pricing.', 'error');
@@ -94,6 +119,7 @@ export function BillingView({ addToast }: BillingViewProps) {
   const totalPaid = invoices.filter(i => i.status === 'Paid').reduce((s, i) => s + i.amount, 0);
   const totalPending = invoices.filter(i => i.status === 'Pending').reduce((s, i) => s + i.amount, 0);
   const totalOverdue = invoices.filter(i => i.status === 'Overdue').reduce((s, i) => s + i.amount, 0);
+  const pagedInvoices = invoices.slice((page - 1) * pageSize, page * pageSize);
 
   if (loading) {
     return <div className="flex items-center justify-center h-64"><RefreshCw className="w-8 h-8 text-[#4F46E5] animate-spin" /></div>;
@@ -151,7 +177,7 @@ export function BillingView({ addToast }: BillingViewProps) {
           <tbody className="divide-y divide-slate-100">
             {invoices.length === 0 ? (
               <tr><td colSpan={7} className="px-6 py-12 text-center text-slate-500">No invoices found.</td></tr>
-            ) : invoices.map((inv) => (
+            ) : pagedInvoices.map((inv) => (
               <tr key={inv.invoiceID} className="hover:bg-[#F8FAFC] transition-colors cursor-pointer" onClick={() => { setSelectedInvoice(inv); setRefundType('full'); setPartialAmount(''); }}>
                 <td className="px-6 py-4 text-sm font-mono font-bold text-slate-900">{inv.invoiceNumber}</td>
                 <td className="px-6 py-4 text-sm text-slate-700">{inv.tenantName}</td>
@@ -173,6 +199,12 @@ export function BillingView({ addToast }: BillingViewProps) {
             ))}
           </tbody>
         </table>
+        <TablePagination
+          page={page}
+          pageSize={pageSize}
+          totalItems={invoices.length}
+          onPageChange={setPage}
+        />
       </div>
 
       {/* Pricing Management */}

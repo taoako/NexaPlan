@@ -65,6 +65,11 @@ export interface MainAdminSettings {
   fiscalYearStartMonth: number;
   defaultCurrency: string;
   requireMfa: boolean;
+  totalCompanyBudget: number;
+  companyName: string;
+  contactPerson: string;
+  contactEmail: string;
+  phone: string;
 }
 
 export interface MainAdminLog {
@@ -153,9 +158,16 @@ export const getRoles = (tenantId: number) => apiFetch<RoleOption[]>('/roles', t
 // ─── Settings ───
 export const getSettings = (tenantId: number) => apiFetch<MainAdminSettings>('/settings', tenantId);
 
-export const updateSettings = (tenantId: number, data: { fiscalYearStartMonth: number; defaultCurrency: string; requireMfa: boolean }) =>
+export const updateSettings = (tenantId: number, data: Partial<MainAdminSettings>) =>
   apiFetch<{ message: string }>('/settings', tenantId, {
     method: 'PUT', body: JSON.stringify(data),
+  });
+
+export const getBudget = (tenantId: number) => apiFetch<{ totalCompanyBudget: number }>('/budget', tenantId);
+
+export const updateBudget = (tenantId: number, totalCompanyBudget: number) =>
+  apiFetch<{ message: string }>('/budget', tenantId, {
+    method: 'PUT', body: JSON.stringify({ totalCompanyBudget }),
   });
 
 // ─── Logs ───

@@ -101,6 +101,8 @@ namespace NexaPlan.API.Controllers.DeptHead
                 fiscalYear = p.FiscalYear,
                 departmentName = p.Department?.DepartmentName ?? "Unknown",
                 createdBy = p.Creator?.Name ?? "Unknown",
+                plannedMonth = p.PlannedMonth,
+                plannedYear = p.PlannedYear,
                 submittedAt = p.SubmittedAt,
                 updatedAt = p.UpdatedAt
             });
@@ -197,6 +199,8 @@ namespace NexaPlan.API.Controllers.DeptHead
                 Priority = req.Priority,
                 PriorityRank = priorityRank,
                 Justification = req.Justification,
+                PlannedMonth = req.PlannedMonth?.ToUpper().Trim().Length >= 3 ? req.PlannedMonth.ToUpper().Trim().Substring(0, 3) : null,
+                PlannedYear = req.PlannedYear ?? DateTime.Now.Year,
                 TotalAmount = total,
                 RequestedAmount = total,
                 IsTaxInclusive = isTaxInclusive,
@@ -265,6 +269,8 @@ namespace NexaPlan.API.Controllers.DeptHead
             proposal.Priority = req.Priority;
             proposal.PriorityRank = priorityRank;
             proposal.Justification = req.Justification;
+            proposal.PlannedMonth = req.PlannedMonth?.ToUpper().Trim().Length >= 3 ? req.PlannedMonth.ToUpper().Trim().Substring(0, 3) : null;
+            proposal.PlannedYear = req.PlannedYear ?? DateTime.Now.Year;
             proposal.TotalAmount = total;
             proposal.RequestedAmount = total;
             proposal.IsTaxInclusive = isTaxInclusive;
@@ -408,6 +414,8 @@ namespace NexaPlan.API.Controllers.DeptHead
         string Priority,
         int? PriorityRank,
         string Justification,
+        string? PlannedMonth,
+        int? PlannedYear,
         bool SaveAsDraft,
         bool? IsTaxInclusive,
         List<LineItemRequest> LineItems

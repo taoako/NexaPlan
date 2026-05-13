@@ -26,6 +26,10 @@ namespace NexaPlan.API.Models
         public DateTime SubmittedAt { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
+        // Monthly planning fields — nullable so existing proposals are unaffected
+        public string? PlannedMonth { get; set; }  // "JAN", "FEB", ..., "DEC"
+        public int?    PlannedYear  { get; set; }  // e.g. 2026
+
         [ForeignKey("TenantID")]
         public Tenant? Tenant { get; set; }
         [ForeignKey("DepartmentID")]

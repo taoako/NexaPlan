@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Search, Download, RefreshCw, Calendar } from 'lucide-react';
 import type { MainAdminLog } from '../../../../api/mainAdminApi';
+import { TablePagination } from '../../../../components/TablePagination';
 
 interface Props {
   logs: MainAdminLog[];
@@ -15,8 +16,13 @@ export function LogsTab({ logs, loading, onFilter }: Props) {
   const [type, setType] = useState('All');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const [page, setPage] = useState(1);
+  const pageSize = 15;
 
-  const applyFilter = () => onFilter({ search: search || undefined, type: type === 'All' ? undefined : type, from: from || undefined, to: to || undefined });
+  const applyFilter = () => {
+    setPage(1);
+    onFilter({ search: search || undefined, type: type === 'All' ? undefined : type, from: from || undefined, to: to || undefined });
+  };
 
   const handleSearchKey = (e: React.KeyboardEvent) => { if (e.key === 'Enter') applyFilter(); };
 
@@ -26,6 +32,7 @@ export function LogsTab({ logs, loading, onFilter }: Props) {
   };
 
   const actionLabel = (a: string) => a.replace(/_/g,' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+  const pagedLogs = logs.slice((page - 1) * pageSize, page * pageSize);
 
   const exportCsv = () => {
     const rows = [['Time','Action','Target','User','IP'],...logs.map(l=>[l.time,l.action,l.target,l.userName,l.ip])];
@@ -77,7 +84,7 @@ export function LogsTab({ logs, loading, onFilter }: Props) {
                 <tr><td colSpan={6} className="py-16 text-center"><RefreshCw className="w-6 h-6 animate-spin text-indigo-400 mx-auto" /></td></tr>
               ) : logs.length === 0 ? (
                 <tr><td colSpan={6} className="py-16 text-center text-slate-400 text-sm">No log entries found.</td></tr>
-              ) : logs.map(l => (
+              ) : pagedLogs.map(l => (
                 <tr key={l.logId} className="hover:bg-slate-50 transition-colors">
                   <td className="px-5 py-3">{dot(l.type)}</td>
                   <td className="px-5 py-3 text-xs text-slate-500 whitespace-nowrap">{new Date(l.time).toLocaleString('en-PH')}</td>
@@ -90,6 +97,12 @@ export function LogsTab({ logs, loading, onFilter }: Props) {
             </tbody>
           </table>
         </div>
+        <TablePagination
+          page={page}
+          pageSize={pageSize}
+          totalItems={logs.length}
+          onPageChange={setPage}
+        />
       </div>
     </div>
   );

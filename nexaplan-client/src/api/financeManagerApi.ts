@@ -36,8 +36,9 @@ export const financeManagerApi = {
   setAllocation: (departmentId: number, amount: number) => apiFetch<any>('/allocations/set', { method: 'POST', body: JSON.stringify({ departmentId, amount }) }),
   // Expense Reconciliation
   getExpenses: (status?: string) => apiFetch<any[]>(`/expenses${status ? `?status=${status}` : ''}`),
-  reconcileExpense: (id: number) => apiFetch<any>(`/expenses/${id}/reconcile`, { method: 'POST', body: '{}' }),
-  rejectExpense: (id: number, reason: string) => apiFetch<any>(`/expenses/${id}/reject`, { method: 'POST', body: JSON.stringify({ reason }) })
+  reconcileExpense: (id: number, spentDate?: string) => apiFetch<any>(`/expenses/${id}/reconcile`, { method: 'POST', body: JSON.stringify({ spentDate: spentDate || null }) }),
+  rejectExpense: (id: number, reason: string) => apiFetch<any>(`/expenses/${id}/reject`, { method: 'POST', body: JSON.stringify({ reason }) }),
+  getTrendForecast: (fiscalYear: number) => apiFetch<any>(`/forecast?fiscalYear=${fiscalYear}`),
 };
 
 // ── Forecast types ───────────────────────────────────────────────────────────
@@ -45,9 +46,15 @@ export const financeManagerApi = {
 export interface MonthForecast {
   month:             string;
   budgetedAmount:    number;
+  actualSpent:       number;
   predictedSpending: number;
   variancePct:       number;
   riskLevel:         'Low' | 'Medium' | 'High';
+  mlPredictedSpending: number;
+  mlRiskLevel:       'Low' | 'Medium' | 'High';
+  mlUpperBound:      number;
+  mlLowerBound:      number;
+  mlConfidenceNote:  string;
 }
 
 export interface DeptForecast {
@@ -81,4 +88,47 @@ export const getForecastSummary = (
   fiscalYear: number = 2026
 ): Promise<ForecastSummary> =>
   apiFetch<ForecastSummary>(`/forecast?fiscalYear=${fiscalYear}`);
+
+// ── Variance types ──────────────────────────────────────────────────────────
+
+export interface MonthlyVariance {
+  month:          string;
+  budgetedAmount: number;
+  actualSpent:    number;
+  varianceAmount: number;
+  variancePct:    number;
+}
+
+export interface DeptVariance {
+  departmentId:        number;
+  departmentName:      string;
+  budgetedAmount:      number;
+  actualSpent:         number;
+  varianceAmount:      number;
+  variancePct:         number;
+  status:              'Over' | 'Under';
+  monthlyBreakdown:    MonthlyVariance[];
+  mlExpectedSpending:  number;   // RF model prediction
+  isAnomaly:           boolean;  // actual >> ML expected
+  mlConfidenceNote:    string;
+}
+
+export interface VarianceSummary {
+  fiscalYear:    number;
+  selectedMonth: string;
+  totalBudgeted: number;
+  totalActual:   number;
+  totalVariance: number;
+  departments:   DeptVariance[];
+}
+
+export const getVarianceData = async (
+  fiscalYear: number = 2026,
+  month?: string
+): Promise<VarianceSummary> => {
+  const params = new URLSearchParams({ fiscalYear: String(fiscalYear) });
+  if (month && month !== 'ALL') params.append('month', month);
+
+  return apiFetch<VarianceSummary>(`/variance?${params.toString()}`);
+};
 

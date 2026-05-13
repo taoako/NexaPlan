@@ -29,32 +29,6 @@ namespace NexaPlan.API.Controllers.MainAdmin
             return await _context.Users.AnyAsync(u => u.UserID == userId && u.TenantID == tenantId && u.RoleID == 2);
         }
 
-        private async Task UpsertAllocationAsync(int tenantId, int departmentId, decimal cap, int fiscalYear, int setByAdminId)
-        {
-            var allocation = await _context.DepartmentAllocations
-                .Where(a => a.TenantID == tenantId && a.DepartmentID == departmentId && a.FiscalYear == fiscalYear)
-                .OrderByDescending(a => a.SetAt)
-                .FirstOrDefaultAsync();
-
-            if (allocation == null)
-            {
-                allocation = new DepartmentAllocation
-                {
-                    TenantID = tenantId,
-                    DepartmentID = departmentId,
-                    FiscalYear = fiscalYear,
-                    TotalAllocatedCap = cap,
-                    SetByAdminID = setByAdminId,
-                    SetAt = DateTime.UtcNow
-                };
-                _context.DepartmentAllocations.Add(allocation);
-                return;
-            }
-
-            allocation.TotalAllocatedCap = cap;
-            allocation.SetByAdminID = setByAdminId;
-            allocation.SetAt = DateTime.UtcNow;
-        }
 
         private async Task<User?> ResolveDepartmentHeadAsync(int tenantId, int headUserId)
         {
@@ -111,14 +85,10 @@ namespace NexaPlan.API.Controllers.MainAdmin
             {
                 TenantID = tenantId,
                 DepartmentName = request.Name,
-                HeadUserID = headUser?.UserID,
-                AnnualBudgetCap = request.BudgetCap
+                HeadUserID = headUser?.UserID
             };
 
             _context.Departments.Add(dept);
-            await _context.SaveChangesAsync();
-
-            await UpsertAllocationAsync(tenantId, dept.DepartmentID, dept.AnnualBudgetCap, DateTime.UtcNow.Year, userId);
             await _context.SaveChangesAsync();
 
             if (headUser != null)
@@ -150,7 +120,6 @@ namespace NexaPlan.API.Controllers.MainAdmin
 
             dept.DepartmentName = request.Name;
             dept.HeadUserID = headUser?.UserID;
-            dept.AnnualBudgetCap = request.BudgetCap;
 
             if (previousHeadId.HasValue && previousHeadId != dept.HeadUserID)
             {
@@ -166,7 +135,6 @@ namespace NexaPlan.API.Controllers.MainAdmin
                 headUser.DepartmentID = dept.DepartmentID;
             }
 
-            await UpsertAllocationAsync(tenantId, dept.DepartmentID, dept.AnnualBudgetCap, DateTime.UtcNow.Year, userId);
 
             _context.AuditLogs.Add(new AuditLog { TenantID = tenantId, UserID = 0, ActionType = "DEPARTMENT_UPDATED", TargetResources = request.Name, IPAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown", TimeStamp = DateTime.UtcNow });
             await _context.SaveChangesAsync();

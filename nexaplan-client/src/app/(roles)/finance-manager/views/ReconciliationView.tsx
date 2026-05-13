@@ -1,18 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle2, XCircle, Clock, Receipt, AlertTriangle, Filter, ArrowUpDown } from 'lucide-react';
 import { financeManagerApi } from '../../../../api/financeManagerApi';
+import { TablePagination } from '../../../../components/TablePagination';
 
-export function ReconciliationView() {
+export function ReconciliationView({ addToast }: { addToast: (msg: string, type: 'success' | 'error' | 'info' | 'warning') => void }) {
   const [expenses, setExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('');
   const [rejectingId, setRejectingId] = useState<number | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [confirmReconcileId, setConfirmReconcileId] = useState<number | null>(null);
+  const [spentDate, setSpentDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [modalMessage, setModalMessage] = useState<{ title: string; message: string; type: 'error' | 'success' | 'info' } | null>(null);
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
 
   useEffect(() => {
     fetchExpenses();
+    setPage(1);
   }, [filterStatus]);
 
   const fetchExpenses = async () => {
@@ -28,13 +33,21 @@ export function ReconciliationView() {
   };
 
   const handleReconcile = async (id: number) => {
+    setSpentDate(new Date().toISOString().split('T')[0]); // reset to today each time
     setConfirmReconcileId(id);
   };
 
   const confirmReconcile = async () => {
     if (!confirmReconcileId) return;
     try {
-      await financeManagerApi.reconcileExpense(confirmReconcileId);
+      const result = await financeManagerApi.reconcileExpense(confirmReconcileId, spentDate ? new Date(spentDate).toISOString() : undefined);
+      
+      if (result.anomalyDetected) {
+        addToast(result.anomalyMessage, 'warning');
+      } else {
+        addToast('Expense reconciled successfully.', 'success');
+      }
+
       fetchExpenses();
     } catch (err: any) {
       setModalMessage({ title: 'Reconcile Failed', message: err.message || 'Failed to reconcile.', type: 'error' });
@@ -56,6 +69,7 @@ export function ReconciliationView() {
 
   const pendingCount = expenses.filter(e => e.status === 'Pending').length;
   const reconciledTotal = expenses.filter(e => e.status === 'Reconciled').reduce((acc, e) => acc + e.actualAmount, 0);
+  const pagedExpenses = expenses.slice((page - 1) * pageSize, page * pageSize);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -132,7 +146,7 @@ export function ReconciliationView() {
               <tr><td colSpan={9} className="px-6 py-8 text-center text-slate-500">Loading expenses...</td></tr>
             ) : expenses.length === 0 ? (
               <tr><td colSpan={9} className="px-6 py-8 text-center text-slate-500">No expenses found.</td></tr>
-            ) : expenses.map(exp => {
+            ) : pagedExpenses.map(exp => {
               const isPositive = exp.variance >= 0;
               return (
                 <tr key={exp.id} className={`hover:bg-slate-50/60 transition-colors ${exp.status === 'Pending' ? 'bg-amber-50/20' : ''}`}>
@@ -179,6 +193,12 @@ export function ReconciliationView() {
             })}
           </tbody>
         </table>
+        <TablePagination
+          page={page}
+          pageSize={pageSize}
+          totalItems={expenses.length}
+          onPageChange={setPage}
+        />
       </div>
 
       {/* Reject Modal */}
@@ -221,6 +241,17 @@ export function ReconciliationView() {
                 <h3 className="font-black text-lg text-slate-900">Confirm Reconciliation</h3>
                 <p className="text-sm text-slate-500">This will update the department's actual spend.</p>
               </div>
+            </div>
+            <div className="mb-6">
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Date on receipt</label>
+              <p className="text-xs text-slate-500 mb-3">Set this to the actual date shown on the physical receipt, not today's date.</p>
+              <input
+                type="date"
+                value={spentDate}
+                max={new Date().toISOString().split('T')[0]}
+                onChange={e => setSpentDate(e.target.value)}
+                className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-400"
+              />
             </div>
             <div className="flex gap-3">
               <button onClick={confirmReconcile} className="flex-1 py-3 rounded-xl font-bold text-sm bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/30 transition-all">Confirm</button>

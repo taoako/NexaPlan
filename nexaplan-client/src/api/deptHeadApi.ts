@@ -37,6 +37,8 @@ export interface ProposalReq {
   priority: string;
   priorityRank?: number;
   justification: string;
+  plannedMonth?: string | null;
+  plannedYear?: number;
   saveAsDraft: boolean;
   isTaxInclusive?: boolean;
   lineItems: LineItemReq[];
@@ -61,5 +63,6 @@ export const deptHeadApi = {
   cloneProposal: (id: number) => apiFetch<any>(`/proposals/${id}/clone`, { method: 'POST', body: '{}' }),
   getVariance: (period: string) => apiFetch<any>(`/variance?period=${period}`),
   getScenarios: () => apiFetch<any[]>('/scenarios'),
-  getPreview: (multiplier: number) => apiFetch<any>(`/scenarios/preview?multiplier=${multiplier}`)
+  getPreview: (multiplier: number) => apiFetch<any>(`/scenarios/preview?multiplier=${multiplier}`),
+  getSpendingRisk: () => apiFetch<any>('/forecast/risk')
 };

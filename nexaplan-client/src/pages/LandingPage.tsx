@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   AlertCircle,
   ArrowRight,
@@ -11,7 +11,10 @@ import {
   Target,
   TrendingUp,
   Users,
+  RefreshCw
 } from 'lucide-react';
+import type { PricingPlan } from '../api/superAdminApi';
+import { getPricing } from '../api/superAdminApi';
 
 interface LandingPageProps {
   onNavigate: (view: string) => void;
@@ -19,6 +22,21 @@ interface LandingPageProps {
 }
 
 export function LandingPage({ onNavigate, onSelectPlan }: LandingPageProps) {
+  const [plans, setPlans] = useState<PricingPlan[]>([]);
+  const [loadingPlans, setLoadingPlans] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await getPricing();
+        setPlans(data);
+      } catch (err) {
+        console.error('Failed to load pricing:', err);
+      } finally {
+        setLoadingPlans(false);
+      }
+    })();
+  }, []);
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
     if (element) {
@@ -359,113 +377,66 @@ export function LandingPage({ onNavigate, onSelectPlan }: LandingPageProps) {
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto mt-16">
-          <div className="bg-white p-8 rounded-2xl border-2 border-slate-200 hover:border-[#0052FF] hover:shadow-xl transition-all duration-300">
-            <div className="mb-6">
-              <div className="text-sm font-bold text-slate-500 uppercase tracking-wide mb-2">Starter</div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-5xl font-black text-[#0A192F]">₱4,950</span>
-                <span className="text-slate-500 font-semibold">/month</span>
-              </div>
-              <p className="text-sm text-slate-600 mt-2">Perfect for small teams starting their budget journey</p>
+          {loadingPlans ? (
+            <div className="col-span-3 flex flex-col items-center justify-center py-20">
+              <RefreshCw className="w-10 h-10 text-[#0052FF] animate-spin mb-4" />
+              <p className="text-slate-500 font-bold">Synchronizing latest pricing tiers...</p>
             </div>
+          ) : (
+            plans.map((plan) => (
+              <div
+                key={plan.planID}
+                className={`p-8 rounded-2xl border-2 transition-all duration-300 relative ${
+                  plan.isPopular 
+                    ? 'bg-[#0A192F] border-[#0052FF] shadow-2xl transform scale-105 z-10' 
+                    : 'bg-white border-slate-200 hover:border-[#0052FF] hover:shadow-xl'
+                }`}
+              >
+                {plan.isPopular && (
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-[#0052FF] text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest">
+                    Most Popular
+                  </div>
+                )}
 
-            <button
-              onClick={() => selectPlan('starter')}
-              className="w-full bg-slate-900 text-white py-3 rounded-lg font-bold hover:bg-slate-800 transition-all duration-300 mb-6"
-            >
-              Purchase Plan
-            </button>
-
-            <div className="space-y-3">
-              {[
-                'Up to 3 budget managers',
-                '5 department allocations',
-                'Basic forecasting (12 months)',
-                'Email support',
-                'Monthly exports (PDF/Excel)',
-              ].map((item) => (
-                <div key={item} className="flex items-start gap-3">
-                  <Check className="w-5 h-5 text-[#10B981] flex-shrink-0 mt-0.5" />
-                  <span className="text-slate-700">{item}</span>
+                <div className="mb-6">
+                  <div className={`text-sm font-bold uppercase tracking-wide mb-2 ${plan.isPopular ? 'text-blue-400' : 'text-slate-500'}`}>
+                    {plan.name}
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className={`text-5xl font-black ${plan.isPopular ? 'text-white' : 'text-[#0A192F]'}`}>
+                      ₱{plan.monthlyPrice.toLocaleString()}
+                    </span>
+                    <span className={`font-semibold ${plan.isPopular ? 'text-slate-300' : 'text-slate-500'}`}>/month</span>
+                  </div>
+                  <p className={`text-sm mt-2 ${plan.isPopular ? 'text-slate-400' : 'text-slate-600'}`}>
+                    {plan.description}
+                  </p>
                 </div>
-              ))}
-            </div>
-          </div>
 
-          <div className="bg-[#0A192F] p-8 rounded-2xl border-2 border-[#0052FF] shadow-2xl transform scale-105 relative">
-            <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-[#0052FF] text-white px-4 py-1 rounded-full text-xs font-bold uppercase">
-              Most Popular
-            </div>
+                <button
+                  onClick={() => selectPlan(plan.name.toLowerCase())}
+                  className={`w-full py-3 rounded-lg font-bold transition-all duration-300 mb-6 ${
+                    plan.isPopular 
+                      ? 'bg-[#0052FF] text-white hover:bg-blue-600' 
+                      : 'bg-slate-900 text-white hover:bg-slate-800'
+                  }`}
+                >
+                  Purchase Plan
+                </button>
 
-            <div className="mb-6">
-              <div className="text-sm font-bold text-blue-400 uppercase tracking-wide mb-2">Professional</div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-5xl font-black text-white">₱12,900</span>
-                <span className="text-slate-300 font-semibold">/month</span>
-              </div>
-              <p className="text-sm text-slate-400 mt-2">For growing companies with complex budget needs</p>
-            </div>
-
-            <button
-              onClick={() => selectPlan('professional')}
-              className="w-full bg-[#0052FF] text-white py-3 rounded-lg font-bold hover:bg-blue-600 transition-all duration-300 mb-6"
-            >
-              Purchase Plan
-            </button>
-
-            <div className="space-y-3">
-              {[
-                'Up to 15 budget managers',
-                'Unlimited departments',
-                'AI forecasting (24 months)',
-                'Multi-scenario planning',
-                'Real-time variance alerts',
-                'Priority support (4-hour SLA)',
-                'API access',
-              ].map((item) => (
-                <div key={item} className="flex items-start gap-3">
-                  <Check className="w-5 h-5 text-[#10B981] flex-shrink-0 mt-0.5" />
-                  <span className="text-white">{item}</span>
+                <div className="space-y-3">
+                  {plan.benefits.map((benefit, i) => (
+                    <div key={i} className="flex items-start gap-3">
+                      <Check className="w-5 h-5 text-[#10B981] flex-shrink-0 mt-0.5" />
+                      <span className={plan.isPopular ? 'text-white' : 'text-slate-700'}>
+                        {benefit.benefitText}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="bg-white p-8 rounded-2xl border-2 border-slate-200 hover:border-[#0052FF] hover:shadow-xl transition-all duration-300">
-            <div className="mb-6">
-              <div className="text-sm font-bold text-slate-500 uppercase tracking-wide mb-2">Enterprise</div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-5xl font-black text-[#0A192F]">₱29,900</span>
-                <span className="text-slate-500 font-semibold">/month</span>
               </div>
-              <p className="text-sm text-slate-600 mt-2">For large organizations requiring full control</p>
-            </div>
-
-            <button
-              onClick={() => selectPlan('enterprise')}
-              className="w-full bg-[#0A192F] text-white py-3 rounded-lg font-bold hover:bg-slate-800 transition-all duration-300 mb-6"
-            >
-              Purchase Plan
-            </button>
-
-            <div className="space-y-3">
-              {[
-                'Unlimited users',
-                'Unlimited departments & projects',
-                'Advanced ML forecasting (36 months)',
-                'Custom model training',
-                'White-label deployment',
-                'Dedicated account manager',
-                '24/7 phone & chat support',
-                'SSO & advanced security',
-              ].map((item) => (
-                <div key={item} className="flex items-start gap-3">
-                  <Check className="w-5 h-5 text-[#10B981] flex-shrink-0 mt-0.5" />
-                  <span className="text-slate-700">{item}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+            ))
+          )}
         </div>
 
         <div className="max-w-4xl mx-auto mt-12 text-center">

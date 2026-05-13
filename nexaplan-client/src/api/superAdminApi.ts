@@ -162,6 +162,24 @@ export const updateConfig = (updates: Record<string, string>) =>
   });
 
 // ─── Pricing (public + admin) ───
+export interface PricingBenefit {
+  benefitID: number;
+  benefitText: string;
+  isIncluded: boolean;
+}
+
+export interface PricingPlan {
+  planID: number;
+  name: string;
+  description: string;
+  monthlyPrice: number;
+  annualPrice: number;
+  maxSeats: number;
+  isPopular: boolean;
+  isActive: boolean;
+  benefits: PricingBenefit[];
+}
+
 export interface PricingConfig {
   price_starter_monthly: string;
   price_starter_annual: string;
@@ -172,10 +190,43 @@ export interface PricingConfig {
   pricing_vat_inclusive: string;
 }
 
-export const getPricing = (): Promise<PricingConfig> =>
-  fetch('http://localhost:5189/api/pricing').then(r => r.json());
+async function pricingFetch<T>(url: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(`http://localhost:5189/api${url}`, {
+    headers: { 'Content-Type': 'application/json' },
+    ...options,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(err.message || `API Error ${res.status}`);
+  }
+  return res.json();
+}
+
+export const getPricing = (): Promise<PricingPlan[]> =>
+  pricingFetch<PricingPlan[]>('/pricing');
 
 export const savePricing = (data: PricingConfig) =>
-  apiFetch<{ message: string }>('/config', {
-    method: 'PUT', body: JSON.stringify(data),
+  pricingFetch<{ message: string }>('/pricing', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+
+// ─── Super Admin Pricing CRUD ───
+export const getPricingPlans = () => apiFetch<PricingPlan[]>('/pricing-plans');
+
+export const createPricingPlan = (plan: Partial<PricingPlan>) =>
+  apiFetch<PricingPlan>('/pricing-plans', {
+    method: 'POST',
+    body: JSON.stringify(plan),
+  });
+
+export const updatePricingPlan = (id: number, plan: Partial<PricingPlan>) =>
+  apiFetch<PricingPlan>(`/pricing-plans/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(plan),
+  });
+
+export const deletePricingPlan = (id: number) =>
+  apiFetch<{ message: string }>(`/pricing-plans/${id}`, {
+    method: 'DELETE',
   });

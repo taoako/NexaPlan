@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Upload, Receipt, Plus, X, Search, FileText, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
 import { deptHeadApi } from '../../../../api/deptHeadApi';
+import { TablePagination } from '../../../../components/TablePagination';
 
 export function ExpensesView() {
   const [expenses, setExpenses] = useState<any[]>([]);
@@ -8,6 +9,8 @@ export function ExpensesView() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [modalMessage, setModalMessage] = useState<{ title: string; message: string; type: 'error' | 'success' | 'info' } | null>(null);
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
   
   const [formData, setFormData] = useState({
     proposalId: '',
@@ -19,6 +22,7 @@ export function ExpensesView() {
   useEffect(() => {
     fetchData();
   }, []);
+  useEffect(() => { setPage(1); }, [expenses.length]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -70,6 +74,7 @@ export function ExpensesView() {
   };
 
   if (loading) return <div className="p-12 text-center text-slate-500">Loading expenses...</div>;
+  const pagedExpenses = expenses.slice((page - 1) * pageSize, page * pageSize);
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 p-8">
@@ -139,7 +144,7 @@ export function ExpensesView() {
           <tbody className="divide-y divide-slate-100">
             {expenses.length === 0 ? (
               <tr><td colSpan={5} className="px-6 py-8 text-center text-slate-500">No expenses logged yet.</td></tr>
-            ) : expenses.map(exp => (
+            ) : pagedExpenses.map(exp => (
               <tr key={exp.id} className="hover:bg-slate-50 transition-colors">
                 <td className="px-6 py-4 text-[13px] font-medium text-slate-600">{exp.submittedDate}</td>
                 <td className="px-6 py-4">
@@ -159,6 +164,12 @@ export function ExpensesView() {
             ))}
           </tbody>
         </table>
+        <TablePagination
+          page={page}
+          pageSize={pageSize}
+          totalItems={expenses.length}
+          onPageChange={setPage}
+        />
       </div>
 
       {showModal && (

@@ -37,13 +37,23 @@ export function ComplianceAuditSystem({ onBack }: ComplianceAuditSystemProps) {
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
 
+  const [user, setUser] = useState<{ name: string; email: string; role: string } | null>(null);
+
+  useEffect(() => {
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+    }
+  }, []);
+
+  const auditorName = user ? (user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.name) : 'Auditor';
+  const auditorInitials = user && user.firstName && user.lastName
+    ? (user.firstName[0] + user.lastName[0]).toUpperCase()
+    : auditorName.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
+
   // Modal State
   const [alertState, setAlertState] = useState<{show: boolean, title: string, message: string, type: 'info' | 'success' | 'error'}>({ show: false, title: '', message: '', type: 'info' });
   const [confirmState, setConfirmState] = useState<{show: boolean, title: string, message: string, onConfirm: (() => void) | null}>({ show: false, title: '', message: '', onConfirm: null });
-
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const auditorName = user.name || 'Angela Cruz';
-  const auditorInitials = auditorName.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {

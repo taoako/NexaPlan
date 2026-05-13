@@ -8,7 +8,13 @@ namespace NexaPlan.API.Controllers.FinanceManager
     [ApiController]
     public class FinanceManagerApprovalsController : FinanceManagerBaseController
     {
-        public FinanceManagerApprovalsController(AppDbContext context) : base(context) { }
+        private readonly IHttpClientFactory _httpClientFactory;
+        private const string ML_SERVICE_URL = "http://localhost:8001";
+
+        public FinanceManagerApprovalsController(AppDbContext context, IHttpClientFactory httpClientFactory) : base(context) 
+        { 
+            _httpClientFactory = httpClientFactory;
+        }
 
         [HttpGet("proposals")]
         public async Task<IActionResult> GetProposals()
@@ -37,22 +43,65 @@ namespace NexaPlan.API.Controllers.FinanceManager
                 .Where(a => a.TenantID == tenantId && a.FiscalYear == fiscalYear)
                 .ToDictionaryAsync(a => a.DepartmentID, a => a.TotalAllocatedCap);
 
-            return Ok(proposals.Select(p => new
+            var resultList = new List<object>();
+            var client = _httpClientFactory.CreateClient();
+
+            foreach (var p in proposals)
             {
-                id = p.ProposalID,
-                title = p.Title,
-                department = p.Department?.DepartmentName ?? "Unknown",
-                departmentId = p.DepartmentID,
-                departmentCap = allocationCaps.ContainsKey(p.DepartmentID) ? allocationCaps[p.DepartmentID] : (p.Department?.AnnualBudgetCap ?? 0),
-                departmentSpent = approvedTotals.ContainsKey(p.DepartmentID) ? approvedTotals[p.DepartmentID] : 0,
-                amount = p.RequestedAmount > 0 ? p.RequestedAmount : p.TotalAmount,
-                status = p.ProposalStatus,
-                submittedBy = p.Creator?.Name ?? "Unknown",
-                priority = p.Priority,
-                category = p.Category,
-                justification = p.Justification,
-                submittedDate = p.SubmittedAt.ToString("MMM dd, yyyy")
-            }));
+                string? riskLevel = null;
+                string? mlContext = null;
+                var amount = p.RequestedAmount > 0 ? p.RequestedAmount : p.TotalAmount;
+
+                if (p.ProposalStatus == "Pending")
+                {
+                    try
+                    {
+                        var deptName = p.Department?.DepartmentName ?? "Unknown";
+                        var month = !string.IsNullOrEmpty(p.PlannedMonth) ? p.PlannedMonth : DateTime.UtcNow.ToString("MMM").ToUpper();
+                        
+                        decimal deptCap = allocationCaps.ContainsKey(p.DepartmentID) ? allocationCaps[p.DepartmentID] : (p.Department?.AnnualBudgetCap ?? 0);
+                        double monthlyCap = (double)(deptCap / 12);
+                        if (monthlyCap <= 0) monthlyCap = 1000; // Fallback for ML model safety
+
+                        var payload = new DTOs.MlPredictRequest(monthlyCap, deptName, month);
+                        var response = await client.PostAsJsonAsync($"{ML_SERVICE_URL}/predict", payload);
+                        if (response.IsSuccessStatusCode)
+                        {
+                            var pred = await response.Content.ReadFromJsonAsync<DTOs.MlPredictResponse>();
+                            if (pred != null)
+                            {
+                                riskLevel = pred.risk_level;
+                                var totalPct = 100 + pred.variance_pct;
+                                mlContext = $"{deptName} in {month} historically spends {totalPct:F0}% of budget";
+                            }
+                        }
+                    }
+                    catch { /* Ignore ML errors */ }
+                }
+
+                resultList.Add(new
+                {
+                    id = p.ProposalID,
+                    title = p.Title,
+                    department = p.Department?.DepartmentName ?? "Unknown",
+                    departmentId = p.DepartmentID,
+                    departmentCap = allocationCaps.ContainsKey(p.DepartmentID) ? allocationCaps[p.DepartmentID] : (p.Department?.AnnualBudgetCap ?? 0),
+                    departmentSpent = approvedTotals.ContainsKey(p.DepartmentID) ? approvedTotals[p.DepartmentID] : 0,
+                    amount = amount,
+                    status = p.ProposalStatus,
+                    submittedBy = p.Creator?.Name ?? "Unknown",
+                    priority = p.Priority,
+                    category = p.Category,
+                    justification = p.Justification,
+                    plannedMonth = p.PlannedMonth,
+                    plannedYear = p.PlannedYear,
+                    submittedDate = p.SubmittedAt.ToString("MMM dd, yyyy"),
+                    mlRiskLevel = riskLevel,
+                    mlContext = mlContext
+                });
+            }
+
+            return Ok(resultList);
         }
 
         [HttpPost("proposals/{id:int}/approve")]

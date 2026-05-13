@@ -11,6 +11,8 @@ export function NewRequestView({ setActiveModule }: NewRequestViewProps) {
   const [requestTitle, setRequestTitle] = useState('');
   const [requestCategory, setRequestCategory] = useState('Equipment');
   const [requestPriority, setRequestPriority] = useState<PriorityLevel>('High');
+  const [requestPlannedMonth, setRequestPlannedMonth] = useState<string>('');
+  const [requestPlannedYear, setRequestPlannedYear] = useState<number>(new Date().getFullYear());
   const [requestJustification, setRequestJustification] = useState('');
   const [lineItems, setLineItems] = useState([
     { description: '', quantity: '', unitCost: '', total: 0, isVatInclusive: true }
@@ -30,7 +32,7 @@ export function NewRequestView({ setActiveModule }: NewRequestViewProps) {
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [requestTitle, requestCategory, lineItems, requestJustification, requestPriority]);
+  }, [requestTitle, requestCategory, lineItems, requestJustification, requestPriority, requestPlannedMonth, requestPlannedYear]);
 
   const refreshGuard = async () => {
     try {
@@ -108,6 +110,8 @@ export function NewRequestView({ setActiveModule }: NewRequestViewProps) {
         priority: requestPriority,
         priorityRank: resolvePriorityRank(requestPriority),
         justification: requestJustification,
+        plannedMonth: requestPlannedMonth || null,
+        plannedYear: requestPlannedYear,
         saveAsDraft,
         isTaxInclusive: lineItems.every(li => li.isVatInclusive),
         lineItems: lineItems.map(li => ({
@@ -177,7 +181,7 @@ export function NewRequestView({ setActiveModule }: NewRequestViewProps) {
       <div className="bg-white rounded-xl p-8 border border-slate-200 shadow-sm">
         <div className="mb-8">
           <h2 className="text-xl font-bold text-slate-900 mb-4">Basic Information</h2>
-          <div className="grid grid-cols-3 gap-6">
+          <div className="grid grid-cols-4 gap-6">
             <div>
               <label className="block text-sm font-bold text-slate-900 mb-2">Request Title</label>
               <input
@@ -214,6 +218,36 @@ export function NewRequestView({ setActiveModule }: NewRequestViewProps) {
                 <option value="High">High Priority</option>
                 <option value="Low">Low Priority</option>
               </select>
+            </div>
+            {/* Planned Month — optional */}
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-bold text-slate-900 mb-2">
+                Planned Month
+                <span className="ml-2 text-xs font-normal text-slate-400">
+                  (optional)
+                </span>
+              </label>
+              <div className="flex gap-3">
+                <select
+                  value={requestPlannedMonth}
+                  onChange={e => setRequestPlannedMonth(e.target.value)}
+                  className="flex-1 px-3 py-3 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#6366F1] outline-none"
+                >
+                  <option value="">No specific month</option>
+                  {['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'].map(m => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+                <select
+                  value={requestPlannedYear}
+                  onChange={e => setRequestPlannedYear(Number(e.target.value))}
+                  className="w-28 px-3 py-3 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#6366F1] outline-none"
+                >
+                  {[2025, 2026, 2027].map(y => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
           <div className="mt-4">
@@ -336,19 +370,19 @@ export function NewRequestView({ setActiveModule }: NewRequestViewProps) {
         <div className="flex gap-4">
           <button
             onClick={() => handleSubmitRequest(false)}
-            disabled={totalRequestAmount === 0 || !requestTitle}
+            disabled={totalRequestAmount === 0 || !requestTitle || isSaving}
             className="flex-1 bg-[#10B981] hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg transition-all flex items-center justify-center gap-2"
           >
-            <CheckCircle2 className="w-6 h-6" />
-            Submit for Approval
+            {isSaving ? <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <CheckCircle2 className="w-6 h-6" />}
+            {isSaving ? 'Submitting...' : 'Submit for Approval'}
           </button>
           <button 
             onClick={() => handleSubmitRequest(true)}
-            disabled={!requestTitle}
+            disabled={!requestTitle || isSaving}
             className="px-8 py-4 border-2 border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl font-bold text-lg transition-all flex items-center gap-2 disabled:opacity-50"
           >
-            <Save className="w-5 h-5" />
-            Save as Draft
+            {isSaving ? <div className="w-5 h-5 border-2 border-slate-700 border-t-transparent rounded-full animate-spin"></div> : <Save className="w-5 h-5" />}
+            {isSaving ? 'Saving...' : 'Save as Draft'}
           </button>
         </div>
       </div>

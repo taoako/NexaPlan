@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, Edit, Trash2, UserCheck, UserX, RefreshCw, Check, X, Key, Search, Eye, EyeOff } from 'lucide-react';
 import type { MainAdminUser, MainAdminDepartment, RoleOption } from '../../../../api/mainAdminApi';
+import { TablePagination } from '../../../../components/TablePagination';
 
 interface Props {
   users: MainAdminUser[];
@@ -32,6 +33,8 @@ export function UsersTab({ users, departments, roles, tenantId, currentUserId, f
   const [inviteResult, setInviteResult] = useState<string | null>(null);
   const [showTempPwd, setShowTempPwd] = useState(false);
   const [showNewPwd, setShowNewPwd] = useState(false);
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
 
   useEffect(() => { setRoleFilter(filterRole || 'All'); }, [filterRole]);
 
@@ -41,6 +44,7 @@ export function UsersTab({ users, departments, roles, tenantId, currentUserId, f
     const matchRole = roleFilter === 'All' || u.role === roleFilter;
     return matchSearch && matchStatus && matchRole;
   });
+  const pagedFiltered = filtered.slice((page - 1) * pageSize, page * pageSize);
 
   const toggleSelect = (id: number) => setSelected(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
   const toggleAll = () => setSelected(selected.length === filtered.length ? [] : filtered.map(u => u.userId));
@@ -106,12 +110,12 @@ export function UsersTab({ users, departments, roles, tenantId, currentUserId, f
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name or email…" className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="Search by name or email…" className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
         </div>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none">
+        <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }} className="px-3 py-2 border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none">
           <option>All</option><option>Active</option><option>Pending</option><option>Suspended</option>
         </select>
-        <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none">
+        <select value={roleFilter} onChange={e => { setRoleFilter(e.target.value); setPage(1); }} className="px-3 py-2 border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none">
           <option value="All">All Roles</option>
           {roles.filter(r => r.roleId !== 1 && r.roleId !== 2).map(r => <option key={r.roleId} value={r.roleName}>{r.roleName}</option>)}
         </select>
@@ -144,7 +148,7 @@ export function UsersTab({ users, departments, roles, tenantId, currentUserId, f
               <tr><td colSpan={8} className="py-16 text-center"><RefreshCw className="w-6 h-6 animate-spin text-indigo-400 mx-auto" /></td></tr>
             ) : filtered.length === 0 ? (
               <tr><td colSpan={8} className="py-16 text-center text-slate-400 text-sm">No users found. Invite someone to get started.</td></tr>
-            ) : filtered.map(u => (
+            ) : pagedFiltered.map(u => (
               <tr key={u.userId} className={`hover:bg-slate-50 transition-colors ${u.isLocked ? 'bg-red-50/30' : ''}`}>
                 <td className="px-4 py-3"><input type="checkbox" checked={selected.includes(u.userId)} onChange={() => toggleSelect(u.userId)} className="rounded" /></td>
                 <td className="px-4 py-3">
@@ -172,6 +176,12 @@ export function UsersTab({ users, departments, roles, tenantId, currentUserId, f
             ))}
           </tbody>
         </table>
+        <TablePagination
+          page={page}
+          pageSize={pageSize}
+          totalItems={filtered.length}
+          onPageChange={setPage}
+        />
       </div>
 
       {/* ── Invite Modal ── */}

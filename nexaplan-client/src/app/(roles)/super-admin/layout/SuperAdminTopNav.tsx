@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { LayoutDashboard, Building2, CreditCard, UserCog, Settings, Database, ClipboardList, ChevronDown, LogOut, User, Lock } from 'lucide-react';
+import { LayoutDashboard, Building2, CreditCard, UserCog, Settings, Database, ClipboardList, ChevronDown, LogOut, User, Lock, Tag, Key } from 'lucide-react';
 import logoImg from "/src/assets/brand/nexaplan-logo.png";
 import type { DashboardView } from '../SuperAdminSystem';
 
@@ -15,7 +15,14 @@ export function SuperAdminTopNav({ currentView, setCurrentView, onBack, pendingT
   const profileRef = useRef<HTMLDivElement>(null);
   const [modalMessage, setModalMessage] = useState<string | null>(null);
 
+  const [user, setUser] = useState<{ name: string; firstName?: string; lastName?: string; email: string; role: string } | null>(null);
+
   useEffect(() => {
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+    }
+
     function handleClickOutside(event: MouseEvent) {
       if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
         setShowProfileDropdown(false);
@@ -24,6 +31,13 @@ export function SuperAdminTopNav({ currentView, setCurrentView, onBack, pendingT
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const getInitials = (name: string, first?: string, last?: string) => {
+    if (first && last) return (first[0] + last[0]).toUpperCase();
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+  };
+
+  const displayName = user ? (user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.name) : 'Super Admin';
 
   return (
     <nav className="h-20 bg-[#0F172A] flex items-center justify-between px-8 shrink-0 border-b border-white/10">
@@ -42,6 +56,7 @@ export function SuperAdminTopNav({ currentView, setCurrentView, onBack, pendingT
           { view: 'overview', icon: LayoutDashboard, label: 'Dashboard' },
           { view: 'tenants', icon: Building2, label: 'Tenants' },
           { view: 'billing', icon: CreditCard, label: 'Billing' },
+          { view: 'pricing', icon: Tag, label: 'Pricing' },
           { view: 'admins', icon: UserCog, label: 'Admins' },
         ] as { view: DashboardView; icon: React.ElementType; label: string }[]).map(({ view, icon: Icon, label }) => (
           <button
@@ -100,11 +115,11 @@ export function SuperAdminTopNav({ currentView, setCurrentView, onBack, pendingT
             className="flex items-center gap-2.5 hover:bg-white/10 px-3 py-2 rounded-lg transition-all"
           >
             <div className="w-9 h-9 bg-gradient-to-br from-[#4F46E5] to-[#6366F1] rounded-full flex items-center justify-center">
-              <span className="text-white font-bold text-sm">JB</span>
+              <span className="text-white font-bold text-sm">{user ? getInitials(user.name, user.firstName, user.lastName) : 'SA'}</span>
             </div>
             <div className="text-left">
-              <div className="text-sm font-bold text-white leading-none">Justin Bais</div>
-              <div className="text-xs text-slate-400 mt-0.5">Super Admin</div>
+              <div className="text-sm font-bold text-white leading-none">{displayName}</div>
+              <div className="text-xs text-slate-400 mt-0.5">{user?.role || 'Super Admin'}</div>
             </div>
             <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${showProfileDropdown ? 'rotate-180' : ''}`} />
           </button>
@@ -112,8 +127,8 @@ export function SuperAdminTopNav({ currentView, setCurrentView, onBack, pendingT
           {showProfileDropdown && (
             <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden z-50">
               <div className="px-4 py-3 bg-slate-50 border-b border-slate-200">
-                <div className="text-sm font-bold text-slate-900">Justin Bais</div>
-                <div className="text-xs text-slate-500">justin@nexaplan.ph</div>
+                <div className="text-sm font-bold text-slate-900">{displayName}</div>
+                <div className="text-xs text-slate-500">{user?.email}</div>
               </div>
               <div className="py-1">
                 <button onClick={() => { setShowProfileDropdown(false); setModalMessage('Profile Settings — Edit your display name, avatar, and contact details.'); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">

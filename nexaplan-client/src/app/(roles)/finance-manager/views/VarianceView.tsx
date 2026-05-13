@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Download, FileText, Calendar, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { Scenario } from '../FinanceManagerSystem';
-import { financeManagerApi } from '../../../../api/financeManagerApi';
+import { financeManagerApi, getVarianceData, VarianceSummary } from '../../../../api/financeManagerApi';
+import { TablePagination } from '../../../../components/TablePagination';
 
 interface VarianceViewProps {
   activeScenario: Scenario;
@@ -16,10 +17,24 @@ export function VarianceView({ activeScenario }: VarianceViewProps) {
   
   // Mock fiscal year data
   const fiscalYearElapsedPct = 65; // Let's say 65% of the year has passed
-  
+  const [varianceSummary, setVarianceSummary] = useState<VarianceSummary | null>(null);
+  const [varianceMonth, setVarianceMonth]     = useState<string>('ALL');
+  const [varianceLoading, setVarianceLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+
   useEffect(() => {
     financeManagerApi.getAllocations().then(setAllocData).catch(console.error);
   }, []);
+
+  useEffect(() => {
+    setVarianceLoading(true);
+    getVarianceData(2026, varianceMonth === 'ALL' ? undefined : varianceMonth)
+      .then(setVarianceSummary)
+      .catch(err => console.error('Variance load error:', err))
+      .finally(() => setVarianceLoading(false));
+    setPage(1);
+  }, [varianceMonth]);
 
   const handleGenerateAudit = (dept: string) => {
     setGeneratingReport(dept);
@@ -29,7 +44,7 @@ export function VarianceView({ activeScenario }: VarianceViewProps) {
     }, 1500);
   };
 
-  if (!allocData) return <div className="p-12 text-center text-slate-500">Loading variance data...</div>;
+  if (!allocData || varianceLoading) return <div className="p-12 text-center text-slate-500">Loading variance data...</div>;
 
   const totalSpent = allocData.departments.reduce((acc: number, d: any) => acc + d.spent, 0);
   const displaySpent = showNet ? totalSpent / (1 + VAT_RATE) : totalSpent;
@@ -42,6 +57,7 @@ export function VarianceView({ activeScenario }: VarianceViewProps) {
       const p = parseFloat(((row.spent / row.amount) * 100).toFixed(1));
       if ((p - fiscalYearElapsedPct > 10) || p >= 100) criticalCount++;
   });
+  const pagedDepartments = (varianceSummary?.departments ?? []).slice((page - 1) * pageSize, page * pageSize);
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 p-8">
@@ -52,7 +68,6 @@ export function VarianceView({ activeScenario }: VarianceViewProps) {
         </div>
         
         <div className="flex items-center gap-4">
-          {/* Gross / Net Toggle */}
           <div className="bg-white p-2 border border-slate-200 rounded-xl shadow-sm flex items-center gap-2">
             <span className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
               !showNet ? 'bg-[#0A192F] text-white' : 'text-slate-500 hover:bg-slate-50'
@@ -60,6 +75,20 @@ export function VarianceView({ activeScenario }: VarianceViewProps) {
             <span className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
               showNet ? 'bg-[#0A192F] text-white' : 'text-slate-500 hover:bg-slate-50'
             }`} onClick={() => setShowNet(true)}>Net (Without Tax)</span>
+          </div>
+
+          <div className="flex items-center gap-2 bg-white p-2 border border-slate-200 rounded-xl shadow-sm h-[42px]">
+            <Calendar className="w-4 h-4 text-slate-500 ml-2" />
+            <select
+              value={varianceMonth}
+              onChange={e => setVarianceMonth(e.target.value)}
+              className="px-2 py-1 bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer"
+            >
+              <option value="ALL">Full Year</option>
+              {['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'].map(m => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
           </div>
 
           <div className="bg-white p-3 border border-slate-200 rounded-xl shadow-sm flex items-center gap-4">
@@ -105,15 +134,15 @@ export function VarianceView({ activeScenario }: VarianceViewProps) {
         <table className="w-full">
           <thead className="bg-slate-50 border-b border-[#d1d5db]">
             <tr>
-              {['Department','Budgeted','Actual','Variance','% Used','Pacing vs Time','Status','Audit'].map(h=>(
-                <th key={h} className="px-6 py-3 text-left text-[11px] font-black text-slate-500 uppercase tracking-wider">{h}</th>
+              {['Department','Budgeted','Actual','Variance','ML Expected','% Used','Pacing vs Time','Status','Audit'].map(h=>(
+                <th key={h} className={`px-6 py-3 text-left text-[11px] font-black uppercase tracking-wider ${h === 'ML Expected' ? 'text-purple-500' : 'text-slate-500'}`}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {allocData.departments.map((row: any, i: number)=>{
-              const displayRowSpent = showNet ? row.spent / (1 + VAT_RATE) : row.spent;
-              const displayRowBudget = showNet ? row.amount / (1 + VAT_RATE) : row.amount;
+            {pagedDepartments.map((row, i) => {
+              const displayRowSpent = showNet ? row.actualSpent / (1 + VAT_RATE) : row.actualSpent;
+              const displayRowBudget = showNet ? row.budgetedAmount / (1 + VAT_RATE) : row.budgetedAmount;
               const v = displayRowBudget - displayRowSpent;
               const p = displayRowBudget > 0 ? parseFloat(((displayRowSpent / displayRowBudget) * 100).toFixed(1)) : 0;
               
@@ -133,11 +162,29 @@ export function VarianceView({ activeScenario }: VarianceViewProps) {
               
               return (
                 <tr key={i} className={`hover:bg-slate-50/60 transition-colors ${s === 'critical' ? 'bg-red-50/20' : ''}`}>
-                  <td className="px-6 py-3.5 font-bold text-[14px] text-slate-900">{row.name}</td>
+                  <td className="px-6 py-3.5 font-bold text-[14px] text-slate-900">{row.departmentName}</td>
                   <td className="px-6 py-3.5 font-mono text-[13px] text-slate-500">₱{displayRowBudget.toLocaleString(undefined,{maximumFractionDigits:0})}</td>
                   <td className="px-6 py-3.5 font-mono font-bold text-[13px] text-slate-900">₱{displayRowSpent.toLocaleString(undefined,{maximumFractionDigits:0})}</td>
                   <td className={`px-6 py-3.5 font-mono font-bold text-[13px] ${v >= 0 ? 'text-[#10B981]' : 'text-red-500'}`}>
                     {v >= 0 ? '-' : '+'}₱{Math.abs(v).toLocaleString(undefined,{maximumFractionDigits:0})}
+                  </td>
+                  {/* ML Expected column */}
+                  <td className="px-6 py-3.5">
+                    {row.mlExpectedSpending > 0 ? (
+                      <span 
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border cursor-help ${
+                          row.isAnomaly
+                            ? 'bg-red-50 text-red-600 border-red-200'
+                            : 'bg-purple-50 text-purple-700 border-purple-200'
+                        }`}
+                        title={row.mlConfidenceNote || 'ML Predicted Utilization'}
+                      >
+                        {row.isAnomaly && <span>⚠ </span>}
+                        ₱{(showNet ? row.mlExpectedSpending / (1 + VAT_RATE) : row.mlExpectedSpending).toLocaleString(undefined,{maximumFractionDigits:0})}
+                      </span>
+                    ) : (
+                      <span className="text-slate-300 text-xs">—</span>
+                    )}
                   </td>
                   <td className="px-6 py-3.5">
                     <div className="flex items-center gap-2">
@@ -164,12 +211,12 @@ export function VarianceView({ activeScenario }: VarianceViewProps) {
                   <td className="px-6 py-3.5">
                     {(s === 'critical' || s === 'warning') ? (
                       <button 
-                        onClick={() => handleGenerateAudit(row.name)}
-                        disabled={generatingReport === row.name}
+                        onClick={() => handleGenerateAudit(row.departmentName)}
+                        disabled={generatingReport === row.departmentName}
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-white border border-slate-200 hover:border-blue-300 text-slate-600 hover:text-blue-600 rounded-lg text-xs font-bold transition-all disabled:opacity-50"
                         title="Generate PDF Audit Report"
                       >
-                        {generatingReport === row.name ? (
+                        {generatingReport === row.departmentName ? (
                           <span className="animate-pulse">Generating...</span>
                         ) : (
                           <><FileText className="w-3.5 h-3.5"/> 1-Click Audit</>
@@ -184,6 +231,12 @@ export function VarianceView({ activeScenario }: VarianceViewProps) {
             })}
           </tbody>
         </table>
+        <TablePagination
+          page={page}
+          pageSize={pageSize}
+          totalItems={varianceSummary?.departments.length ?? 0}
+          onPageChange={setPage}
+        />
       </div>
 
       {modalMessage && (

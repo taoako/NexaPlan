@@ -11,6 +11,8 @@ namespace NexaPlan.API.Models
         public int RoleID { get; set; }
         public int? DepartmentID { get; set; }
         public string Name { get; set; } = string.Empty;
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
         public string PasswordHash { get; set; } = string.Empty;
         public bool IsActive { get; set; }
 
