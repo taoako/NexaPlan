@@ -149,10 +149,13 @@ public class FinanceManagerVarianceController : FinanceManagerBaseController
 
             if (filterMonth == null)
             {
-                // Full Year view: sum ML predictions for every elapsed month so far
-                // to get a true YTD expected spend (comparable to accumulated ActualSpent).
+                // Full Year view: sum ML predictions for every elapsed month so far.
+                // Use the actual planned monthly rate (budgetReference / months elapsed)
+                // so ML expected aligns with the real planned pace, not the raw annual cap.
                 var currentMonth = DateTime.Now.Year == fiscalYear ? DateTime.Now.Month : 12;
-                var monthlyBudgetProbe = (double)(cap / 12);
+                var monthlyBudgetProbe = budgetReference > 0
+                    ? (double)(budgetReference / currentMonth)   // actual planned monthly rate
+                    : (double)(cap / 12);                        // fallback: cap evenly divided
                 var ytdMlTotal = 0.0;
                 string lastNote = "";
                 string lastModel = "";

@@ -299,6 +299,7 @@ export function ForecastingView() {
                   <tr className="border-b border-slate-200">
                     <th className="text-left pb-2 text-xs font-bold text-slate-500 uppercase">Department</th>
                     <th className="text-right pb-2 text-xs font-bold text-slate-500 uppercase">Committed</th>
+                    <th className="text-right pb-2 text-xs font-bold text-slate-500 uppercase">Budget</th>
                     <th className="text-right pb-2 text-xs font-bold text-slate-500 uppercase">Variance</th>
                     <th className="text-right pb-2 text-xs font-bold text-blue-600 uppercase">ML Expected</th>
                   </tr>
@@ -308,6 +309,7 @@ export function ForecastingView() {
                     <tr key={i} className="border-b border-slate-100 hover:bg-slate-50">
                       <td className="py-3 font-semibold text-slate-800">{d.dept}</td>
                       <td className="py-3 text-right font-mono text-slate-700">₱{d.committed.toLocaleString()}</td>
+                      <td className="py-3 text-right font-mono text-slate-700">₱{d.budget.toLocaleString()}</td>
                       <td className={`py-3 text-right font-mono font-bold ${d.variance > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
                         {d.variance > 0 ? '+' : '−'}₱{Math.abs(d.variance).toLocaleString()}
                       </td>
@@ -319,7 +321,7 @@ export function ForecastingView() {
                     </tr>
                   ))}
                   {varianceData.length === 0 && (
-                    <tr><td colSpan={4} className="py-6 text-center text-slate-400">No department data yet.</td></tr>
+                    <tr><td colSpan={5} className="py-6 text-center text-slate-400">No department data yet.</td></tr>
                   )}
                 </tbody>
               </table>

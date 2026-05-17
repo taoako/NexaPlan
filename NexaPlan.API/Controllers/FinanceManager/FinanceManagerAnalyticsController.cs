@@ -48,7 +48,7 @@ public class FinanceManagerAnalyticsController : FinanceManagerBaseController
 
         var deptForecasts = new List<DeptForecastDto>();
         var client = _http.CreateClient("MlService");
-        client.Timeout = TimeSpan.FromSeconds(5);
+        client.Timeout = TimeSpan.FromSeconds(30);
 
         foreach (var dept in departments)
         {

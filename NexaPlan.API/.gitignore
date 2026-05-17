@@ -1,6 +1,10 @@
+
 # Ignore build outputs
 bin/
 obj/
+publish/
+publish_output/
+*.zip
 
 # Ignore development secrets
 appsettings.Development.json
@@ -11,6 +15,9 @@ appsettings.json
 # Ignore user-specific files
 *.user
 *.suo
+
+# Ignore IDE folders
+.vs/
 
 # Ignore VS Code workspace settings
 .vscode/

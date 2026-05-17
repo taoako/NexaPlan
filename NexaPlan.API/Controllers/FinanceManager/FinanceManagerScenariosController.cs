@@ -178,6 +178,61 @@ namespace NexaPlan.API.Controllers.FinanceManager
 
             return Ok(new { message = "Scenario activated successfully." });
         }
+
+        [HttpGet("scenarios/{scenarioId}/pitches")]
+        public async Task<IActionResult> GetScenarioPitches(int scenarioId)
+        {
+            var tenantId = GetTenantId();
+            if (tenantId == 0) return NoTenant();
+
+            var pitches = await _context.ScenarioPitches
+                .Include(p => p.Department)
+                .Where(p => p.ScenarioId == scenarioId && p.TenantId == tenantId)
+                .OrderByDescending(p => p.SubmittedAt)
+                .Select(p => new
+                {
+                    id = p.PitchId,
+                    departmentName = p.Department != null ? p.Department.DepartmentName : "Unknown Department",
+                    title = p.PitchTitle,
+                    justification = p.Justification,
+                    decisions = p.PitchDecisions, // raw JSON string
+                    status = p.Status,
+                    submittedAt = p.SubmittedAt,
+                    customMultiplier = p.CustomMultiplier
+                })
+                .ToListAsync();
+
+            return Ok(pitches);
+        }
+
+        [HttpPost("scenarios/pitches/{pitchId}/acknowledge")]
+        public async Task<IActionResult> AcknowledgePitch(int pitchId)
+        {
+            var tenantId = GetTenantId();
+            if (tenantId == 0) return NoTenant();
+
+            var pitch = await _context.ScenarioPitches
+                .FirstOrDefaultAsync(p => p.PitchId == pitchId && p.TenantId == tenantId);
+
+            if (pitch == null) return NotFound(new { message = "Pitch not found." });
+
+            pitch.Status = "Acknowledged";
+
+            // Audit
+            _context.AuditLogs.Add(new AuditLog
+            {
+                TenantID = tenantId,
+                UserID = GetUserId(),
+                ActionType = "ScenarioPitchAcknowledged",
+                TargetResources = $"Scenario pitch '{pitch.PitchTitle}' from department {pitch.DepartmentId} acknowledged.",
+                IPAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                TimeStamp = DateTime.UtcNow
+            });
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Pitch acknowledged." });
+        }
     }
 
     public record CreateScenarioRequest(string Name, decimal Multiplier, string? Desc);

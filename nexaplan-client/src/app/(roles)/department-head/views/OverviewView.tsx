@@ -1,21 +1,49 @@
 import React, { useEffect, useState } from 'react';
 import { deptHeadApi } from '../../../../api/deptHeadApi';
-import { Activity } from 'lucide-react';
+import { Activity, AlertTriangle } from 'lucide-react';
 
-export function OverviewView() {
+interface OverviewViewProps {
+  onNavigateToScenarios?: () => void;
+}
+
+export function OverviewView({ onNavigateToScenarios }: OverviewViewProps = {}) {
   const [data, setData] = useState<any>(null);
   const [riskData, setRiskData] = useState<any>(null);
+  const [activeScenario, setActiveScenario] = useState<any>(null);
+  const [scenarioAtRiskCount, setScenarioAtRiskCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [overview, risk] = await Promise.all([
+        const [overview, risk, rawScenario] = await Promise.all([
           deptHeadApi.getOverview(),
-          deptHeadApi.getSpendingRisk().catch(() => null)
+          deptHeadApi.getSpendingRisk().catch(() => null),
+          deptHeadApi.getActiveScenario().catch(() => null)
         ]);
         setData(overview);
         setRiskData(risk);
+
+        if (rawScenario) {
+          // Normalize both old (multiplier/scenarioName) and new (adjustmentMultiplier/title) shapes
+          const mult: number =
+            typeof (rawScenario as any).adjustmentMultiplier === 'number'
+              ? (rawScenario as any).adjustmentMultiplier
+              : typeof (rawScenario as any).multiplier === 'number'
+                ? (rawScenario as any).multiplier
+                : 1.0;
+          const normalizedScenario = {
+            title: (rawScenario as any).title ?? (rawScenario as any).scenarioName ?? (rawScenario as any).name ?? 'Active Scenario',
+            adjustmentMultiplier: mult,
+          };
+          if (mult < 1.0) {
+            setActiveScenario(normalizedScenario);
+            try {
+              const impact = await deptHeadApi.getScenarioImpact(mult, new Date().getFullYear());
+              setScenarioAtRiskCount(impact.proposals.filter((p: any) => p.scenarioStatus === 'AtRisk').length);
+            } catch { /* non-fatal */ }
+          }
+        }
       } catch (err) {
         console.error(err);
       } finally {
@@ -34,6 +62,35 @@ export function OverviewView() {
         <h1 className="text-3xl font-black text-[#0A192F]">{data.departmentName} Overview</h1>
         <p className="text-slate-600 mt-2">Budget performance and departmental metrics</p>
       </div>
+
+      {/* Active Restrictive Scenario Banner */}
+      {activeScenario && (
+        <div className="rounded-xl border-2 border-orange-300 bg-orange-50 p-4 flex items-center justify-between gap-4 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
+              <AlertTriangle className="w-5 h-5 text-orange-600" />
+            </div>
+            <div>
+              <div className="font-black text-orange-800 text-sm">
+                ⚠ Active Budget Scenario: &ldquo;{activeScenario.title}&rdquo; reduces your allocation by {Math.round((1 - activeScenario.adjustmentMultiplier) * 100)}%.
+              </div>
+              {scenarioAtRiskCount > 0 && (
+                <div className="text-sm text-orange-700 mt-0.5">
+                  {scenarioAtRiskCount} of your proposals {scenarioAtRiskCount === 1 ? 'is' : 'are'} at risk.
+                </div>
+              )}
+            </div>
+          </div>
+          {onNavigateToScenarios && (
+            <button
+              onClick={onNavigateToScenarios}
+              className="shrink-0 text-sm font-black text-orange-700 hover:text-orange-900 underline underline-offset-2 whitespace-nowrap transition-colors"
+            >
+              Review in Scenario Planning →
+            </button>
+          )}
+        </div>
+      )}
 
       {riskData && (
         <div className={`rounded-xl p-5 border shadow-sm flex items-center justify-between ${

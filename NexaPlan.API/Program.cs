@@ -9,8 +9,13 @@ var builder = WebApplication.CreateBuilder(args);
 // --- 1. DATABASE CONNECTION CONFIGURATION ---
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
+var serverVersionText = builder.Configuration["Database:ServerVersion"];
+var serverVersion = !string.IsNullOrWhiteSpace(serverVersionText)
+    ? ServerVersion.Parse(serverVersionText)
+    : ServerVersion.Parse("8.0.36-mysql");
+
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString), mySqlOptions =>
+    options.UseMySql(connectionString, serverVersion, mySqlOptions =>
     {
         mySqlOptions.EnableRetryOnFailure();
     }));
@@ -25,10 +30,24 @@ builder.Services.AddHttpClient();
 builder.Services.AddHttpClient("MlService", (sp, client) =>
 {
     var opts = sp.GetRequiredService<IOptions<ExternalServicesOptions>>().Value;
-    if (!string.IsNullOrWhiteSpace(opts.MlService.BaseUrl))
+    var baseUrl = opts.MlService.BaseUrl;
+    if (string.IsNullOrWhiteSpace(baseUrl))
     {
-        client.BaseAddress = new Uri(opts.MlService.BaseUrl.TrimEnd('/') + "/");
+        baseUrl = builder.Configuration["ML_SERVICE_URL"]
+            ?? builder.Configuration["ML_BASE_URL"];
+
+        if (string.IsNullOrWhiteSpace(baseUrl) && builder.Environment.IsProduction())
+        {
+            baseUrl = "https://nexaplan-ml-engine.onrender.com";
+        }
     }
+
+    if (!string.IsNullOrWhiteSpace(baseUrl))
+    {
+        client.BaseAddress = new Uri(baseUrl.TrimEnd('/') + "/");
+    }
+
+    client.Timeout = TimeSpan.FromSeconds(30);
 });
 
 builder.Services.AddHttpClient("PayMongo", (sp, client) =>
@@ -61,11 +80,29 @@ builder.Services.AddSwaggerGen();
 // --- BUILD THE APP (Only do this ONCE) ---
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
+var skipMigrations = builder.Configuration.GetValue<bool>("Database:SkipMigrations");
+if (!skipMigrations)
 {
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.Migrate();
-    SeedReferenceData(db);
+    try
+    {
+        using var scope = app.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        db.Database.Migrate();
+
+        // Cleanup garbage pitch scenarios from Dept Head bug
+        db.Database.ExecuteSqlRaw("DELETE FROM BudgetScenarios WHERE Description LIKE '%PITCH_DECISIONS%' OR Description LIKE '%ProposalId%';");
+
+        SeedReferenceData(db);
+
+        if (builder.Configuration.GetValue<bool>("Database:SeedDemoData"))
+        {
+            DemoDataSeeder.Seed(db);
+        }
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "Database migration failed. Set Database:SkipMigrations=true to bypass during local startup.");
+    }
 }
 
 // --- 3. HTTP REQUEST PIPELINE (Use the app AFTER building) ---

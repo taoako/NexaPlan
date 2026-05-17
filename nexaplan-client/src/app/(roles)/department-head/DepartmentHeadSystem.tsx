@@ -54,21 +54,34 @@ export function DepartmentHeadSystem({ onBack }: DepartmentHeadSystemProps) {
       try {
         const res = await deptHeadApi.getScenarios();
         const active = res.find((s: any) => s.isActive);
-        setActiveScenario(active);
+        if (active) {
+          // Normalize both old (multiplier/scenarioName/name) and new (adjustmentMultiplier/title) shapes
+          setActiveScenario({
+            title: active.title ?? active.scenarioName ?? active.name ?? 'Active Scenario',
+            adjustmentMultiplier:
+              typeof active.adjustmentMultiplier === 'number'
+                ? active.adjustmentMultiplier
+                : typeof active.multiplier === 'number'
+                  ? active.multiplier
+                  : 1.0,
+          });
+        } else {
+          setActiveScenario(null);
+        }
       } catch (err) {
-        console.error("Failed to load active scenario", err);
+        console.error('Failed to load active scenario', err);
       }
     };
     fetchActiveScenario();
-  }, [activeModule]); // Refresh when changing modules
+  }, [activeModule]);
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] font-['Inter'] relative flex flex-col">
       {/* Global Warning Banner if scenario is not Base Case */}
-      {activeScenario && activeScenario.multiplier < 1.0 && (
+      {activeScenario && activeScenario.adjustmentMultiplier < 1.0 && (
         <div className="bg-[#F59E0B] text-[#78350F] px-4 py-2 text-sm font-bold flex items-center justify-center gap-2 z-[60] shrink-0 w-full relative">
           <AlertTriangle className="w-4 h-4" />
-          ⚠️ Operating under {activeScenario.name} scenario restrictions ({(activeScenario.multiplier * 100).toFixed(0)}% of base budget). Low-priority projects may be automatically frozen.
+          ⚠️ Operating under &ldquo;{activeScenario.title}&rdquo; scenario restrictions ({Math.round((1 - activeScenario.adjustmentMultiplier) * 100)}% budget reduction). Low-priority projects may be automatically frozen.
         </div>
       )}
 
@@ -137,7 +150,7 @@ export function DepartmentHeadSystem({ onBack }: DepartmentHeadSystemProps) {
       </nav>
 
       <div className="p-8">
-        {activeModule === 'overview' && <OverviewView />}
+        {activeModule === 'overview' && <OverviewView onNavigateToScenarios={() => setActiveModule('scenarios')} />}
         {activeModule === 'proposals' && <ProposalsView setActiveModule={setActiveModule} addToast={addToast} />}
         {activeModule === 'new-request' && <NewRequestView setActiveModule={setActiveModule} addToast={addToast} />}
         {activeModule === 'expenses' && <ExpensesView addToast={addToast} />}

@@ -26,6 +26,7 @@ namespace NexaPlan.API.Data
         // --- Forecasting & Planning ---
         public DbSet<Forecast> Forecasts { get; set; }
         public DbSet<BudgetScenario> BudgetScenarios { get; set; }
+        public DbSet<ScenarioPitch> ScenarioPitches { get; set; }
 
         // --- Auditor / Compliance ---
         public DbSet<ComplianceRule> ComplianceRules { get; set; }
