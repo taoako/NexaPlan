@@ -22,7 +22,7 @@ namespace NexaPlan.API.Controllers.SuperAdmin
                 .ToListAsync();
 
             var result = admins.Select(a => {
-                // Some legacy records stored email in Name. Fix display:
+                
                 bool nameIsEmail = a.Name.Contains('@') && !a.Name.Contains(' ');
                 string displayName = nameIsEmail
                     ? System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(a.Name.Split('@')[0].Replace('.', ' ').Replace('_', ' '))

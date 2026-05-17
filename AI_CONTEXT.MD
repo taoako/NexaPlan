@@ -700,3 +700,97 @@ New thresholds:
 - predicted >= budget * 1.05 → High (only fires if mathematically 5%+ over budget)
 - upper_bound >= budget * 1.15 → Medium (worst-case volatility breaches +15% buffer)
 - else → Low (default Green for normal stable behaviour)
+
+## Session 26: Hybrid Model Revamp & Proportional Scaling
+
+- **Hybrid Model Logic:**
+  - Revamped `ml_service/main.py` to correctly route budgets based on a $19,985.0 USD threshold.
+  - Budgets <= $19,985 USD route to `RandomForest`; budgets > $19,985 USD route to `Ridge`.
+  - **Transformation Fix:** Corrected an earlier assumption. `nexaplan_rf_model (2).pkl` is log-space trained (requires `np.expm1()`), while `nexaplan_ridge_model (1).pkl` was explicitly retrained on raw dollars (requires NO `expm1()`). Applied the correct transformations to each model respectively.
+- **Proportional Scaling (RF Floor):**
+  - Discovered that the RF model clamps its output identically for any budget beneath its minimum training sample (~$5,000 USD). This caused massive inflation for small PHP budgets converted to USD.
+  - Implemented a **Proportional Scaling** fallback: For USD budgets < $5,000, the budget is temporarily scaled up to $5,000 to get a prediction, then the resulting prediction is scaled back down proportionately. This guarantees realistic, linear scaling for micro-budgets without breaking the RF model.
+- **C# Controller Integration Fix:**
+  - Fixed an issue in `FinanceManagerVarianceController.cs` where the full-year YTD loop was using `annualCap / 12` as the budget probe instead of the actual `plannedBudget / months`. This ensures ML expected spending aligns with the department's actual monthly run rate, preventing artificially inflated variances for departments with small proposals.
+- **Risk & Thresholds:**
+  - Re-calibrated risk levels to utilization-based: High (>=110%), Medium (>=90%), Low (else).
+- **Metadata:**
+  - Updated `/health` endpoint and `/predict` response (`confidence_note`) to accurately describe the hybrid architecture.
+
+## Session 27: Scenario Planning Engine — Department Head (Full Implementation)
+
+**Overview:** Built the full Scenario Planning feature for Department Heads — connecting real DB proposals to Finance Manager scenarios, enabling formal Scenario Pitches, and integrating an active-scenario alert into the Overview tab.
+
+### Backend — `DeptHeadScenariosController.cs` (Rewritten)
+
+Three new endpoints added; two legacy endpoints (`/scenarios`, `/scenarios/preview`) kept intact:
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `GET /api/dept-head/scenarios` | Existing | Returns non-archived tenant scenarios. Fixed to use `title` field and filter `IsArchived=false`, ordered active-first |
+| `GET /api/dept-head/scenarios/active` | Existing | Returns active scenario or Base Case default |
+| `GET /api/dept-head/scenarios/impact?multiplier=&fiscalYear=` | **NEW** | Core calculation: resolves dept budget cap (DepartmentAllocations → AnnualBudgetCap fallback), walks proposals in PriorityRank order (null=4), assigns Survives/AtRisk |
+| `POST /api/dept-head/scenarios/pitch` | **NEW** | Saves dept head's formal pitch. Creates a new `BudgetScenario` row scoped to dept (IsActive=false). Decisions stored as JSON prefix in Description. Writes AuditLog entry |
+| `GET /api/dept-head/scenarios/pitches` | **NEW** | Returns all pitch records for this dept (identified by `[PITCH_DECISIONS]` marker in Description) |
+
+**DTOs added (in same file):** `PitchDecisionDto`, `ScenarioPitchDto`
+
+**Pitch storage strategy:** No migration needed — pitches reuse `BudgetScenario` with `DepartmentID` scoped, `IsActive=false`, decisions JSON embedded in `Description` as `[PITCH_DECISIONS]{json}[/PITCH_DECISIONS]{justification}`, and linked scenario ID stored in `TargetYear`.
+
+**Build status:** Zero C# compilation errors. MSB3026/3027 file-lock warnings only (API exe in use by running server — hot-reload picks up changes).
+
+### Frontend — `deptHeadApi.ts` (Updated)
+
+Added full TypeScript interfaces: `ScenarioSummary`, `ProposalImpact`, `ScenarioImpactResult`, `PitchDecision`, `ScenarioPitchRequest`, `SubmittedPitch`.
+
+New API functions:
+- `getScenarios()` — now typed as `ScenarioSummary[]`
+- `getActiveScenario()` — returns `ScenarioSummary`
+- `getScenarioImpact(multiplier, fiscalYear)` — `GET /scenarios/impact`
+- `submitScenarioPitch(payload)` — `POST /scenarios/pitch`
+- `getMyPitches()` — `GET /scenarios/pitches`
+
+### Frontend — `ScenariosView.tsx` (Full Rebuild)
+
+**Two-panel layout:**
+- **Left panel:** Finance Manager scenario cards (clickable, color-coded: orange=cut, green=growth, indigo=base) + custom slider (±50%) with 400ms debounce before `/impact` call
+- **Right panel:** Proposal impact table showing Priority, Title, Amount, Status, Scenario Status (✅ Survives / ⚠ At Risk), and Your Decision dropdown (AtRisk rows only)
+
+**Key behaviors:**
+- Clicking a scenario card immediately fetches impact at that multiplier
+- Slider debounce: 400ms after stop before API call
+- Submit Pitch button enabled only when ≥1 AtRisk proposal has a decision selected
+- Pitch modal: PitchTitle input + Justification textarea (min 50 chars validation) + read-only Decision Summary list
+- On success: toast notification + button changes to "📋 Pitch Submitted — View Response"
+- Past Pitches accordion at bottom (collapsible) showing all submitted pitches with status badges
+- Zero `window.alert()` / `window.confirm()` — all feedback via toast + modal
+
+### Frontend — `OverviewView.tsx` (Extended)
+
+Added dept-specific restrictive scenario banner:
+- Fetches active scenario on mount alongside existing overview/risk data
+- If `adjustmentMultiplier < 1.0`: renders an orange warning banner showing scenario name, reduction %, and at-risk proposal count
+- "Review in Scenario Planning →" link calls `onNavigateToScenarios` prop (passed from orchestrator)
+- Banner does NOT render for base-case or growth scenarios
+
+### Frontend — `DepartmentHeadSystem.tsx` (Fixed)
+
+- Fixed global banner field names: `multiplier` → `adjustmentMultiplier`, `name` → `title` (aligned with new API response shape)
+- Passes `onNavigateToScenarios={() => setActiveModule('scenarios')}` to `OverviewView`
+
+## Session 28: Scenario Pitch Data Architecture Fix
+
+**Overview:** Fixed a critical bug where Department Head scenario pitches were being saved into the Finance Manager's `BudgetScenarios` table, cluttering the global dashboard and leaking raw JSON.
+
+### Database Updates
+- **New Model:** Created `ScenarioPitch` to isolate Dept Head pitches from FM scenarios.
+- **Migration:** Added `AddScenarioPitches` EF Core migration.
+- **Data Cleanup:** Inserted a startup `ExecuteSqlRaw` task in `Program.cs` to automatically delete any garbage `BudgetScenario` rows containing `[PITCH_DECISIONS]` or `ProposalId`.
+
+### API Updates (`DeptHeadScenariosController.cs`)
+- **`SubmitPitch`:** Rewritten to use `_context.ScenarioPitches.Add(...)` instead of writing to `BudgetScenarios`. Saves decisions directly to `PitchDecisions` as a JSON string.
+- **`GetMyPitches`:** Refactored to query `ScenarioPitches`. Includes a Left Join equivalent using `_context.BudgetScenarios` to resolve the `ScenarioTitle` if the pitch is linked to a specific FM scenario.
+
+**Mental Model Enforced:**
+- `BudgetScenario`: Finance Manager's global scenario tool. Dept Heads never write here.
+- `ScenarioPitch`: Dept Head's response/submission. Linked via `ScenarioId` but stored separately.

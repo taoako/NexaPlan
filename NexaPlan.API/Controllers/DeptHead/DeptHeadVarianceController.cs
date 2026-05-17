@@ -22,7 +22,6 @@ namespace NexaPlan.API.Controllers.DeptHead
             var dept = user?.Department;
             if (dept == null) return Ok(new { rows = Array.Empty<object>(), summary = new { } });
 
-            // Filter approved proposals by time period
             var now = DateTime.UtcNow;
             var approvedProposals = await _context.BudgetProposals
                 .Where(p => p.TenantID == tenantId && p.DepartmentID == dept.DepartmentID && p.ProposalStatus == "Approved")
@@ -35,7 +34,6 @@ namespace NexaPlan.API.Controllers.DeptHead
                 _ => approvedProposals.Where(p => p.FiscalYear == now.Year)
             };
 
-            // Get line items for these proposals and group by category
             var proposalIds = filtered.Select(p => p.ProposalID).ToList();
             var lineItems = await _context.LineItems
                 .Where(li => proposalIds.Contains(li.ProposalID))
