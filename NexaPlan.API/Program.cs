@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using NexaPlan.API.Configuration;
 using NexaPlan.API.Data;
 using NexaPlan.API.Models;
+using QuestPDF.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -78,6 +79,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // --- BUILD THE APP (Only do this ONCE) ---
+QuestPDF.Settings.License = LicenseType.Community;
 var app = builder.Build();
 
 var skipMigrations = builder.Configuration.GetValue<bool>("Database:SkipMigrations");

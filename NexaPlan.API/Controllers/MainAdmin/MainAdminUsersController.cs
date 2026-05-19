@@ -11,7 +11,12 @@ namespace NexaPlan.API.Controllers.MainAdmin
     [ApiController]
     public class MainAdminUsersController : MainAdminBaseController
     {
-        public MainAdminUsersController(AppDbContext context) : base(context) { }
+        private readonly IConfiguration _config;
+
+        public MainAdminUsersController(AppDbContext context, IConfiguration config) : base(context) 
+        { 
+            _config = config;
+        }
 
         [HttpGet("users")]
         public async Task<IActionResult> GetUsers()
@@ -81,11 +86,21 @@ namespace NexaPlan.API.Controllers.MainAdmin
             _context.AuditLogs.Add(new AuditLog {
                 TenantID = tenantId, UserID = request.RequestedByUserId,
                 ActionType = "USER_INVITED", TargetResources = $"{request.Name} ({request.Email})",
-                IPAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                IPAddress = GetClientIp(),
                 TimeStamp = DateTime.UtcNow
             });
 
             await _context.SaveChangesAsync();
+
+            // Trigger notification
+            _ = NotificationDispatcher.DispatchEmailIfEnabledAsync(
+                _context, _config, tenantId,
+                "emailOnUserInvited",
+                "You've been invited to NexaPlan",
+                $"Hello {request.Name},\n\nYou have been invited to join your organization's NexaPlan workspace.\nYour temporary password is: {tempPassword}\n\nPlease log in and change your password immediately.",
+                request.Email
+            );
+
             return Ok(new { message = "User invited.", userId = user.UserID, tempPassword });
         }
 
@@ -107,6 +122,11 @@ namespace NexaPlan.API.Controllers.MainAdmin
 
             if (!string.IsNullOrWhiteSpace(request.TempPassword))
             {
+                var currentTenant = await _context.Tenants.FindAsync(tenantId);
+                int minLen = currentTenant?.MinPasswordLength ?? 8;
+                if (request.TempPassword.Length < minLen)
+                    return BadRequest(new { message = $"Password must be at least {minLen} characters long according to your organization's security policy." });
+
                 user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.TempPassword);
                 user.LastTempPassword = request.TempPassword;
                 user.IsLocked = false;
@@ -117,7 +137,7 @@ namespace NexaPlan.API.Controllers.MainAdmin
             _context.AuditLogs.Add(new AuditLog {
                 TenantID = tenantId, UserID = request.RequestedByUserId,
                 ActionType = "USER_UPDATED", TargetResources = $"{user.Name} ({user.Email})",
-                IPAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                IPAddress = GetClientIp(),
                 TimeStamp = DateTime.UtcNow
             });
 
@@ -133,7 +153,7 @@ namespace NexaPlan.API.Controllers.MainAdmin
             if (user == null) return NotFound();
 
             user.IsLocked = true; user.IsActive = false;
-            _context.AuditLogs.Add(new AuditLog { TenantID = tenantId, UserID = 0, ActionType = "USER_SUSPENDED", TargetResources = user.Name, IPAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown", TimeStamp = DateTime.UtcNow });
+            _context.AuditLogs.Add(new AuditLog { TenantID = tenantId, UserID = 0, ActionType = "USER_SUSPENDED", TargetResources = user.Name, IPAddress = GetClientIp(), TimeStamp = DateTime.UtcNow });
             await _context.SaveChangesAsync();
             return Ok(new { message = "User suspended." });
         }
@@ -146,7 +166,7 @@ namespace NexaPlan.API.Controllers.MainAdmin
             if (user == null) return NotFound();
 
             user.IsLocked = false; user.IsActive = true; user.FailedLoginAttempts = 0;
-            _context.AuditLogs.Add(new AuditLog { TenantID = tenantId, UserID = 0, ActionType = "USER_ACTIVATED", TargetResources = user.Name, IPAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown", TimeStamp = DateTime.UtcNow });
+            _context.AuditLogs.Add(new AuditLog { TenantID = tenantId, UserID = 0, ActionType = "USER_ACTIVATED", TargetResources = user.Name, IPAddress = GetClientIp(), TimeStamp = DateTime.UtcNow });
             await _context.SaveChangesAsync();
             return Ok(new { message = "User activated." });
         }
@@ -159,7 +179,7 @@ namespace NexaPlan.API.Controllers.MainAdmin
             if (user == null) return NotFound();
             if (user.RoleID == 2) return BadRequest(new { message = "Cannot remove the Main Admin account." });
 
-            _context.AuditLogs.Add(new AuditLog { TenantID = tenantId, UserID = 0, ActionType = "USER_DELETED", TargetResources = $"{user.Name} ({user.Email})", IPAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown", TimeStamp = DateTime.UtcNow });
+            _context.AuditLogs.Add(new AuditLog { TenantID = tenantId, UserID = 0, ActionType = "USER_DELETED", TargetResources = $"{user.Name} ({user.Email})", IPAddress = GetClientIp(), TimeStamp = DateTime.UtcNow });
             _context.Users.Remove(user);
             await _context.SaveChangesAsync();
             return Ok(new { message = "User removed." });
@@ -184,7 +204,7 @@ namespace NexaPlan.API.Controllers.MainAdmin
                 }
             }
 
-            _context.AuditLogs.Add(new AuditLog { TenantID = tenantId, UserID = 0, ActionType = $"BULK_{request.Action.ToUpper()}", TargetResources = $"{users.Count} users", IPAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown", TimeStamp = DateTime.UtcNow });
+            _context.AuditLogs.Add(new AuditLog { TenantID = tenantId, UserID = 0, ActionType = $"BULK_{request.Action.ToUpper()}", TargetResources = $"{users.Count} users", IPAddress = GetClientIp(), TimeStamp = DateTime.UtcNow });
             await _context.SaveChangesAsync();
             return Ok(new { message = $"Bulk '{request.Action}' applied to {users.Count} users." });
         }

@@ -125,7 +125,7 @@ namespace NexaPlan.API.Controllers.MainAdmin
             using var doc = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
             var checkoutUrl = doc.RootElement.GetProperty("data").GetProperty("attributes").GetProperty("checkout_url").GetString();
 
-            _context.AuditLogs.Add(new AuditLog { TenantID = tenantId, UserID = 0, ActionType = $"BILLING_{request.Action.ToUpper()}", TargetResources = $"{newTier} plan", IPAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown", TimeStamp = DateTime.UtcNow });
+            _context.AuditLogs.Add(new AuditLog { TenantID = tenantId, UserID = 0, ActionType = $"BILLING_{request.Action.ToUpper()}", TargetResources = $"{newTier} plan", IPAddress = GetClientIp(), TimeStamp = DateTime.UtcNow });
             await _context.SaveChangesAsync();
 
             return Ok(new { checkoutUrl, message = $"Redirecting to checkout for {newTier} plan." });
@@ -143,7 +143,7 @@ namespace NexaPlan.API.Controllers.MainAdmin
 
             tenant.RegistrationStatus = "CancellationPending";
 
-            _context.AuditLogs.Add(new AuditLog { TenantID = tenantId, UserID = 0, ActionType = "BILLING_CANCEL_REQUESTED", TargetResources = tenant.CompanyName, IPAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown", TimeStamp = DateTime.UtcNow });
+            _context.AuditLogs.Add(new AuditLog { TenantID = tenantId, UserID = 0, ActionType = "BILLING_CANCEL_REQUESTED", TargetResources = tenant.CompanyName, IPAddress = GetClientIp(), TimeStamp = DateTime.UtcNow });
             await _context.SaveChangesAsync();
 
             return Ok(new { message = "Cancellation request submitted. Your plan will remain active until the end of the current billing cycle. Contact support to undo this." });

@@ -30,6 +30,18 @@ namespace NexaPlan.API.Controllers.MainAdmin
             return 0;
         }
 
+        /// <summary>Bug Fix: Reads X-Forwarded-For before falling back to RemoteIpAddress.</summary>
+        protected string GetClientIp()
+        {
+            var forwarded = HttpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+            if (!string.IsNullOrWhiteSpace(forwarded))
+                return forwarded.Split(',')[0].Trim();
+            var realIp = HttpContext.Request.Headers["X-Real-IP"].FirstOrDefault();
+            if (!string.IsNullOrWhiteSpace(realIp))
+                return realIp;
+            return HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+        }
+
         protected IActionResult NoTenant() => BadRequest(new { message = "tenantId is required in X-Tenant-Id header." });
         protected IActionResult NoUser() => BadRequest(new { message = "userId is required in X-User-Id header." });
     }

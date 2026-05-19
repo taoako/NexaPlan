@@ -32,6 +32,12 @@ namespace NexaPlan.API.Controllers
                 return BadRequest(new { message = "You must accept the terms and conditions." });
             }
 
+            // Global minimum password check for registration (default 8)
+            if (request.Password.Length < 8)
+            {
+                return BadRequest(new { message = "Password must be at least 8 characters long." });
+            }
+
             bool isPaidAccount = request.PlanTier != "Trial";
 
             if (!isPaidAccount)
@@ -179,7 +185,8 @@ namespace NexaPlan.API.Controllers
                 name = user.Name,
                 firstName = user.FirstName,
                 lastName = user.LastName,
-                email = user.Email
+                email = user.Email,
+                sessionTimeoutMinutes = user.Tenant?.SessionTimeoutMinutes ?? 30
             });
         }
 

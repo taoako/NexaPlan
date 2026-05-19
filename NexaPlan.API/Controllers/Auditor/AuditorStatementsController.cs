@@ -47,7 +47,8 @@ namespace NexaPlan.API.Controllers.Auditor
                     fileType   = s.FileType,
                     fileSize   = s.FileSize,
                     sha256Hash = s.Sha256Hash,
-                    date       = s.CreatedAt.ToString("yyyy-MM-dd")
+                    date       = s.CreatedAt.ToString("yyyy-MM-dd"),
+                    taxAmount  = s.TaxAmount
                 })
                 .ToListAsync();
 
@@ -74,7 +75,7 @@ namespace NexaPlan.API.Controllers.Auditor
                 TenantID    = tenantId,
                 UserID      = userId,
                 AccessType  = req.AccessType ?? "View",
-                IPAddress   = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                IPAddress   = GetClientIp(),
                 AccessedAt  = DateTime.UtcNow
             };
 
@@ -87,7 +88,7 @@ namespace NexaPlan.API.Controllers.Auditor
                 UserID          = userId,
                 ActionType      = req.AccessType == "Download" ? "STATEMENT_DOWNLOADED" : "STATEMENT_VIEWED",
                 TargetResources = statement.Name,
-                IPAddress       = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                IPAddress       = GetClientIp(),
                 TimeStamp       = DateTime.UtcNow
             });
 

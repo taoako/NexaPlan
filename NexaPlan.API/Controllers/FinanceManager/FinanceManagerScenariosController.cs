@@ -10,7 +10,12 @@ namespace NexaPlan.API.Controllers.FinanceManager
     [ApiController]
     public class FinanceManagerScenariosController : FinanceManagerBaseController
     {
-        public FinanceManagerScenariosController(AppDbContext context) : base(context) { }
+        private readonly IConfiguration _config;
+
+        public FinanceManagerScenariosController(AppDbContext context, IConfiguration config) : base(context) 
+        { 
+            _config = config;
+        }
 
         private static int NormalizePriorityRank(BudgetProposal proposal)
         {
@@ -195,6 +200,14 @@ namespace NexaPlan.API.Controllers.FinanceManager
 
             await _context.SaveChangesAsync();
 
+            // Trigger notification
+            _ = NotificationDispatcher.DispatchEmailIfEnabledAsync(
+                _context, _config, tenantId,
+                "emailOnScenarioActivated",
+                "Budget Scenario Activated",
+                $"A new budget scenario '{scenarioToActivate.ScenarioName}' with a multiplier of {scenarioToActivate.AdjustmentMultiplier} has been activated."
+            );
+
             return Ok(new { message = "Scenario activated successfully." });
         }
 
@@ -244,7 +257,7 @@ namespace NexaPlan.API.Controllers.FinanceManager
                 UserID = GetUserId(),
                 ActionType = "ScenarioPitchAcknowledged",
                 TargetResources = $"Scenario pitch '{pitch.PitchTitle}' from department {pitch.DepartmentId} acknowledged.",
-                IPAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                IPAddress = GetClientIp(),
                 TimeStamp = DateTime.UtcNow
             });
 

@@ -81,13 +81,13 @@ export function FinancialStatementsView() {
                       {doc.sha256Hash}
                     </span>
                   </div>
-                  {/* Tax Capitalized */}
+                  {/* Tax Capitalized — Bug Fix #3: reads real taxAmount from backend */}
                   <div className="mt-2 flex items-center gap-2 text-xs">
                     <span className="font-bold text-amber-600">Total Tax Capitalized:</span>
                     <span className="font-mono font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                      {doc.totalTaxCapitalized != null
-                        ? `₱${Number(doc.totalTaxCapitalized).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                        : 'N/A — reconcile expenses to populate'}
+                      {doc.taxAmount != null && doc.taxAmount > 0
+                        ? `₱${Number(doc.taxAmount).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                        : 'N/A — no reconciled expenses yet'}
                     </span>
                   </div>
                 </div>

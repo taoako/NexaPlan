@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NexaPlan.API.Data;
 using NexaPlan.API.Models;
+using NexaPlan.API.Helpers;
 
 namespace NexaPlan.API.Controllers.DeptHead
 {
@@ -9,7 +10,12 @@ namespace NexaPlan.API.Controllers.DeptHead
     [ApiController]
     public class DeptHeadProposalsController : DeptHeadBaseController
     {
-        public DeptHeadProposalsController(AppDbContext context) : base(context) { }
+        private readonly IConfiguration _config;
+
+        public DeptHeadProposalsController(AppDbContext context, IConfiguration config) : base(context) 
+        { 
+            _config = config;
+        }
 
         private static int ResolvePriorityRank(string priority, int? explicitRank)
         {
@@ -227,6 +233,16 @@ namespace NexaPlan.API.Controllers.DeptHead
             _context.LineItems.AddRange(lineItems);
             await _context.SaveChangesAsync();
 
+            if (!req.SaveAsDraft)
+            {
+                _ = NotificationDispatcher.DispatchEmailIfEnabledAsync(
+                    _context, _config, tenantId,
+                    "emailOnProposalSubmitted",
+                    $"New Proposal Submitted: {req.Title}",
+                    $"Department Head has submitted a new proposal '{req.Title}' for {total:C}."
+                );
+            }
+
             return Ok(new { message = req.SaveAsDraft ? "Draft saved." : "Proposal submitted for review.", proposalId = proposal.ProposalID });
         }
 
@@ -295,6 +311,16 @@ namespace NexaPlan.API.Controllers.DeptHead
 
             _context.LineItems.AddRange(newItems);
             await _context.SaveChangesAsync();
+
+            if (!req.SaveAsDraft)
+            {
+                _ = NotificationDispatcher.DispatchEmailIfEnabledAsync(
+                    _context, _config, tenantId,
+                    "emailOnProposalSubmitted",
+                    $"Proposal Resubmitted: {req.Title}",
+                    $"Department Head has resubmitted the proposal '{req.Title}' for {total:C}."
+                );
+            }
 
             return Ok(new { message = req.SaveAsDraft ? "Draft updated." : "Proposal resubmitted." });
         }

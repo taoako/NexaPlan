@@ -96,7 +96,7 @@ namespace NexaPlan.API.Controllers.MainAdmin
                 UserID = GetUserId(), 
                 ActionType = "SETTINGS_UPDATED", 
                 TargetResources = $"Company: {request.CompanyName}, Budget: ₱{request.TotalCompanyBudget:N0}", 
-                IPAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown", 
+                IPAddress = GetClientIp(), 
                 TimeStamp = DateTime.UtcNow 
             });
             await _context.SaveChangesAsync();
@@ -128,7 +128,7 @@ namespace NexaPlan.API.Controllers.MainAdmin
                 TenantID = tenantId, UserID = GetUserId(),
                 ActionType = "COMPANY_BUDGET_SET",
                 TargetResources = $"TotalCompanyBudget=₱{request.TotalCompanyBudget:N0}",
-                IPAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                IPAddress = GetClientIp(),
                 TimeStamp = DateTime.UtcNow
             });
             await _context.SaveChangesAsync();

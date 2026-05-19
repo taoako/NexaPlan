@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { DollarSign, CheckSquare, TrendingUp, GitBranch, BarChart3, AlertTriangle, FileCheck, X, CheckCircle2, Info } from 'lucide-react';
+import { DollarSign, CheckSquare, TrendingUp, GitBranch, BarChart3, AlertTriangle, FileCheck, X, CheckCircle2, Info, FileSignature } from 'lucide-react';
 import { FinanceManagerTopNav } from './layout/FinanceManagerTopNav';
 import { AllocationView } from './views/AllocationView';
 import { ApprovalView } from './views/ApprovalView';
@@ -10,6 +10,8 @@ import { financeManagerApi } from '../../../api/financeManagerApi';
 import * as mainAdminApi from '../../../api/mainAdminApi';
 import { ReconciliationView } from './views/ReconciliationView';
 import { FeaturesContext, TierFeatures } from '../../../context/FeaturesContext';
+
+import { StatementsView } from './views/StatementsView';
 
 interface FinanceManagerSystemProps { 
   onLogout: () => void; 
@@ -23,7 +25,7 @@ export interface Scenario {
   isActive: boolean;
 }
 
-export type ModuleView = 'allocation' | 'approval' | 'reconciliation' | 'forecasting' | 'scenarios' | 'variance';
+export type ModuleView = 'allocation' | 'approval' | 'reconciliation' | 'forecasting' | 'scenarios' | 'variance' | 'statements';
 
 interface Toast { id: number; message: string; type: 'success' | 'error' | 'info' | 'warning'; }
 
@@ -74,6 +76,7 @@ export function FinanceManagerSystem({ onLogout }: FinanceManagerSystemProps) {
     { id: 'forecasting' as ModuleView, label: 'AI Forecasting', icon: TrendingUp },
     { id: 'scenarios' as ModuleView, label: 'Scenarios', icon: GitBranch },
     { id: 'variance' as ModuleView, label: 'Variance Analysis', icon: BarChart3 },
+    { id: 'statements' as ModuleView, label: 'Statements', icon: FileSignature },
   ];
 
   return (
@@ -103,6 +106,7 @@ export function FinanceManagerSystem({ onLogout }: FinanceManagerSystemProps) {
           {activeModule === 'forecasting' && <ForecastingView />}
           {activeModule === 'scenarios' && <ScenariosView />}
           {activeModule === 'variance' && <VarianceView activeScenario={activeScenario} />}
+          {activeModule === 'statements' && <StatementsView />}
         </FeaturesContext.Provider>
       </div>
 

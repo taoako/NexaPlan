@@ -74,7 +74,7 @@ namespace NexaPlan.API.Controllers.SuperAdmin
             _context.AuditLogs.Add(new AuditLog {
                 TenantID = tenant.TenantID, UserID = 0, ActionType = "PROVISION_TENANT",
                 TargetResources = $"Tenant: {tenant.CompanyName}, Admin: {request.AdminEmail}",
-                IPAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown", TimeStamp = DateTime.UtcNow
+                IPAddress = GetClientIp(), TimeStamp = DateTime.UtcNow
             });
             await _context.SaveChangesAsync();
 
@@ -116,7 +116,7 @@ namespace NexaPlan.API.Controllers.SuperAdmin
 
             _context.AuditLogs.Add(new AuditLog {
                 TenantID = id, UserID = 0, ActionType = "ARCHIVE_TENANT", TargetResources = tenant.CompanyName,
-                IPAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown", TimeStamp = DateTime.UtcNow
+                IPAddress = GetClientIp(), TimeStamp = DateTime.UtcNow
             });
             await _context.SaveChangesAsync();
             return Ok(new { message = "Tenant archived. Data retained for 30-day grace period." });

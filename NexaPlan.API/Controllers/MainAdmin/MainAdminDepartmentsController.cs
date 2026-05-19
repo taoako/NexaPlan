@@ -107,7 +107,7 @@ namespace NexaPlan.API.Controllers.MainAdmin
                 await _context.SaveChangesAsync();
             }
 
-            _context.AuditLogs.Add(new AuditLog { TenantID = tenantId, UserID = 0, ActionType = "DEPARTMENT_CREATED", TargetResources = request.Name, IPAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown", TimeStamp = DateTime.UtcNow });
+            _context.AuditLogs.Add(new AuditLog { TenantID = tenantId, UserID = 0, ActionType = "DEPARTMENT_CREATED", TargetResources = request.Name, IPAddress = GetClientIp(), TimeStamp = DateTime.UtcNow });
             await _context.SaveChangesAsync();
             return Ok(new { message = "Department created.", departmentId = dept.DepartmentID });
         }
@@ -146,7 +146,7 @@ namespace NexaPlan.API.Controllers.MainAdmin
             }
 
 
-            _context.AuditLogs.Add(new AuditLog { TenantID = tenantId, UserID = 0, ActionType = "DEPARTMENT_UPDATED", TargetResources = request.Name, IPAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown", TimeStamp = DateTime.UtcNow });
+            _context.AuditLogs.Add(new AuditLog { TenantID = tenantId, UserID = 0, ActionType = "DEPARTMENT_UPDATED", TargetResources = request.Name, IPAddress = GetClientIp(), TimeStamp = DateTime.UtcNow });
             await _context.SaveChangesAsync();
             return Ok(new { message = "Department updated." });
         }
@@ -162,7 +162,7 @@ namespace NexaPlan.API.Controllers.MainAdmin
             var members = await _context.Users.Where(u => u.DepartmentID == id).ToListAsync();
             foreach (var u in members) u.DepartmentID = null;
 
-            _context.AuditLogs.Add(new AuditLog { TenantID = tenantId, UserID = 0, ActionType = "DEPARTMENT_DELETED", TargetResources = dept.DepartmentName, IPAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown", TimeStamp = DateTime.UtcNow });
+            _context.AuditLogs.Add(new AuditLog { TenantID = tenantId, UserID = 0, ActionType = "DEPARTMENT_DELETED", TargetResources = dept.DepartmentName, IPAddress = GetClientIp(), TimeStamp = DateTime.UtcNow });
             _context.Departments.Remove(dept);
             await _context.SaveChangesAsync();
             return Ok(new { message = "Department removed." });

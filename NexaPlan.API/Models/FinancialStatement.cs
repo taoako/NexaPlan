@@ -13,6 +13,7 @@ namespace NexaPlan.API.Models
         public string FilePath { get; set; } = string.Empty;
         public string FileSize { get; set; } = string.Empty;
         public string Sha256Hash { get; set; } = string.Empty; // Cryptographic integrity hash
+        public decimal? TaxAmount { get; set; }                 // Aggregated tax from reconciled expenses
         public int CreatedBy { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

@@ -31,18 +31,69 @@ export function VarianceView({ activeScenario }: VarianceViewProps) {
 
   useEffect(() => {
     setVarianceLoading(true);
-    getVarianceData(2026, varianceMonth === 'ALL' ? undefined : varianceMonth)
+    getVarianceData(2026, varianceMonth === 'ALL' ? undefined : varianceMonth, false)
       .then(setVarianceSummary)
       .catch(err => console.error('Variance load error:', err))
       .finally(() => setVarianceLoading(false));
     setPage(1);
   }, [varianceMonth]);
 
+  const exportMasterCSV = () => {
+    if (!varianceSummary) return;
+    const headers = ['Department', 'Budgeted', 'Actual Spent', 'Variance', 'ML Expected', '% Used', 'Status'];
+    const rows = varianceSummary.departments.map(d => {
+      const budget = showNet ? d.budgetedAmount / (1 + VAT_RATE) : d.budgetedAmount;
+      const actual = showNet ? d.actualSpent / (1 + VAT_RATE) : d.actualSpent;
+      const variance = budget - actual;
+      const ml = (showNet ? (d.mlExpectedSpending || 0) / (1 + VAT_RATE) : (d.mlExpectedSpending || 0));
+      const used = budget > 0 ? (actual / budget) * 100 : 0;
+      return `"${d.departmentName}",${budget},${actual},${variance},${ml},${used.toFixed(1)}%,"${d.status}"`;
+    });
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `Variance_Report_${varianceMonth}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handleGenerateAudit = (dept: string) => {
     setGeneratingReport(dept);
     setTimeout(() => {
       setGeneratingReport(null);
-      setModalMessage({ title: 'Audit Ready', message: `PDF Audit Report for ${dept} generated and ready.`, type: 'success' });
+      const row = varianceSummary?.departments.find(d => d.departmentName === dept);
+      if (row) {
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+          printWindow.document.write(`
+            <html><head><title>Audit Report - ${dept}</title>
+            <style>body { font-family: sans-serif; padding: 40px; } table { width: 100%; border-collapse: collapse; margin-top: 20px; } th, td { border: 1px solid #ddd; padding: 12px; text-align: left; } .header { margin-bottom: 30px; border-bottom: 2px solid #0A192F; padding-bottom: 10px; }</style>
+            </head><body>
+            <div class="header">
+              <h1>NexaPlan Audit Report</h1>
+              <h2>Department: ${dept}</h2>
+              <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
+            </div>
+            <table>
+              <tr><th>Metric</th><th>Value</th></tr>
+              <tr><td>Fiscal Year</td><td>2026</td></tr>
+              <tr><td>Total Allocated Cap</td><td>PHP ${row.budgetedAmount.toLocaleString()}</td></tr>
+              <tr><td>Actual Spend</td><td>PHP ${row.actualSpent.toLocaleString()}</td></tr>
+              <tr><td>Variance Amount</td><td>PHP ${row.varianceAmount.toLocaleString()}</td></tr>
+              <tr><td>ML Expected Spend</td><td>PHP ${(row.mlExpectedSpending || 0).toLocaleString()}</td></tr>
+              <tr><td>System Status</td><td>${row.status}</td></tr>
+              <tr><td>Anomaly Detected</td><td>${row.isAnomaly ? 'Yes' : 'No'}</td></tr>
+            </table>
+            <p style="margin-top: 40px; font-size: 12px; color: #666;">This is an officially generated NexaPlan audit document. Please print this page to PDF.</p>
+            <script>window.print();</script>
+            </body></html>
+          `);
+          printWindow.document.close();
+        }
+      }
+      setModalMessage({ title: 'Audit Ready', message: `PDF Audit Report for ${dept} generated via Print Dialog.`, type: 'success' });
     }, 1500);
   };
 
@@ -128,7 +179,7 @@ export function VarianceView({ activeScenario }: VarianceViewProps) {
       <div className="bg-white rounded-xl border border-[#d1d5db] overflow-hidden" style={{boxShadow:'0 2px 8px rgba(0,0,0,0.04)'}}>
         <div className="px-6 py-4 border-b border-[#d1d5db] flex items-center justify-between">
           <h2 className="text-[20px] font-bold text-slate-900">Department-Level Variance & Pacing</h2>
-          <button className="flex items-center gap-2 bg-[#0A192F] text-white px-4 py-2 rounded-lg font-bold text-[13px] hover:bg-slate-800 transition-all">
+          <button onClick={exportMasterCSV} className="flex items-center gap-2 bg-[#0A192F] text-white px-4 py-2 rounded-lg font-bold text-[13px] hover:bg-slate-800 transition-all">
             <Download className="w-4 h-4"/>Export Master CSV
           </button>
         </div>

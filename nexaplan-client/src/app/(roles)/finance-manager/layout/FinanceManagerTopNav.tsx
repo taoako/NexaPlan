@@ -18,6 +18,7 @@ interface FinanceManagerTopNavProps {
 
 export function FinanceManagerTopNav({ activeModule, setActiveModule, navTabs, onLogout }: FinanceManagerTopNavProps) {
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
   const [modalMessage, setModalMessage] = useState<string | null>(null);
 
@@ -77,10 +78,34 @@ export function FinanceManagerTopNav({ activeModule, setActiveModule, navTabs, o
         <button className="text-slate-400 hover:text-white transition-colors">
           <Search className="w-5 h-5" />
         </button>
-        <button className="relative text-slate-400 hover:text-white transition-colors">
-          <Bell className="w-5 h-5" />
-          <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full" />
-        </button>
+        
+        <div className="relative">
+          <button onClick={() => setShowNotifications(!showNotifications)} className="relative text-slate-400 hover:text-white transition-colors">
+            <Bell className="w-5 h-5" />
+            <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full" />
+          </button>
+          
+          {showNotifications && (
+            <div className="absolute right-0 top-full mt-4 w-80 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden z-50">
+              <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                <div className="text-sm font-bold text-slate-900">Notifications</div>
+                <button className="text-xs text-blue-600 font-semibold hover:underline" onClick={() => setShowNotifications(false)}>Mark all read</button>
+              </div>
+              <div className="max-h-64 overflow-y-auto">
+                <div className="p-4 border-b border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => { setActiveModule('approval' as ModuleView); setShowNotifications(false); }}>
+                  <div className="text-xs font-bold text-slate-900 mb-1">New Proposal Pending</div>
+                  <div className="text-xs text-slate-500">IT Department has a proposal awaiting your review.</div>
+                  <div className="text-[10px] text-slate-400 mt-2">Just now</div>
+                </div>
+                <div className="p-4 border-b border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => { setActiveModule('variance' as ModuleView); setShowNotifications(false); }}>
+                  <div className="text-xs font-bold text-red-600 mb-1">High Pacing Alert</div>
+                  <div className="text-xs text-slate-500">Sales is spending faster than the time elapsed.</div>
+                  <div className="text-[10px] text-slate-400 mt-2">2 hours ago</div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
         
         <div className="relative pl-4 border-l border-white/10" ref={profileRef}>
           <button 

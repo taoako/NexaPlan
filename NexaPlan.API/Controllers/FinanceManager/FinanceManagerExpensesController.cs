@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NexaPlan.API.Data;
 using NexaPlan.API.Models;
+using NexaPlan.API.Helpers;
 
 namespace NexaPlan.API.Controllers.FinanceManager
 {
@@ -10,14 +11,16 @@ namespace NexaPlan.API.Controllers.FinanceManager
     public class FinanceManagerExpensesController : FinanceManagerBaseController
     {
         private readonly IHttpClientFactory _httpClientFactory;
+        private readonly IConfiguration _config;
 
         private static readonly string[] MonthOrder =
             { "JAN","FEB","MAR","APR","MAY","JUN",
               "JUL","AUG","SEP","OCT","NOV","DEC" };
 
-        public FinanceManagerExpensesController(AppDbContext context, IHttpClientFactory httpClientFactory) : base(context)
+        public FinanceManagerExpensesController(AppDbContext context, IHttpClientFactory httpClientFactory, IConfiguration config) : base(context)
         {
             _httpClientFactory = httpClientFactory;
+            _config = config;
         }
 
         /// <summary>
@@ -99,6 +102,20 @@ namespace NexaPlan.API.Controllers.FinanceManager
                 expense.Department.ActualSpent += expense.Amount;
             }
 
+            // Bug Fix #3: Update TaxAmount on all financial statements for this tenant
+            var totalTax = await _context.Expenses
+                .Where(e => e.TenantID == tenantId && e.Status == "Reconciled")
+                .SumAsync(e => (decimal?)e.TaxPaid ?? 0);
+
+            var financialStatements = await _context.FinancialStatements
+                .Where(s => s.TenantID == tenantId)
+                .ToListAsync();
+
+            foreach (var stmt in financialStatements)
+            {
+                stmt.TaxAmount = totalTax;
+            }
+
             // Audit log
             _context.AuditLogs.Add(new AuditLog
             {
@@ -106,7 +123,7 @@ namespace NexaPlan.API.Controllers.FinanceManager
                 UserID = userId,
                 ActionType = "EXPENSE_RECONCILED",
                 TargetResources = $"ExpenseID:{id} Amount:₱{expense.Amount}",
-                IPAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                IPAddress = GetClientIp(),
                 TimeStamp = DateTime.UtcNow
             });
 
@@ -163,6 +180,31 @@ namespace NexaPlan.API.Controllers.FinanceManager
             }
             catch { /* Non-blocking — never fail the reconcile itself */ }
 
+            // Trigger Email Notifications
+            _ = NotificationDispatcher.DispatchEmailIfEnabledAsync(
+                _context, _config, tenantId,
+                "emailOnReconciliationCleared",
+                "Expense Reconciled",
+                $"An expense of {expense.Amount:C} has been reconciled for {expense.Department?.DepartmentName ?? "a department"}."
+            );
+
+            // Also check for budget overrun alert
+            if (expense.Department != null)
+            {
+                var fiscalYear = DateTime.UtcNow.Year;
+                var allocation = await _context.DepartmentAllocations.FirstOrDefaultAsync(a => a.TenantID == tenantId && a.DepartmentID == expense.Department.DepartmentID && a.FiscalYear == fiscalYear);
+                var cap = allocation?.TotalAllocatedCap ?? expense.Department.AnnualBudgetCap;
+                if (cap > 0 && expense.Department.ActualSpent > cap)
+                {
+                    _ = NotificationDispatcher.DispatchEmailIfEnabledAsync(
+                        _context, _config, tenantId,
+                        "emailOnBudgetOverrun",
+                        "CRITICAL: Budget Overrun Detected",
+                        $"Department {expense.Department.DepartmentName} has exceeded its allocated cap of {cap:C}. Current actual spend: {expense.Department.ActualSpent:C}."
+                    );
+                }
+            }
+
             return Ok(new { message = "Expense reconciled. ActualSpent updated for department.", anomalyDetected, anomalyMessage });
         }
 
@@ -192,7 +234,7 @@ namespace NexaPlan.API.Controllers.FinanceManager
                 UserID = userId,
                 ActionType = "EXPENSE_REJECTED",
                 TargetResources = $"ExpenseID:{id} Reason:{req.Reason}",
-                IPAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                IPAddress = GetClientIp(),
                 TimeStamp = DateTime.UtcNow
             });
 

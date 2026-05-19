@@ -84,6 +84,37 @@ export default function App() {
     }
   }, []);
 
+  // --- 3. SESSION TIMEOUT IMPLEMENTATION ---
+  useEffect(() => {
+    if (!currentUser || currentView === 'landing' || currentView === 'login' || currentView === 'register') return;
+
+    const timeoutMinutes = currentUser.sessionTimeoutMinutes || 30; // Default to 30 mins
+    const timeoutMs = timeoutMinutes * 60 * 1000;
+    
+    let inactivityTimer;
+
+    const resetTimer = () => {
+      clearTimeout(inactivityTimer);
+      inactivityTimer = setTimeout(() => {
+        alert(`You have been logged out due to ${timeoutMinutes} minutes of inactivity.`);
+        handleLogout();
+      }, timeoutMs);
+    };
+
+    resetTimer(); // Start the timer
+
+    // Listeners for user activity
+    const activityEvents = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart'];
+    const handleActivity = () => resetTimer();
+
+    activityEvents.forEach(evt => document.addEventListener(evt, handleActivity));
+
+    return () => {
+      clearTimeout(inactivityTimer);
+      activityEvents.forEach(evt => document.removeEventListener(evt, handleActivity));
+    };
+  }, [currentUser, currentView]);
+
   const startCheckout = async () => {
     setIsLoading(true);
     const payload = {

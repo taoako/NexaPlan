@@ -28,6 +28,18 @@ namespace NexaPlan.API.Controllers.SuperAdmin
             return dt.ToString("MMM dd, yyyy");
         }
 
+        /// <summary>Bug Fix: Reads X-Forwarded-For before falling back to RemoteIpAddress.</summary>
+        protected string GetClientIp()
+        {
+            var forwarded = HttpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+            if (!string.IsNullOrWhiteSpace(forwarded))
+                return forwarded.Split(',')[0].Trim();
+            var realIp = HttpContext.Request.Headers["X-Real-IP"].FirstOrDefault();
+            if (!string.IsNullOrWhiteSpace(realIp))
+                return realIp;
+            return HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+        }
+
         /// <summary>Polls PayMongo and marks paid invoices, activates tenants.</summary>
         protected async Task SyncPendingPaymentsAsync(IHttpClientFactory clientFactory)
         {

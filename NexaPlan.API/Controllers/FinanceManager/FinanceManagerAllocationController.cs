@@ -191,7 +191,7 @@ namespace NexaPlan.API.Controllers.FinanceManager
                 UserID = GetUserId(),
                 ActionType = "FUNDS_TRANSFERRED",
                 TargetResources = $"{req.From} -> {req.To}",
-                IPAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                IPAddress = GetClientIp(),
                 TimeStamp = DateTime.UtcNow
             });
 
@@ -260,7 +260,7 @@ namespace NexaPlan.API.Controllers.FinanceManager
                 UserID = GetUserId(),
                 ActionType = "ALLOCATION_SET",
                 TargetResources = $"Dept:{dept.DepartmentName} Cap:₱{req.Amount}",
-                IPAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                IPAddress = GetClientIp(),
                 TimeStamp = DateTime.UtcNow
             });
 
@@ -360,7 +360,7 @@ namespace NexaPlan.API.Controllers.FinanceManager
                 UserID = GetUserId(),
                 ActionType = "ALLOCATION_ADJUSTED",
                 TargetResources = $"Dept:{dept.DepartmentName} NewCap:₱{newCap} (Mode:{req.Mode} Adj:₱{req.Amount})",
-                IPAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                IPAddress = GetClientIp(),
                 TimeStamp = DateTime.UtcNow
             });
 

@@ -117,8 +117,10 @@ def health():
         "status": "ok",
         "models": [
             f"Hybrid: RandomForest (USD <= {TRAINING_MAX}) + Ridge Regression (USD > {TRAINING_MAX})",
-            "RF uses log1p/expm1; Ridge outputs raw USD dollars",
-            "Inputs converted PHP -> USD; predictions converted back to PHP"
+            "RF: log1p-space trained → expm1() applied; proportional scaling for budgets < $5,000 USD",
+            "Ridge: raw-dollar trained → output used directly, NO expm1() transform",
+            "Inputs converted PHP → USD; predictions converted back to PHP via live open.er-api.com rate",
+            "Risk: >= 110% utilization = High | >= 90% = Medium | else = Low"
         ],
     }
 
@@ -145,18 +147,38 @@ def predict(req: PredictRequest):
 
         # ── Step 2: Hybrid routing based on USD budget ──────────────────────
         if budget_usd <= TRAINING_MAX:
-            log_pred      = rf_pipeline.predict(row)[0]
-            predicted_usd = float(np.expm1(log_pred))
-            model_name    = "RandomForest"
+            # RF model: log1p-space trained → must apply expm1() to reverse the transform
+            # Proportional scaling guard: RF saturates below ~$5,000 USD (training floor)
+            RF_FLOOR_USD = 5000.0
+            if budget_usd < RF_FLOOR_USD:
+                # Scale up to floor, predict, then scale the prediction back down proportionally
+                scale_ratio = budget_usd / RF_FLOOR_USD
+                row_scaled  = pd.DataFrame([{
+                    "Budgeted_Amount": RF_FLOOR_USD,
+                    "Department":      dept,
+                    "Month":           month
+                }])
+                log_pred      = rf_pipeline.predict(row_scaled)[0]
+                predicted_usd = float(np.expm1(log_pred)) * scale_ratio
+            else:
+                log_pred      = rf_pipeline.predict(row)[0]
+                predicted_usd = float(np.expm1(log_pred))
+
+            model_name = "RandomForest"
             note = f"RandomForest used for budget within training range (${budget_usd:,.2f} <= ${TRAINING_MAX:,.0f})."
         else:
-            log_pred      = ridge_pipeline.predict(row)[0]
-            predicted_usd = float(np.expm1(log_pred))
+            # Ridge model: raw-dollar trained → output IS already in USD, NO expm1() needed.
+            # Applying expm1() here produces astronomically wrong values — this was the bug.
+            predicted_usd = float(ridge_pipeline.predict(row)[0])
             model_name    = "Ridge"
             note = f"Ridge Regression used for budget exceeding training range (${budget_usd:,.2f} > ${TRAINING_MAX:,.0f})."
 
         # ── Step 3: Convert predicted USD → PHP ──────────────────────────────
         predicted = round(predicted_usd * php_rate, 2)
+
+        print(f"[PREDICT] model={model_name} | dept={dept} | month={month} | "
+              f"budget_php={budget:.2f} | budget_usd={budget_usd:.2f} | "
+              f"predicted_usd={predicted_usd:.2f} | predicted_php={predicted:.2f}")
 
         # ── Step 4: Confidence bands ─────────────────────────────────────────
         vol         = DEPT_VOLATILITY.get(dept, 0.36)
@@ -173,9 +195,9 @@ def predict(req: PredictRequest):
 
     # ── Step 5: Risk classification (utilization based) ──────────────────────
     utilization = (predicted / budget) * 100
-    if utilization >= 110:
+    if utilization >= 115:
         risk = "High"
-    elif utilization >= 90:
+    elif utilization >= 105:
         risk = "Medium"
     else:
         risk = "Low"

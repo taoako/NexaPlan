@@ -222,7 +222,7 @@ namespace NexaPlan.API.Controllers.DeptHead
                 UserID          = userId,
                 ActionType      = "ScenarioPitchSubmitted",
                 TargetResources = $"Scenario pitch '{req.PitchTitle}' submitted by department {deptId}",
-                IPAddress       = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                IPAddress       = GetClientIp(),
                 TimeStamp       = DateTime.UtcNow
             });
 

@@ -45,7 +45,8 @@ namespace NexaPlan.API.Controllers.Auditor
                     id              = r.RuleID,
                     name            = r.Name,
                     ruleType        = r.RuleType,
-                    threshold       = r.Threshold,
+                    // Bug Fix #2: Round threshold to 2 decimal places
+                    threshold       = Math.Round(r.Threshold, 2),
                     isActive        = r.IsActive,
                     isSystemDefault = r.IsSystemDefault
                 })
@@ -56,6 +57,8 @@ namespace NexaPlan.API.Controllers.Auditor
 
         /// <summary>
         /// Runs live compliance scan against the database and returns results with violation deep-link log IDs.
+        /// Bug Fix #2: All threshold/computed values rounded to 2 decimal places.
+        /// Feature (Section 4): Each failing rule includes a violationFilter for deep-linking to Audit Trails.
         /// </summary>
         [HttpGet("compliance/scan")]
         public async Task<IActionResult> RunScan()
@@ -68,39 +71,57 @@ namespace NexaPlan.API.Controllers.Auditor
                 .ToListAsync();
 
             var results = new List<object>();
+            var now = DateTime.UtcNow;
+            var yearStart = new DateTime(now.Year, 1, 1);
+            var yearEnd = new DateTime(now.Year, 12, 31);
 
             foreach (var rule in rules)
             {
                 object result;
+                // Bug Fix #2: Round threshold
+                var roundedThreshold = Math.Round(rule.Threshold, 2);
 
                 switch (rule.RuleType)
                 {
                     case "BudgetIncrease":
-                        // Check if any department's approved proposal total exceeds threshold% of their budget cap
-                        var deptOverThreshold = await _context.Departments
+                        // Check if any department's ActualSpent exceeds threshold% of their budget cap
+                        var allDepts = await _context.Departments
                             .Where(d => d.TenantID == tenantId && d.AnnualBudgetCap > 0)
-                            .Select(d => new {
+                            .Select(d => new
+                            {
                                 d.DepartmentID,
                                 d.DepartmentName,
-                                pct = d.ActualSpent > 0 ? (d.ActualSpent / d.AnnualBudgetCap) * 100 : 0
+                                pct = d.ActualSpent > 0 ? Math.Round((d.ActualSpent / d.AnnualBudgetCap) * 100, 2) : 0m
                             })
-                            .Where(x => x.pct > rule.Threshold)
                             .ToListAsync();
 
+                        var deptOverThreshold = allDepts.Where(x => x.pct > rule.Threshold).ToList();
+
                         var violationLogs = await _context.AuditLogs
-                            .Where(l => l.TenantID == tenantId && l.ActionType == "FUNDS_TRANSFERRED")
-                            .OrderByDescending(l => l.TimeStamp).Take(3)
+                            .Where(l => l.TenantID == tenantId && l.ActionType == "ALLOCATION_ADJUSTED")
+                            .OrderByDescending(l => l.TimeStamp).Take(5)
                             .Select(l => l.LogID).ToListAsync();
 
-                        result = new {
+                        var firstViolatingDeptId = deptOverThreshold.FirstOrDefault()?.DepartmentID;
+
+                        result = new
+                        {
                             id = rule.RuleID, name = rule.Name, ruleType = rule.RuleType,
-                            threshold = rule.Threshold,
+                            threshold = roundedThreshold,
                             status = deptOverThreshold.Count == 0 ? "compliant" : "violation",
                             violationCount = deptOverThreshold.Count,
                             details = deptOverThreshold.Count == 0
                                 ? "All departments within threshold"
-                                : $"{deptOverThreshold.Count} department(s) over {rule.Threshold}% threshold",
-                            deepLinkLogIds = deptOverThreshold.Count > 0 ? violationLogs : new List<int>()
+                                : $"{deptOverThreshold.Count} department(s) over {roundedThreshold}% utilization threshold",
+                            deepLinkLogIds = deptOverThreshold.Count > 0 ? violationLogs : new List<int>(),
+                            // Section 4: violation filter for deep-linking
+                            violationFilter = deptOverThreshold.Count > 0 ? new
+                            {
+                                action = "ALLOCATION_ADJUSTED",
+                                from   = yearStart.ToString("yyyy-MM-dd"),
+                                to     = yearEnd.ToString("yyyy-MM-dd"),
+                                departmentId = firstViolatingDeptId
+                            } : null
                         };
                         break;
 
@@ -108,54 +129,96 @@ namespace NexaPlan.API.Controllers.Auditor
                         // Flag transfers/approvals outside 08:00–18:00 UTC
                         var afterHoursLogs = await _context.AuditLogs
                             .Where(l => l.TenantID == tenantId &&
-                                   (l.ActionType == "FUNDS_TRANSFERRED" || l.ActionType == "BUDGET_APPROVED") &&
+                                   (l.ActionType == "FUNDS_TRANSFERRED" || l.ActionType == "BUDGET_APPROVED" || l.ActionType == "PROPOSAL_APPROVED") &&
                                    (l.TimeStamp.Hour < 8 || l.TimeStamp.Hour >= 18))
                             .Select(l => l.LogID)
                             .ToListAsync();
 
-                        result = new {
+                        result = new
+                        {
                             id = rule.RuleID, name = rule.Name, ruleType = rule.RuleType,
-                            threshold = rule.Threshold,
+                            threshold = roundedThreshold,
                             status = afterHoursLogs.Count == 0 ? "compliant" : "violation",
                             violationCount = afterHoursLogs.Count,
                             details = afterHoursLogs.Count == 0
                                 ? "No transactions outside business hours"
                                 : $"{afterHoursLogs.Count} transaction(s) occurred outside 08:00–18:00",
-                            deepLinkLogIds = afterHoursLogs
+                            deepLinkLogIds = afterHoursLogs,
+                            violationFilter = afterHoursLogs.Count > 0 ? new
+                            {
+                                action = "PROPOSAL_APPROVED",
+                                from   = yearStart.ToString("yyyy-MM-dd"),
+                                to     = yearEnd.ToString("yyyy-MM-dd"),
+                                departmentId = (int?)null
+                            } : null
                         };
                         break;
 
                     case "TwoTierApproval":
-                        // Check for proposals approved without the Approval table record
                         var approvedWithoutRecord = await _context.BudgetProposals
                             .Where(p => p.TenantID == tenantId && p.ProposalStatus == "Approved")
                             .Select(p => p.ProposalID)
                             .ToListAsync();
 
                         var approvedLogIds = await _context.AuditLogs
-                            .Where(l => l.TenantID == tenantId && l.ActionType == "BUDGET_APPROVED")
+                            .Where(l => l.TenantID == tenantId && l.ActionType == "PROPOSAL_APPROVED")
                             .Select(l => l.LogID)
                             .Take(5)
                             .ToListAsync();
 
-                        result = new {
+                        result = new
+                        {
                             id = rule.RuleID, name = rule.Name, ruleType = rule.RuleType,
-                            threshold = rule.Threshold,
+                            threshold = roundedThreshold,
                             status = "compliant",
                             violationCount = 0,
                             details = $"{approvedWithoutRecord.Count} approvals verified with sign-off",
-                            deepLinkLogIds = approvedLogIds
+                            deepLinkLogIds = approvedLogIds,
+                            violationFilter = approvedLogIds.Count > 0 ? new
+                            {
+                                action = "PROPOSAL_APPROVED",
+                                from   = yearStart.ToString("yyyy-MM-dd"),
+                                to     = yearEnd.ToString("yyyy-MM-dd"),
+                                departmentId = (int?)null
+                            } : null
+                        };
+                        break;
+
+                    case "AccessLogging":
+                        var userChangeLogs = await _context.AuditLogs
+                            .Where(l => l.TenantID == tenantId &&
+                                   (l.ActionType == "USER_UPDATED" || l.ActionType == "USER_CREATED"))
+                            .Select(l => l.LogID)
+                            .ToListAsync();
+
+                        result = new
+                        {
+                            id = rule.RuleID, name = rule.Name, ruleType = rule.RuleType,
+                            threshold = roundedThreshold,
+                            status = "compliant",
+                            violationCount = 0,
+                            details = $"{userChangeLogs.Count} user access change(s) logged",
+                            deepLinkLogIds = userChangeLogs.Take(5).ToList(),
+                            violationFilter = userChangeLogs.Count > 0 ? new
+                            {
+                                action = "USER_UPDATED",
+                                from   = yearStart.ToString("yyyy-MM-dd"),
+                                to     = yearEnd.ToString("yyyy-MM-dd"),
+                                departmentId = (int?)null
+                            } : null
                         };
                         break;
 
                     default:
-                        result = new {
+                        result = new
+                        {
                             id = rule.RuleID, name = rule.Name, ruleType = rule.RuleType,
-                            threshold = rule.Threshold,
+                            threshold = roundedThreshold,
                             status = "compliant",
                             violationCount = 0,
                             details = "Automated check passed",
-                            deepLinkLogIds = new List<int>()
+                            deepLinkLogIds = new List<int>(),
+                            violationFilter = (object?)null
                         };
                         break;
                 }
@@ -168,6 +231,7 @@ namespace NexaPlan.API.Controllers.Auditor
 
         /// <summary>
         /// Creates a custom compliance rule (non-system, editable by Lead Auditor).
+        /// Section 9: Logs COMPLIANCE_RULE_CREATED to AuditLog.
         /// </summary>
         [HttpPost("compliance/rules")]
         public async Task<IActionResult> CreateRule([FromBody] CreateRuleRequest req)
@@ -190,6 +254,18 @@ namespace NexaPlan.API.Controllers.Auditor
             };
 
             _context.ComplianceRules.Add(rule);
+
+            // Section 9: Audit log for rule creation
+            _context.AuditLogs.Add(new AuditLog
+            {
+                TenantID        = tenantId,
+                UserID          = userId,
+                ActionType      = "COMPLIANCE_RULE_CREATED",
+                TargetResources = req.Name,
+                IPAddress       = GetClientIp(),
+                TimeStamp       = DateTime.UtcNow
+            });
+
             await _context.SaveChangesAsync();
             return Ok(new { message = "Compliance rule created.", ruleId = rule.RuleID });
         }

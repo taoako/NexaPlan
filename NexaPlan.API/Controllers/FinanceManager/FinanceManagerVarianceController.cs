@@ -134,11 +134,8 @@ public class FinanceManagerVarianceController : FinanceManagerBaseController
                 .Where(e => e.DepartmentID == dept.DepartmentID)
                 .Sum(e => e.Amount);
 
-            // If no proposals with planned months exist, fall back to
-            // proportional cap (full year = cap, single month = cap ÷ 12)
-            var budgetReference = plannedBudget > 0
-                ? plannedBudget
-                : (filterMonth != null ? cap / 12 : cap);
+            // The Budgeted column should always reflect the allocated cap, not just the currently approved proposals.
+            var budgetReference = filterMonth != null ? cap / 12 : cap;
 
             var variance = budgetReference - actualSpent; // Adjusted the logic to budget - actual, because positive variance usually means under budget
             var variancePct = budgetReference > 0

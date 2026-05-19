@@ -1,10 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, AlertTriangle, ScrollText, CheckCircle2 } from 'lucide-react';
 import { auditorApi } from '../../../../api/auditorApi';
+import { useAuditorFilters } from '../ComplianceAuditSystem';
 
-export function OverviewView() {
+interface OverviewViewProps {
+  onNavigate?: (tab: string, filter?: any) => void;
+}
+
+export function OverviewView({ onNavigate }: OverviewViewProps) {
   const [summary, setSummary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const { getDateRange } = useAuditorFilters();
 
   useEffect(() => {
     fetchSummary();
@@ -33,6 +39,7 @@ export function OverviewView() {
       </div>
 
       <div className="grid grid-cols-4 gap-5">
+        {/* Total Logs */}
         <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm flex items-center gap-4">
           <div className="w-12 h-12 bg-indigo-50 text-[#4F46E5] rounded-full flex items-center justify-center shrink-0">
             <ScrollText className="w-6 h-6" />
@@ -43,16 +50,25 @@ export function OverviewView() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 bg-red-50 text-red-500 rounded-full flex items-center justify-center shrink-0">
+        {/* Flagged for Review — Section 3: Clickable card */}
+        <div
+          className="bg-white rounded-xl p-5 border border-red-100 shadow-sm flex items-center gap-4 cursor-pointer hover:border-red-300 hover:shadow-md transition-all group"
+          onClick={() => onNavigate?.('audit-trails', { flaggedOnly: true })}
+          title="Click to view all flagged entries"
+        >
+          <div className="w-12 h-12 bg-red-50 text-red-500 rounded-full flex items-center justify-center shrink-0 group-hover:bg-red-100 transition-colors">
             <AlertTriangle className="w-6 h-6" />
           </div>
           <div>
             <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Flagged for Review</div>
-            <div className="text-[28px] font-black text-slate-900 leading-none">{summary.flagged.toLocaleString()}</div>
+            <div className="text-[28px] font-black text-red-600 leading-none">{summary.flagged.toLocaleString()}</div>
+            {summary.flagged > 0 && (
+              <div className="text-[10px] text-red-400 font-medium mt-0.5">Click to investigate →</div>
+            )}
           </div>
         </div>
 
+        {/* Funds Transferred */}
         <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm flex items-center gap-4">
           <div className="w-12 h-12 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center shrink-0">
             <Shield className="w-6 h-6" />
@@ -63,6 +79,7 @@ export function OverviewView() {
           </div>
         </div>
 
+        {/* Approvals */}
         <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm flex items-center gap-4">
           <div className="w-12 h-12 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center shrink-0">
             <CheckCircle2 className="w-6 h-6" />
@@ -74,6 +91,7 @@ export function OverviewView() {
         </div>
       </div>
 
+      {/* Recent Activity Table */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
           <h3 className="font-black text-slate-900">Recent Activity</h3>
@@ -91,7 +109,9 @@ export function OverviewView() {
             {summary.recentLogs.map((log: any) => (
               <tr key={log.id} className="hover:bg-slate-50/50">
                 <td className="px-6 py-3.5">
-                  <span className={`inline-flex px-2 py-1 rounded text-[10px] font-mono font-bold border ${log.isFlagged ? 'bg-red-50 text-red-600 border-red-200' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+                  <span className={`inline-flex px-2 py-1 rounded text-[10px] font-mono font-bold border ${
+                    log.isFlagged ? 'bg-red-50 text-red-600 border-red-200' : 'bg-slate-100 text-slate-700 border-slate-200'
+                  }`}>
                     {log.action}
                   </span>
                 </td>

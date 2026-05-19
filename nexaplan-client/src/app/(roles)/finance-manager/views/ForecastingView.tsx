@@ -20,13 +20,15 @@ export function ForecastingView() {
   const [varianceMode, setVarianceMode] = useState<'chart' | 'table'>('chart');
   const [modalMessage, setModalMessage] = useState<{ title: string; message: string; type: 'error'|'success'|'info' } | null>(null);
 
-  const fetchForecast = () => {
+  const fetchForecast = (force = false) => {
     setLoading(true);
     const currentYear = new Date().getFullYear();
-    financeManagerApi.getTrendForecast(currentYear)
-      .then(setForecastData)
-      .catch(err => console.error('Forecast load failed:', err))
-      .finally(() => setLoading(false));
+    import('../../../../api/financeManagerApi').then(({ getForecastSummary }) => {
+      getForecastSummary(currentYear, force)
+        .then(setForecastData)
+        .catch(err => console.error('Forecast load failed:', err))
+        .finally(() => setLoading(false));
+    });
   };
 
   useEffect(() => { fetchForecast(); }, []);
@@ -100,7 +102,7 @@ export function ForecastingView() {
             <Zap className="w-3.5 h-3.5 text-purple-600" />
             <span className="text-xs text-slate-600">RF Model Accuracy: <span className="font-bold text-purple-700">81.7%</span></span>
           </div>
-          <button onClick={fetchForecast} disabled={loading} className="flex items-center gap-2 border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-md text-sm font-semibold transition-all disabled:opacity-50">
+          <button onClick={() => fetchForecast(true)} disabled={loading} className="flex items-center gap-2 border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-md text-sm font-semibold transition-all disabled:opacity-50">
             <RefreshCw className="w-4 h-4" /> Refresh
           </button>
         </div>
