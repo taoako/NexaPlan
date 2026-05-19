@@ -44,6 +44,8 @@ export const financeManagerApi = {
   reconcileExpense: (id: number, spentDate?: string) => apiFetch<any>(`/expenses/${id}/reconcile`, { method: 'POST', body: JSON.stringify({ spentDate: spentDate || null }) }),
   rejectExpense: (id: number, reason: string) => apiFetch<any>(`/expenses/${id}/reject`, { method: 'POST', body: JSON.stringify({ reason }) }),
   getTrendForecast: (fiscalYear: number) => apiFetch<any>(`/forecast?fiscalYear=${fiscalYear}`),
+  getStatements: () => apiFetch<any[]>('/statements'),
+  generateStatement: (title: string, statementType: string, fiscalYear: number) => apiFetch<any>('/statements/generate', { method: 'POST', body: JSON.stringify({ title, statementType, fiscalYear }) }),
 };
 
 // ── Forecast types ───────────────────────────────────────────────────────────
@@ -89,10 +91,21 @@ export interface ForecastSummary {
 
 // ── API call ─────────────────────────────────────────────────────────────────
 
-export const getForecastSummary = (
-  fiscalYear: number = 2026
-): Promise<ForecastSummary> =>
-  apiFetch<ForecastSummary>(`/forecast?fiscalYear=${fiscalYear}`);
+let forecastCache: Record<string, { data: ForecastSummary, timestamp: number }> = {};
+const CACHE_TTL = 300000; // 5 mins
+
+export const getForecastSummary = async (
+  fiscalYear: number = 2026,
+  force: boolean = false
+): Promise<ForecastSummary> => {
+  const key = `${fiscalYear}`;
+  if (!force && forecastCache[key] && Date.now() - forecastCache[key].timestamp < CACHE_TTL) {
+    return forecastCache[key].data;
+  }
+  const data = await apiFetch<ForecastSummary>(`/forecast?fiscalYear=${fiscalYear}`);
+  forecastCache[key] = { data, timestamp: Date.now() };
+  return data;
+};
 
 // ── Variance types ──────────────────────────────────────────────────────────
 
@@ -127,13 +140,22 @@ export interface VarianceSummary {
   departments: DeptVariance[];
 }
 
+let varianceCache: Record<string, { data: VarianceSummary, timestamp: number }> = {};
+
 export const getVarianceData = async (
   fiscalYear: number = 2026,
-  month?: string
+  month?: string,
+  force: boolean = false
 ): Promise<VarianceSummary> => {
   const params = new URLSearchParams({ fiscalYear: String(fiscalYear) });
   if (month && month !== 'ALL') params.append('month', month);
+  const key = params.toString();
 
-  return apiFetch<VarianceSummary>(`/variance?${params.toString()}`);
+  if (!force && varianceCache[key] && Date.now() - varianceCache[key].timestamp < CACHE_TTL) {
+    return varianceCache[key].data;
+  }
+  const data = await apiFetch<VarianceSummary>(`/variance?${key}`);
+  varianceCache[key] = { data, timestamp: Date.now() };
+  return data;
 };
 
