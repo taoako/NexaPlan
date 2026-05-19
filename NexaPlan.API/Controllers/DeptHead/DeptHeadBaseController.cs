@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NexaPlan.API.Data;
 
@@ -7,6 +8,7 @@ namespace NexaPlan.API.Controllers.DeptHead
     /// Shared base for all Department Head controllers.
     /// Provides tenant/user resolution from X-Tenant-Id and X-User-Id headers.
     /// </summary>
+    [Authorize]
     public abstract class DeptHeadBaseController : ControllerBase
     {
         protected readonly AppDbContext _context;

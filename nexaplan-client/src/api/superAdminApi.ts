@@ -1,11 +1,12 @@
 import { apiRoleBase, apiUrl } from '../config/api';
+import { getAuthHeaders } from '../config/auth';
 
 const API_BASE = apiRoleBase('super-admin');
 
 // ─── Generic fetch wrapper ───
 async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${url}`, {
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     ...options,
   });
   if (!res.ok) {
@@ -231,4 +232,51 @@ export const updatePricingPlan = (id: number, plan: Partial<PricingPlan>) =>
 export const deletePricingPlan = (id: number) =>
   apiFetch<{ message: string }>(`/pricing-plans/${id}`, {
     method: 'DELETE',
+  });
+
+// ─── Maintenance ───
+export interface MaintenanceStatus {
+  databaseStatus: string;
+  latencyMs: number;
+  totalDbSizeMb: number;
+  capacityMb: number;
+  storageUsedMb: number;
+  storageCapacityMb: number;
+  storageUsedPct: number;
+  lastBackupTime: string;
+  lastBackupLocation: string;
+  uptimePct: number;
+  uptimeDays: number;
+  ramUsagePct: number;
+  cpuUsagePct: number;
+  mlServiceStatus: string;
+  mlServiceUrl: string;
+  backupSchedule: { name: string; frequency: string; status: string }[];
+}
+
+export interface MaintenanceLogEntry {
+  logId: number;
+  type: string;
+  message: string;
+  detail?: string;
+  createdAt: string;
+  timeAgo: string;
+}
+
+export const getMaintenanceStatus = () =>
+  apiFetch<MaintenanceStatus>('/maintenance/status');
+
+export const getMaintenanceLogs = () =>
+  apiFetch<MaintenanceLogEntry[]>('/maintenance/logs');
+
+export const triggerBackup = () =>
+  apiFetch<{ message: string }>('/maintenance/backup', { method: 'POST' });
+
+export const clearCache = () =>
+  apiFetch<{ message: string }>('/maintenance/clear-cache', { method: 'POST' });
+
+export const restartMicroservices = () =>
+  apiFetch<{ message: string }>('/maintenance/restart-microservices', {
+    method: 'POST',
+    body: JSON.stringify({ confirmed: true }),
   });

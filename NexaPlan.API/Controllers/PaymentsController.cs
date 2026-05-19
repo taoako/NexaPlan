@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NexaPlan.API.Data;
@@ -11,6 +12,7 @@ namespace NexaPlan.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]  // All payments routes require auth by default
     public class PaymentsController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -24,6 +26,7 @@ namespace NexaPlan.API.Controllers
             _configuration = configuration;
         }
 
+        [AllowAnonymous]  // Pre-login flow — no token yet
         [HttpPost("checkout")]
         public async Task<IActionResult> CreateCheckout([FromBody] CheckoutRequestDto request)
         {
@@ -267,6 +270,7 @@ namespace NexaPlan.API.Controllers
             }
         }
 
+        [AllowAnonymous]  // PayMongo calls this without a user token
         [HttpPost("webhook")]
         public async Task<IActionResult> HandleWebhook([FromBody] JsonElement payload)
         {

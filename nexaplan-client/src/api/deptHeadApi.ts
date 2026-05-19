@@ -1,21 +1,11 @@
 import { apiRoleBase } from '../config/api';
+import { getAuthHeaders } from '../config/auth';
 
 const API_BASE = apiRoleBase('dept-head');
 
-function getHeaders() {
-  const userStr = localStorage.getItem('user');
-  if (!userStr) throw new Error('Not logged in');
-  const user = JSON.parse(userStr);
-  return {
-    'Content-Type': 'application/json',
-    'X-Tenant-Id': user.tenantId?.toString() || '',
-    'X-User-Id': user.userId?.toString() || ''
-  };
-}
-
 async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${url}`, {
-    headers: getHeaders(),
+    headers: getAuthHeaders(),
     ...options,
   });
   if (!res.ok) {

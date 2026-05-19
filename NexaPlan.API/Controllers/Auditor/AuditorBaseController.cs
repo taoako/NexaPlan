@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NexaPlan.API.Data;
 
@@ -7,6 +8,7 @@ namespace NexaPlan.API.Controllers.Auditor
     /// Shared base for all Auditor controllers.
     /// Resolves tenant and user from request headers — consistent with MainAdmin/DeptHead/FinanceManager base controllers.
     /// </summary>
+    [Authorize]
     public abstract class AuditorBaseController : ControllerBase
     {
         protected readonly AppDbContext _context;

@@ -48,6 +48,7 @@ namespace NexaPlan.API.Data
         public DbSet<SystemConfig> SystemConfigs { get; set; }
         public DbSet<PricingPlan> PricingPlans { get; set; }
         public DbSet<PricingBenefit> PricingBenefits { get; set; }
+        public DbSet<MaintenanceLog> MaintenanceLogs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

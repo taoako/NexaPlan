@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NexaPlan.API.Data;
 
@@ -7,6 +8,7 @@ namespace NexaPlan.API.Controllers.MainAdmin
     /// Shared base for all Main Admin controllers.
     /// Provides tenant resolution from the X-Tenant-Id header.
     /// </summary>
+    [Authorize]
     public abstract class MainAdminBaseController : ControllerBase
     {
         protected readonly AppDbContext _context;

@@ -1,17 +1,12 @@
 import { apiRoleBase } from '../config/api';
+import { getAuthHeaders } from '../config/auth';
 
 const API_BASE = apiRoleBase('main-admin');
 
-// ─── Generic fetch wrapper with tenant header ───
-async function apiFetch<T>(url: string, tenantId: number, options?: RequestInit): Promise<T> {
-  const userStr = localStorage.getItem('user');
-  const user = userStr ? JSON.parse(userStr) : null;
+// ─── Generic fetch wrapper with auth header ───
+async function apiFetch<T>(url: string, _tenantId?: number, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${url}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Tenant-Id': String(tenantId),
-      'X-User-Id': user?.userId?.toString() || '',
-    },
+    headers: getAuthHeaders(),
     ...options,
   });
   if (!res.ok) {

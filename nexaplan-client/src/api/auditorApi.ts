@@ -1,30 +1,10 @@
 import { apiRoleBase } from '../config/api';
+import { getAuthHeaders } from '../config/auth';
 
 const API_BASE = apiRoleBase('auditor');
 
-function getHeaders() {
-  const userStr = localStorage.getItem('user');
-  if (!userStr) throw new Error('Not logged in');
-  const user = JSON.parse(userStr);
-  return {
-    'Content-Type': 'application/json',
-    'X-Tenant-Id': user.tenantId?.toString() || '',
-    'X-User-Id': user.userId?.toString() || ''
-  };
-}
-
-function getUserInfo() {
-  const userStr = localStorage.getItem('user');
-  if (!userStr) return { tenantId: '', userId: '' };
-  const user = JSON.parse(userStr);
-  return {
-    tenantId: user.tenantId?.toString() || '',
-    userId: user.userId?.toString() || ''
-  };
-}
-
 async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${url}`, { headers: getHeaders(), ...options });
+  const res = await fetch(`${API_BASE}${url}`, { headers: getAuthHeaders(), ...options });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: res.statusText }));
     throw new Error(err.message || `API Error ${res.status}`);
@@ -34,7 +14,7 @@ async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
 
 // Blob fetch for file downloads (does not parse JSON)
 async function apiFetchBlob(url: string): Promise<Blob> {
-  const res = await fetch(`${API_BASE}${url}`, { headers: getHeaders() });
+  const res = await fetch(`${API_BASE}${url}`, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(`Download failed: ${res.status}`);
   return res.blob();
 }
@@ -108,14 +88,8 @@ export const auditorApi = {
     if (params.actionType)  q.set('actionType', params.actionType);
     q.set('format', params.format ?? 'csv');
 
-    const { tenantId, userId } = getUserInfo();
     const url = `${API_BASE}/reports/${reportType}?${q}`;
-    const res = await fetch(url, {
-      headers: {
-        'X-Tenant-Id': tenantId,
-        'X-User-Id': userId
-      }
-    });
+    const res = await fetch(url, { headers: getAuthHeaders() });
     if (!res.ok) throw new Error(`Export failed: ${res.status}`);
     const blob = await res.blob();
     const link = document.createElement('a');

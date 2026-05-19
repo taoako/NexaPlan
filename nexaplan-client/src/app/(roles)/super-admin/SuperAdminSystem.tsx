@@ -46,11 +46,11 @@ export default function SuperAdminSystem({ onLogout }: SuperAdminSystemProps) {
 
   // Toast system
   const [toasts, setToasts] = useState<{ id: number; message: string; type: 'success' | 'error' | 'info' }[]>([]);
-  const addToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+  const addToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success') => {
     const id = Date.now();
     setToasts(prev => [...prev, { id, message, type }]);
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 5000);
-  };
+  }, []);
 
   // ── Data fetching ──
   const fetchData = useCallback(async () => {
@@ -232,8 +232,8 @@ export default function SuperAdminSystem({ onLogout }: SuperAdminSystemProps) {
               {currentView === 'pricing' && <PricingCRUDView />}
               {currentView === 'admins' && <AdminsView addToast={addToast} />}
               {currentView === 'trial-requests' && <TrialRequestsView onTrialCountChange={(c) => setPendingTrialCount(c)} />}
-              {currentView === 'config' && <ConfigView />}
-              {currentView === 'maintenance' && <MaintenanceView />}
+              {currentView === 'config' && <ConfigView addToast={addToast} />}
+              {currentView === 'maintenance' && <MaintenanceView addToast={addToast} />}
             </>
           )}
         </main>

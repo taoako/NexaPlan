@@ -11,6 +11,7 @@ import { ComplianceAuditSystem } from './app/(roles)/compliance-audit/Compliance
 import { DepartmentHeadSystem } from './app/(roles)/department-head/DepartmentHeadSystem';
 import { FinanceManagerSystem } from './app/(roles)/finance-manager/FinanceManagerSystem';
 import { apiUrl } from './config/api';
+import { saveSession, clearSession } from './config/auth';
 import { CurrencyProvider } from './context/CurrencyContext';
 
 export default function App() {
@@ -26,8 +27,7 @@ export default function App() {
   const clearMessages = () => { setSuccessMessage(''); setErrorMessage(''); };
 
   const handleLogout = () => {
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
+    clearSession();
     setCurrentUser(null);
     setCurrentView('landing');
   };
@@ -171,9 +171,9 @@ export default function App() {
       const data = await response.json();
 
       if (response.ok) {
-        // Save user details
-        localStorage.setItem('user', JSON.stringify(data));
-
+        // Save user session + JWT token securely
+        saveSession(data);
+        setCurrentUser(data);
         // 1: Super Admin, 2: Main Admin, 3: Finance Manager, 4: Dept Head, 5: Auditor, 6: Employee
         switch (data.roleId) {
           case 1:

@@ -6,7 +6,7 @@ import { ApprovalView } from './views/ApprovalView';
 import { ForecastingView } from './views/ForecastingView';
 import { ScenariosView } from './views/ScenariosView';
 import { VarianceView } from './views/VarianceView';
-import { financeManagerApi } from '../../../api/financeManagerApi';
+import { financeManagerApi, pingMlService } from '../../../api/financeManagerApi';
 import * as mainAdminApi from '../../../api/mainAdminApi';
 import { ReconciliationView } from './views/ReconciliationView';
 import { FeaturesContext, TierFeatures } from '../../../context/FeaturesContext';
@@ -42,6 +42,11 @@ export function FinanceManagerSystem({ onLogout }: FinanceManagerSystemProps) {
     const id = Date.now();
     setToasts(p => [...p, { id, message, type }]);
     setTimeout(() => setToasts(p => p.filter(t => t.id !== id)), 5000);
+  }, []);
+
+  // Wake up ML microservice on Render as early as possible
+  useEffect(() => {
+    pingMlService();
   }, []);
 
   useEffect(() => {

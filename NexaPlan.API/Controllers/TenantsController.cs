@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NexaPlan.API.Data;
@@ -7,6 +8,7 @@ namespace NexaPlan.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class TenantsController : ControllerBase
     {
         private readonly AppDbContext _context;

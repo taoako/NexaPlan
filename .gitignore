@@ -1,0 +1,37 @@
+# ─── Secrets — NEVER commit these ───────────────────────────────────────────
+NexaPlan.API/appsettings.json
+NexaPlan.API/appsettings.Development.json
+NexaPlan.API/appsettings.Production.json
+
+# ─── Build outputs ───────────────────────────────────────────────────────────
+NexaPlan.API/bin/
+NexaPlan.API/obj/
+nexaplan-client/node_modules/
+nexaplan-client/dist/
+nexaplan-client/.vite/
+
+# ─── Environment files ───────────────────────────────────────────────────────
+.env
+.env.local
+.env.production
+.env.development
+nexaplan-client/.env
+nexaplan-client/.env.local
+nexaplan-client/.env.production
+
+# ─── IDE / OS ────────────────────────────────────────────────────────────────
+.vs/
+.vscode/
+*.user
+.DS_Store
+Thumbs.db
+
+# ─── Logs ────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ─── Python ML service ───────────────────────────────────────────────────────
+NexaPlan.API/ml_service/__pycache__/
+NexaPlan.API/ml_service/*.pyc
+NexaPlan.API/ml_service/venv/
+NexaPlan.API/ml_service/.env

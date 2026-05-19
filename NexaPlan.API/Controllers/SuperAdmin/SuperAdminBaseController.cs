@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NexaPlan.API.Data;
@@ -7,6 +8,7 @@ using System.Text.Json;
 namespace NexaPlan.API.Controllers.SuperAdmin
 {
     /// <summary>Shared base for all Super Admin controllers.</summary>
+    [Authorize]
     public abstract class SuperAdminBaseController : ControllerBase
     {
         protected readonly AppDbContext _context;

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NexaPlan.API.Data;
 
@@ -7,6 +8,7 @@ namespace NexaPlan.API.Controllers.FinanceManager
     /// Shared base for all Finance Manager controllers.
     /// Provides tenant/user resolution from headers.
     /// </summary>
+    [Authorize]
     public abstract class FinanceManagerBaseController : ControllerBase
     {
         protected readonly AppDbContext _context;

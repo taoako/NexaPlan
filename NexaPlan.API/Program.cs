@@ -1,9 +1,12 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 using NexaPlan.API.Configuration;
 using NexaPlan.API.Data;
 using NexaPlan.API.Models;
 using QuestPDF.Infrastructure;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -69,14 +72,47 @@ builder.Services.AddCors(options =>
             ? frontend.AllowedOrigins
             : new[] { frontend.BaseUrl };
 
-        policy.WithOrigins(origins)
+        // Also include localhost dev origins
+        var allOrigins = origins
+            .Append("http://localhost:5173")
+            .Append("http://localhost:3000")
+            .Where(o => !string.IsNullOrWhiteSpace(o))
+            .Distinct()
+            .ToArray();
+
+        policy.WithOrigins(allOrigins)
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// --- JWT AUTHENTICATION ---
+var jwtSecret = builder.Configuration["Jwt:Secret"]
+    ?? throw new InvalidOperationException("Jwt:Secret is not configured.");
+var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "NexaPlanAPI";
+var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "NexaPlanClient";
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer           = true,
+            ValidateAudience         = true,
+            ValidateLifetime         = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer              = jwtIssuer,
+            ValidAudience            = jwtAudience,
+            IssuerSigningKey         = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
+            ClockSkew                = TimeSpan.Zero
+        };
+    });
+
+builder.Services.AddAuthorization();
 
 // --- BUILD THE APP (Only do this ONCE) ---
 QuestPDF.Settings.License = LicenseType.Community;
@@ -118,6 +154,38 @@ app.UseHttpsRedirection();
 
 // Enable CORS before mapping controllers
 app.UseCors(FrontendOptions.CorsPolicyName);
+
+// JWT Authentication + Authorization
+app.UseAuthentication();
+app.UseAuthorization();
+
+// --- Maintenance Mode Middleware ---
+app.Use(async (context, next) =>
+{
+    bool isExempt =
+        context.Request.Path.StartsWithSegments("/api/super-admin") ||
+        context.Request.Path.StartsWithSegments("/api/Auth") ||
+        context.Request.Path.StartsWithSegments("/api/payments/webhook") ||
+        context.Request.Path.StartsWithSegments("/api/pricing") ||
+        context.Request.Path.StartsWithSegments("/health");
+
+    if (!isExempt)
+    {
+        using var scope = app.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var cfg = await db.SystemConfigs
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.ConfigKey == "maintenance_mode");
+        if (cfg?.ConfigValue == "true")
+        {
+            context.Response.StatusCode = 503;
+            await context.Response.WriteAsJsonAsync(new { error = "System is currently under maintenance. Please try again later." });
+            return;
+        }
+    }
+
+    await next();
+});
 
 app.MapControllers();
 
@@ -164,5 +232,13 @@ static void SeedReferenceData(AppDbContext db)
         db.SaveChanges();
     }
 }
+
+// --- Task 9: Health Check Endpoint ---
+app.MapGet("/health", () => Results.Ok(new
+{
+    status = "ok",
+    timestamp = DateTime.UtcNow,
+    service = "NexaPlan API"
+}));
 
 app.Run();

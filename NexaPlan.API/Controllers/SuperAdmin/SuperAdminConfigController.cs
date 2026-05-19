@@ -11,11 +11,37 @@ namespace NexaPlan.API.Controllers.SuperAdmin
     {
         public SuperAdminConfigController(AppDbContext context, IConfiguration configuration) : base(context, configuration) { }
 
+        private static readonly Dictionary<string, string> _defaultConfigs = new()
+        {
+            ["global_mfa_enforced"] = "true",
+            ["global_ssl_enforced"] = "true",
+            ["ml_engine_enabled"] = "true",
+            ["maintenance_mode"] = "false",
+            ["api_request_timeout_ms"] = "4000",
+            ["max_export_rows"] = "50000",
+            ["api_rate_limit_per_min"] = "1000",
+            ["jwt_expiration_hours"] = "24",
+            ["max_failed_login_attempts"] = "5",
+            ["session_timeout_minutes"] = "60",
+        };
+
         [HttpGet("config")]
         public async Task<IActionResult> GetConfig()
         {
-            var configs = await _context.SystemConfigs.ToListAsync();
-            return Ok(configs.GroupBy(c => c.ConfigKey).ToDictionary(g => g.Key, g => g.First().ConfigValue));
+            // Seed missing defaults
+            var existing = await _context.SystemConfigs.ToListAsync();
+            var existingKeys = existing.Select(c => c.ConfigKey).ToHashSet();
+            var toAdd = _defaultConfigs
+                .Where(kv => !existingKeys.Contains(kv.Key))
+                .Select(kv => new SystemConfig { ConfigKey = kv.Key, ConfigValue = kv.Value })
+                .ToList();
+            if (toAdd.Any())
+            {
+                _context.SystemConfigs.AddRange(toAdd);
+                await _context.SaveChangesAsync();
+                existing.AddRange(toAdd);
+            }
+            return Ok(existing.GroupBy(c => c.ConfigKey).ToDictionary(g => g.Key, g => g.First().ConfigValue));
         }
 
         [HttpPut("config")]
@@ -32,9 +58,29 @@ namespace NexaPlan.API.Controllers.SuperAdmin
                         ConfigKey = kvp.Key, ConfigValue = kvp.Value, UpdatedAt = DateTime.UtcNow
                     });
                 }
+
+                // Special case: enabling maintenance_mode invalidates all JWTs
+                if (kvp.Key == "maintenance_mode" && kvp.Value == "true")
+                {
+                    var jwtInvalidate = await _context.SystemConfigs
+                        .FirstOrDefaultAsync(c => c.ConfigKey == "jwt_invalidate_before");
+                    var nowStr = DateTime.UtcNow.ToString("o");
+                    if (jwtInvalidate != null) { jwtInvalidate.ConfigValue = nowStr; jwtInvalidate.UpdatedAt = DateTime.UtcNow; }
+                    else _context.SystemConfigs.Add(new SystemConfig { ConfigKey = "jwt_invalidate_before", ConfigValue = nowStr });
+
+                    _context.AuditLogs.Add(new AuditLog
+                    {
+                        TenantID = 0,
+                        UserID = 0,
+                        ActionType = "MAINTENANCE_MODE_ENABLED",
+                        TargetResources = "System-wide maintenance mode activated",
+                        IPAddress = GetClientIp(),
+                        TimeStamp = DateTime.UtcNow
+                    });
+                }
             }
             await _context.SaveChangesAsync();
-            return Ok(new { message = "Configuration saved." });
+            return Ok(new { message = "Configuration saved successfully" });
         }
 
         // ─── Pricing Plans CRUD ─────────────────────────────────────────────
