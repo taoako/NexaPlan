@@ -72,10 +72,11 @@ builder.Services.AddCors(options =>
             ? frontend.AllowedOrigins
             : new[] { frontend.BaseUrl };
 
-        // Also include localhost dev origins
+        // Also include localhost dev origins + your Vercel deployment
         var allOrigins = origins
             .Append("http://localhost:5173")
             .Append("http://localhost:3000")
+            .Append("https://nexa-plan-one.vercel.app") // ✅ Explicitly added Vercel URL
             .Where(o => !string.IsNullOrWhiteSpace(o))
             .Distinct()
             .ToArray();
@@ -143,17 +144,19 @@ if (!skipMigrations)
     }
 }
 
-// --- 3. HTTP REQUEST PIPELINE (Use the app AFTER building) ---
+// --- 3. HTTP REQUEST PIPELINE ---
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
-
-// Enable CORS before mapping controllers
+// ✅ FIXED: CORS must come BEFORE HttpsRedirection and Authentication
+// so that preflight OPTIONS requests are handled correctly
 app.UseCors(FrontendOptions.CorsPolicyName);
+
+app.UseHttpsRedirection();
 
 // JWT Authentication + Authorization
 app.UseAuthentication();
@@ -233,7 +236,7 @@ static void SeedReferenceData(AppDbContext db)
     }
 }
 
-// --- Task 9: Health Check Endpoint ---
+// --- Health Check Endpoint ---
 app.MapGet("/health", () => Results.Ok(new
 {
     status = "ok",
