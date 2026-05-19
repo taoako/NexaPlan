@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Upload, Receipt, Plus, X, Search, FileText, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
 import { deptHeadApi } from '../../../../api/deptHeadApi';
 import { TablePagination } from '../../../../components/TablePagination';
+import { useCurrency } from '../../../../context/CurrencyContext';
 
 export function ExpensesView() {
+  const { fmt, symbol } = useCurrency();
   const [expenses, setExpenses] = useState<any[]>([]);
   const [approvedProposals, setApprovedProposals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -151,7 +153,7 @@ export function ExpensesView() {
                   <div className="font-bold text-[14px] text-slate-900">{exp.proposalTitle}</div>
                   <div className="text-[11px] text-slate-500 font-mono">ID: PRJ-{exp.proposalId}</div>
                 </td>
-                <td className="px-6 py-4 font-mono font-bold text-[14px] text-slate-900">₱{exp.amount.toLocaleString()}</td>
+                <td className="px-6 py-4 font-mono font-bold text-[14px] text-slate-900">{fmt(exp.amount)}</td>
                 <td className="px-6 py-4">
                   {exp.receiptUrl ? (
                     <a href="#" className="flex items-center gap-1.5 text-[12px] font-bold text-blue-600 hover:text-blue-800"><FileText className="w-3.5 h-3.5"/> View Receipt</a>
@@ -191,14 +193,14 @@ export function ExpensesView() {
                 >
                   <option value="">Select an approved project...</option>
                   {approvedProposals.map(p => (
-                    <option key={p.id} value={p.id}>{p.title} (Approved: ₱{p.amount.toLocaleString()})</option>
+                    <option key={p.id} value={p.id}>{p.title} (Approved: {fmt(p.amount)})</option>
                   ))}
                 </select>
                 <p className="text-[11px] text-slate-500 mt-1.5">You can only log expenses against fully approved budgets.</p>
               </div>
               
               <div>
-                <label className="block text-xs font-black text-slate-500 uppercase mb-2">Actual Amount Spent (₱)</label>
+                <label className="block text-xs font-black text-slate-500 uppercase mb-2">Actual Amount Spent ({symbol})</label>
                 <input 
                   type="number"
                   required
@@ -213,7 +215,7 @@ export function ExpensesView() {
 
               <div>
                 <label className="block text-xs font-black text-slate-500 uppercase mb-2">
-                  Tax Amount Paid ₱ <span className="normal-case font-normal text-slate-400">(optional — copy from receipt)</span>
+                  Tax Amount Paid {symbol} <span className="normal-case font-normal text-slate-400">(optional — copy from receipt)</span>
                 </label>
                 <div className="relative">
                   <input 

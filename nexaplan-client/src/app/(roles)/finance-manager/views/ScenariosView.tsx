@@ -1,14 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, AlertTriangle, Activity, Archive, Save, X, Settings2 } from 'lucide-react';
+import { Plus, AlertTriangle, Activity, Archive, Save, X, Settings2, Check } from 'lucide-react';
 import { financeManagerApi } from '../../../../api/financeManagerApi';
+import { useFeatures } from '../../../../context/FeaturesContext';
+import UpgradeBanner from '../../../../components/UpgradeBanner';
 
 export function ScenariosView() {
+  const features = useFeatures();
   const [scenarios, setScenarios] = useState<any[]>([]);
   const [archivedScenarios, setArchivedScenarios] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNewScenarioModal, setShowNewScenarioModal] = useState(false);
   const [modalMessage, setModalMessage] = useState<{ title: string; message: string; type: 'error' | 'success' | 'info' } | null>(null);
   const [confirmArchive, setConfirmArchive] = useState<any>(null);
+  
+  // Pitches Inbox State
+  const [selectedScenarioForPitches, setSelectedScenarioForPitches] = useState<any>(null);
+  const [pitchesList, setPitchesList] = useState<any[]>([]);
+  const [loadingPitches, setLoadingPitches] = useState(false);
   
   // Advanced Scenario Data
   const [newScenarioData, setNewScenarioData] = useState({ 
@@ -112,6 +120,38 @@ export function ScenariosView() {
     setConfirmArchive(null);
   };
 
+  const openPitchesModal = async (scenario: any) => {
+    setSelectedScenarioForPitches(scenario);
+    setLoadingPitches(true);
+    try {
+      const data = await financeManagerApi.getScenarioPitches(scenario.id);
+      setPitchesList(data);
+    } catch (err) {
+      console.error(err);
+      setModalMessage({ title: 'Error', message: 'Failed to load pitches.', type: 'error' });
+    } finally {
+      setLoadingPitches(false);
+    }
+  };
+
+  const handleAcknowledgePitch = async (pitchId: number) => {
+    try {
+      await financeManagerApi.acknowledgePitch(pitchId);
+      setPitchesList(prev => prev.map(p => p.id === pitchId ? { ...p, status: 'Acknowledged' } : p));
+      
+      // Update the main scenario list pitch count locally
+      setScenarios(prev => prev.map(s => {
+        if (s.id === selectedScenarioForPitches.id) {
+          return { ...s, pitchCount: Math.max(0, (s.pitchCount || 1) - 1) };
+        }
+        return s;
+      }));
+    } catch (err) {
+      console.error(err);
+      setModalMessage({ title: 'Error', message: 'Failed to acknowledge pitch.', type: 'error' });
+    }
+  };
+
   const getColor = (multiplier: number) => {
     if (multiplier === 1.0) return '#0052FF';
     if (multiplier < 1.0) return '#EF4444';
@@ -128,6 +168,14 @@ export function ScenariosView() {
   };
 
   if (loading) return <div className="p-12 flex justify-center text-slate-500"><Activity className="animate-spin mr-2" /> Loading scenarios...</div>;
+
+  if (features && !features.canUseScenarios) {
+    return (
+      <div className="p-8">
+        <UpgradeBanner feature="Scenario Planning & What-If Analysis" requiredTier="Professional" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 p-8">
@@ -243,6 +291,14 @@ export function ScenariosView() {
                   <div className="w-full py-2.5 rounded-lg font-bold text-[13px] text-center bg-slate-100 text-slate-400 border border-slate-200">
                     Currently Active
                   </div>
+                )}
+                {s.pitchCount > 0 && (
+                  <button
+                    onClick={() => openPitchesModal(s)}
+                    className="w-full mt-3 py-2.5 rounded-lg font-bold text-[13px] bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors border border-amber-200 shadow-sm"
+                  >
+                    Review Dept Pitches ({s.pitchCount})
+                  </button>
                 )}
               </div>
             );
@@ -391,6 +447,82 @@ export function ScenariosView() {
             <div className="flex gap-3">
               <button onClick={confirmArchiveScenario} className="flex-1 bg-slate-900 hover:bg-slate-800 text-white py-2.5 rounded-xl font-bold">Confirm</button>
               <button onClick={() => setConfirmArchive(null)} className="px-4 py-2.5 border border-slate-300 rounded-xl text-slate-700 font-bold">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pitches Inbox Modal */}
+      {selectedScenarioForPitches && (
+        <div className="fixed inset-0 z-[105] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl w-full max-w-4xl shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+            <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
+                  <Activity className="w-6 h-6 text-amber-500" /> Department Pitches
+                </h2>
+                <p className="text-sm text-slate-500 mt-1">Review responses for Scenario: <strong>{selectedScenarioForPitches.name}</strong></p>
+              </div>
+              <button onClick={() => setSelectedScenarioForPitches(null)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors"><X className="w-6 h-6"/></button>
+            </div>
+            
+            <div className="p-8 overflow-y-auto flex-1 space-y-6 bg-slate-50">
+              {loadingPitches ? (
+                <div className="py-12 text-center text-slate-500 flex justify-center"><Activity className="animate-spin mr-2" /> Loading pitches...</div>
+              ) : pitchesList.length === 0 ? (
+                <div className="py-12 text-center text-slate-500 font-medium">No pitches submitted for this scenario yet.</div>
+              ) : (
+                pitchesList.map(pitch => (
+                  <div key={pitch.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-start bg-slate-50/50">
+                      <div>
+                        <span className="inline-block px-2.5 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-md mb-2">{pitch.departmentName}</span>
+                        <h3 className="text-lg font-bold text-slate-900">{pitch.title}</h3>
+                        <p className="text-xs text-slate-500 mt-1">Submitted on {new Date(pitch.submittedAt).toLocaleDateString()} • Multiplier Request: <strong className="text-slate-800">{pitch.customMultiplier}</strong></p>
+                      </div>
+                      {pitch.status === 'Pending Review' ? (
+                        <button
+                          onClick={() => handleAcknowledgePitch(pitch.id)}
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg shadow-sm transition-all"
+                        >
+                          Acknowledge
+                        </button>
+                      ) : (
+                        <span className="px-3 py-1.5 bg-emerald-100 text-emerald-700 text-sm font-bold rounded-lg flex items-center gap-1"><Check className="w-4 h-4"/> Acknowledged</span>
+                      )}
+                    </div>
+                    <div className="p-6">
+                      <div className="mb-6">
+                        <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-2">Justification</h4>
+                        <p className="text-sm text-slate-700 leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-100">{pitch.justification || "No justification provided."}</p>
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">Proposal Decisions</h4>
+                        <div className="grid grid-cols-3 gap-3">
+                          {(() => {
+                            try {
+                              const decisions = JSON.parse(pitch.decisions);
+                              if (!Array.isArray(decisions) || decisions.length === 0) return <div className="text-sm text-slate-500 col-span-3">No specific proposal changes.</div>;
+                              return decisions.map((d: any, idx: number) => (
+                                <div key={idx} className="flex justify-between items-center p-3 border border-slate-100 rounded-xl bg-slate-50">
+                                  <span className="text-xs font-medium text-slate-600 truncate max-w-[120px]" title={`Proposal ID: ${d.ProposalId}`}>Proposal #{d.ProposalId}</span>
+                                  <span className={`text-xs font-bold px-2 py-0.5 rounded ${
+                                    d.Decision === 'Keep' ? 'bg-emerald-100 text-emerald-700' :
+                                    d.Decision === 'Cut' ? 'bg-red-100 text-red-700' :
+                                    'bg-amber-100 text-amber-700'
+                                  }`}>{d.Decision}</span>
+                                </div>
+                              ));
+                            } catch {
+                              return <div className="text-sm text-slate-500 col-span-3">Could not parse decisions.</div>;
+                            }
+                          })()}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

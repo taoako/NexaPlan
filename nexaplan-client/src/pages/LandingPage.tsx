@@ -19,11 +19,25 @@ import { getPricing } from '../api/superAdminApi';
 interface LandingPageProps {
   onNavigate: (view: string) => void;
   onSelectPlan: (plan: string) => void;
+  isLoggedIn?: boolean;
+  userRole?: number;
 }
 
-export function LandingPage({ onNavigate, onSelectPlan }: LandingPageProps) {
+export function LandingPage({ onNavigate, onSelectPlan, isLoggedIn, userRole }: LandingPageProps) {
   const [plans, setPlans] = useState<PricingPlan[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
+
+  const navigateToDashboard = () => {
+    if (!userRole) return onNavigate('login');
+    switch (userRole) {
+      case 1: onNavigate('admin-dashboard'); break;
+      case 2: onNavigate('main-admin'); break;
+      case 3: onNavigate('finance-manager'); break;
+      case 4: onNavigate('dept-head'); break;
+      case 5: onNavigate('auditor'); break;
+      default: onNavigate('main-admin');
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -98,18 +112,29 @@ export function LandingPage({ onNavigate, onSelectPlan }: LandingPageProps) {
         </div>
 
         <div className="flex items-center gap-4">
-          <button
-            onClick={() => onNavigate('login')}
-            className="text-sm font-semibold text-slate-600 hover:text-[#0052FF] transition-all duration-300"
-          >
-            Log In
-          </button>
-          <button
-            onClick={startTrial}
-            className="bg-[#0A192F] text-white px-5 py-2.5 rounded-lg font-bold hover:bg-slate-800 transition-all duration-300"
-          >
-            Start Free Trial
-          </button>
+          {isLoggedIn ? (
+            <button
+              onClick={navigateToDashboard}
+              className="bg-[#0052FF] text-white px-5 py-2.5 rounded-lg font-bold hover:bg-blue-600 transition-all duration-300 shadow-lg shadow-blue-100 flex items-center gap-2"
+            >
+              <Target className="w-4 h-4" /> Go to Dashboard
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={() => onNavigate('login')}
+                className="text-sm font-semibold text-slate-600 hover:text-[#0052FF] transition-all duration-300"
+              >
+                Log In
+              </button>
+              <button
+                onClick={startTrial}
+                className="bg-[#0A192F] text-white px-5 py-2.5 rounded-lg font-bold hover:bg-slate-800 transition-all duration-300"
+              >
+                Start Free Trial
+              </button>
+            </>
+          )}
         </div>
       </nav>
 
@@ -131,20 +156,33 @@ export function LandingPage({ onNavigate, onSelectPlan }: LandingPageProps) {
           </p>
 
           <div className="flex gap-3.5 mb-12 justify-center">
-            <button
-              onClick={startTrial}
-              className="group flex items-center gap-2 bg-[#0052FF] text-white px-7 py-3.5 rounded-xl font-bold text-[15px] hover:bg-[#0041cc] transition-all"
-              style={{ boxShadow: '0 4px 20px rgba(0,82,255,0.28)' }}
-            >
-              Start Free Trial
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-            </button>
-            <button
-              onClick={() => onNavigate('login')}
-              className="flex items-center gap-2 px-7 py-3.5 rounded-xl font-bold text-[15px] text-[#0A192F] border-2 border-[#d1d5db] hover:border-[#0052FF] hover:text-[#0052FF] transition-all"
-            >
-              Sign In
-            </button>
+            {isLoggedIn ? (
+              <button
+                onClick={navigateToDashboard}
+                className="group flex items-center gap-2 bg-[#0052FF] text-white px-9 py-4 rounded-xl font-bold text-[16px] hover:bg-[#0041cc] transition-all"
+                style={{ boxShadow: '0 8px 30px rgba(0,82,255,0.35)' }}
+              >
+                Return to Dashboard
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={startTrial}
+                  className="group flex items-center gap-2 bg-[#0052FF] text-white px-7 py-3.5 rounded-xl font-bold text-[15px] hover:bg-[#0041cc] transition-all"
+                  style={{ boxShadow: '0 4px 20px rgba(0,82,255,0.28)' }}
+                >
+                  Start Free Trial
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                </button>
+                <button
+                  onClick={() => onNavigate('login')}
+                  className="flex items-center gap-2 px-7 py-3.5 rounded-xl font-bold text-[15px] text-[#0A192F] border-2 border-[#d1d5db] hover:border-[#0052FF] hover:text-[#0052FF] transition-all"
+                >
+                  Sign In
+                </button>
+              </>
+            )}
           </div>
 
           <div className="flex items-center gap-5 mb-16 justify-center">
@@ -180,7 +218,7 @@ export function LandingPage({ onNavigate, onSelectPlan }: LandingPageProps) {
           <div className="relative max-w-5xl mx-auto">
             <div className="relative overflow-hidden rounded-2xl" style={{ boxShadow: '0 24px 64px rgba(10,25,47,0.13)' }}>
               <img
-                src="https://images.unsplash.com/photo-1758691736483-5f600b509962?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxBc2lhbiUyMGZpbmFuY2UlMjB0ZWFtJTIwYm9hcmRyb29tJTIwYW5hbHl6aW5nJTIwZGF0YSUyMHByZXNlbnRhdGlvbnxlbnwxfHx8fDE3Nzc0NjM1NzR8MA&ixlib=rb-4.1.0&q=80&w=1080"
+                src="https://images.unsplash.com/photo-1758691736483-5f600b509962?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxBc2lhbiUyMGZpbmFuY2lhbCUyMGRpc3RyaWN0fGVufDF8fHx8MTc3NzQ2MzU3OHww&ixlib=rb-4.1.0&q=80&w=1080"
                 alt="Finance team reviewing enterprise budget data"
                 className="w-full h-auto object-cover"
               />
@@ -542,12 +580,6 @@ export function LandingPage({ onNavigate, onSelectPlan }: LandingPageProps) {
 
         <div className="max-w-7xl mx-auto mt-12 pt-8 border-t border-slate-700 text-center text-slate-500 text-sm">
           <p>&copy; 2026 NexaPlan. All rights reserved. Made with precision in Manila, Philippines.</p>
-          <div className="flex justify-center gap-4 mt-2">
-            <button onClick={() => onNavigate('admin-dashboard')} className="text-xs text-slate-600 hover:text-[#0052FF] transition-colors">Super Admin</button>
-            <button onClick={() => onNavigate('main-admin')} className="text-xs text-slate-600 hover:text-[#0052FF] transition-colors">Main Admin</button>
-            <button onClick={() => onNavigate('finance-manager')} className="text-xs text-slate-600 hover:text-[#0052FF] transition-colors">Finance Manager</button>
-            <button onClick={() => onNavigate('dept-head')} className="text-xs text-slate-600 hover:text-[#0052FF] transition-colors">Department Head</button>
-          </div>
         </div>
       </footer>
     </div>

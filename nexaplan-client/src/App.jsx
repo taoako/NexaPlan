@@ -11,6 +11,7 @@ import { ComplianceAuditSystem } from './app/(roles)/compliance-audit/Compliance
 import { DepartmentHeadSystem } from './app/(roles)/department-head/DepartmentHeadSystem';
 import { FinanceManagerSystem } from './app/(roles)/finance-manager/FinanceManagerSystem';
 import { apiUrl } from './config/api';
+import { CurrencyProvider } from './context/CurrencyContext';
 
 export default function App() {
   const [currentView, setCurrentView] = useState('landing');
@@ -20,9 +21,16 @@ export default function App() {
   const [rememberDevice, setRememberDevice] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [currentUser, setCurrentUser] = useState(null);
 
   const clearMessages = () => { setSuccessMessage(''); setErrorMessage(''); };
 
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    setCurrentUser(null);
+    setCurrentView('landing');
+  };
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -50,32 +58,26 @@ export default function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const paymentStatus = params.get('payment');
+    
+    // 1. Handle Payment Redirects First
     if (paymentStatus === 'success') {
       setSuccessMessage('Payment received. We are activating your workspace now.');
       setCurrentView('success');
       window.history.replaceState({}, document.title, window.location.pathname);
+      return;
     }
     if (paymentStatus === 'cancelled') {
       setErrorMessage('Payment was cancelled. You can try again anytime.');
       window.history.replaceState({}, document.title, window.location.pathname);
     }
 
+    // 2. Load user session but don't auto-redirect to dashboard
+    // to satisfy user request for "default home is landing".
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
       try {
         const user = JSON.parse(savedUser);
-        // Restore session on page refresh - route by roleId
-        switch (user.roleId) {
-          case 1: setCurrentView('admin-dashboard'); break;
-          case 2: setCurrentView('main-admin'); break;
-          case 3: setCurrentView('finance-manager'); break;  // Finance Manager
-          case 4: setCurrentView('dept-head'); break;         // Department Head
-          case 5: setCurrentView('auditor'); break;
-          default:
-            // Impersonation sessions may not have roleId
-            if (user.impersonated) setCurrentView('main-admin');
-            break;
-        }
+        setCurrentUser(user);
       } catch (e) {
         localStorage.removeItem('user');
       }
@@ -223,6 +225,8 @@ export default function App() {
       <LandingPage
         onNavigate={setCurrentView}
         onSelectPlan={(plan) => setSelectedPlan(plan)}
+        isLoggedIn={!!currentUser}
+        userRole={currentUser?.roleId}
       />
     );
   }
@@ -299,15 +303,19 @@ export default function App() {
           <div className="w-24 h-24 bg-[#10B981] rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle2 className="w-16 h-16 text-white" />
           </div>
-          <h2 className="text-3xl font-bold text-slate-900 mb-4">Thanks! We received your request.</h2>
+          <h2 className="text-3xl font-bold text-slate-900 mb-4">Registration Successful!</h2>
           <p className="text-slate-600 leading-relaxed mb-8">
-            {successMessage || 'Your workspace is being provisioned. We will email you once it is ready.'}
+            {successMessage || 'Your workspace has been provisioned. You can now log in with your credentials.'}
           </p>
           <button
-            onClick={() => setCurrentView('landing')}
-            className="w-full bg-[#0A192F] text-white py-4 rounded-xl font-bold transition-all duration-300 hover:bg-slate-800"
+            onClick={() => {
+              setCurrentView('login');
+              // Replace history state to prevent back-loops
+              window.history.replaceState({}, document.title, '/');
+            }}
+            className="w-full bg-[#0052FF] text-white py-4 rounded-xl font-bold transition-all duration-300 hover:bg-blue-700 shadow-lg shadow-blue-200"
           >
-            Go to Dashboard
+            Go to Login
           </button>
         </div>
       </div>
@@ -315,23 +323,23 @@ export default function App() {
   }
 
   if (currentView === 'main-admin') {
-    return <MainAdminSystem onBack={() => setCurrentView('landing')} />;
+    return <CurrencyProvider><MainAdminSystem onLogout={handleLogout} /></CurrencyProvider>;
   }
 
   if (currentView === 'admin-dashboard') {
-    return <SuperAdminSystem onBack={() => setCurrentView('landing')} />;
+    return <SuperAdminSystem onLogout={handleLogout} />;
   }
 
   if (currentView === 'finance-manager') {
-    return <FinanceManagerSystem onBack={() => setCurrentView('landing')} />;
+    return <CurrencyProvider><FinanceManagerSystem onLogout={handleLogout} /></CurrencyProvider>;
   }
 
   if (currentView === 'dept-head') {
-    return <DepartmentHeadSystem onBack={() => setCurrentView('landing')} />;
+    return <CurrencyProvider><DepartmentHeadSystem onLogout={handleLogout} /></CurrencyProvider>;
   }
 
   if (currentView === 'auditor') {
-    return <ComplianceAuditSystem onBack={() => setCurrentView('landing')} />;
+    return <CurrencyProvider><ComplianceAuditSystem onLogout={handleLogout} /></CurrencyProvider>;
   }
 
   return null;

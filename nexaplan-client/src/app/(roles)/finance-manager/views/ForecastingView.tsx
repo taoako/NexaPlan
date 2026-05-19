@@ -8,8 +8,13 @@ import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Area, AreaChart, ReferenceLine, Cell, Legend
 } from 'recharts';
+import { useFeatures } from '../../../../context/FeaturesContext';
+import { useCurrency } from '../../../../context/CurrencyContext';
+import UpgradeBanner from '../../../../components/UpgradeBanner';
 
 export function ForecastingView() {
+  const { fmt, symbol } = useCurrency();
+  const features = useFeatures();
   const [forecastData, setForecastData] = useState<any>(null);
   const [loading, setLoading]   = useState(true);
   const [varianceMode, setVarianceMode] = useState<'chart' | 'table'>('chart');
@@ -28,8 +33,6 @@ export function ForecastingView() {
 
   // ── Chart data ──────────────────────────────────────────────────────────────
   const chartData: any[] = forecastData?.chartData ?? [];
-
-  const safeLocale = (val: any) => (val || 0).toLocaleString();
 
   // Variance by dept (committed vs budget)
   const varianceData = (forecastData?.departments ?? []).map((d: any) => {
@@ -61,6 +64,14 @@ export function ForecastingView() {
           <RefreshCw className="w-4 h-4 animate-spin" />
           Loading forecast data...
         </div>
+      </div>
+    );
+  }
+
+  if (features && !features.canUseMLPrediction) {
+    return (
+      <div className="p-8">
+        <UpgradeBanner feature="AI Budget Risk Forecasting" requiredTier="Professional" />
       </div>
     );
   }
@@ -105,7 +116,7 @@ export function ForecastingView() {
               <div className="text-sm font-bold text-slate-600 uppercase tracking-wider">Projected EOY (Committed)</div>
               <TrendingUp className="w-5 h-5 text-purple-600" />
             </div>
-            <div className="text-4xl font-black text-slate-900 mb-2 font-mono">₱{safeLocale(forecastData?.projectedEOY)}</div>
+            <div className="text-4xl font-black text-slate-900 mb-2 font-mono">{fmt(forecastData?.projectedEOY)}</div>
             <div className="text-xs text-slate-500">Sum of all approved proposal budgets this year</div>
           </div>
           <div className="bg-white rounded-lg p-6 border border-slate-200 shadow-sm">
@@ -113,7 +124,7 @@ export function ForecastingView() {
               <div className="text-sm font-bold text-slate-600 uppercase tracking-wider">Total Allocated Budget</div>
               <Activity className="w-5 h-5 text-emerald-600" />
             </div>
-            <div className="text-4xl font-black text-slate-900 mb-2 font-mono">₱{safeLocale(forecastData?.totalBudget)}</div>
+            <div className="text-4xl font-black text-slate-900 mb-2 font-mono">{fmt(forecastData?.totalBudget)}</div>
             <div className="text-xs text-slate-500">From DepartmentAllocations for fiscal year</div>
           </div>
           <div className="bg-white rounded-lg p-6 border border-slate-200 shadow-sm">
@@ -167,25 +178,33 @@ export function ForecastingView() {
                 <YAxis
                   tick={{ fontSize: 11, fill: '#64748B' }}
                   tickLine={false}
-                  tickFormatter={v => v >= 1_000_000 ? `₱${(v/1_000_000).toFixed(1)}M` : v >= 1000 ? `₱${(v/1000).toFixed(0)}k` : `₱${v}`}
+                  tickFormatter={v => fmt(v)}
                   width={72}
                 />
                 <Tooltip
                   contentStyle={{ backgroundColor: 'white', border: '1px solid #E2E8F0', borderRadius: '8px' }}
                   formatter={(value: any, name: string) => {
                     if (value == null) return ['—', name];
-                    return [`₱${Number(value).toLocaleString()}`, name];
+                    return [fmt(value), name];
                   }}
                 />
                 <ReferenceLine x={currentMonth} stroke="#64748B" strokeDasharray="4 3" label={{ value: 'Today', position: 'top', fill: '#64748B', fontSize: 11 }} />
 
                 {/* Confidence band: upper / lower */}
-                <Area type="monotone" dataKey="upperBound" stroke="none" fill="url(#bandGrad)" name="Upper Bound" />
-                <Area type="monotone" dataKey="lowerBound" stroke="none" fill="white"         name="Lower Bound" />
+                {features?.canUseConfidenceBands && (
+                  <>
+                    <Area type="monotone" dataKey="upperBound" stroke="none" fill="url(#bandGrad)" name="Upper Bound" />
+                    <Area type="monotone" dataKey="lowerBound" stroke="none" fill="white"         name="Lower Bound" />
+                  </>
+                )}
 
                 {/* Trend confidence band */}
-                <Area type="monotone" dataKey="trendUpper" stroke="none" fill="url(#bandGrad)" fillOpacity={0.5} name="Trend Upper" />
-                <Area type="monotone" dataKey="trendLower" stroke="none" fill="white"          name="Trend Lower" />
+                {features?.canUseConfidenceBands && (
+                  <>
+                    <Area type="monotone" dataKey="trendUpper" stroke="none" fill="url(#bandGrad)" fillOpacity={0.5} name="Trend Upper" />
+                    <Area type="monotone" dataKey="trendLower" stroke="none" fill="white"          name="Trend Lower" />
+                  </>
+                )}
 
                 {/* Budget cap — dashed grey */}
                 <Line type="monotone" dataKey="budget"    stroke="#94A3B8" strokeWidth={2} strokeDasharray="6 3" dot={false} name="Budget Cap" />
@@ -280,10 +299,10 @@ export function ForecastingView() {
                     <XAxis
                       type="number"
                       tick={{ fontSize: 11, fill: '#64748B' }}
-                      tickFormatter={(v) => v >= 1000 ? `₱${(v/1000).toFixed(0)}k` : `₱${v}`}
+                      tickFormatter={(v) => fmt(v)}
                     />
                     <YAxis type="category" dataKey="dept" width={100} tick={{ fontSize: 11, fill: '#334155' }} />
-                    <Tooltip formatter={(value: any) => [`₱${Number(value).toLocaleString()}`, 'Variance']} />
+                    <Tooltip formatter={(value: any) => [fmt(value), 'Variance']} />
                     <ReferenceLine x={0} stroke="#94A3B8" />
                     <Bar dataKey="variance" radius={[4, 4, 4, 4]}>
                       {varianceData.map((entry: any, index: number) => (
@@ -308,14 +327,14 @@ export function ForecastingView() {
                   {varianceData.map((d: any, i: number) => (
                     <tr key={i} className="border-b border-slate-100 hover:bg-slate-50">
                       <td className="py-3 font-semibold text-slate-800">{d.dept}</td>
-                      <td className="py-3 text-right font-mono text-slate-700">₱{d.committed.toLocaleString()}</td>
-                      <td className="py-3 text-right font-mono text-slate-700">₱{d.budget.toLocaleString()}</td>
+                      <td className="py-3 text-right font-mono text-slate-700">{fmt(d.committed)}</td>
+                      <td className="py-3 text-right font-mono text-slate-700">{fmt(d.budget)}</td>
                       <td className={`py-3 text-right font-mono font-bold ${d.variance > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-                        {d.variance > 0 ? '+' : '−'}₱{Math.abs(d.variance).toLocaleString()}
+                        {d.variance > 0 ? '+' : '−'}{fmt(Math.abs(d.variance))}
                       </td>
                       <td className="py-3 text-right">
                         <span className={`font-mono text-xs px-2 py-1 rounded-full font-bold ${d.mlRisk ? 'bg-red-50 text-red-600 border border-red-200' : 'text-blue-600'}`}>
-                          ₱{d.mlExpected.toLocaleString()} {d.mlRisk ? '⚠' : '✓'}
+                          {fmt(d.mlExpected)} {d.mlRisk ? '⚠' : '✓'}
                         </span>
                       </td>
                     </tr>

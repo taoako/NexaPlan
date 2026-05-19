@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using NexaPlan.API.Data;
 using NexaPlan.API.Models;
 using NexaPlan.API.DTOs;
+using NexaPlan.API.Helpers;
 
 namespace NexaPlan.API.Controllers.FinanceManager;
 
@@ -34,6 +35,12 @@ public class FinanceManagerVarianceController : FinanceManagerBaseController
         var filterMonth = month?.ToUpper().Trim();
         if (filterMonth != null && filterMonth.Length >= 3) filterMonth = filterMonth[..3];
 
+        var tenant = await _db.Tenants.FindAsync(tenantId);
+        var canUseML = TierFeatures.CanUseMLPrediction(tenant?.SubscriptionTier ?? "Trial");
+
+        var historyMonths = TierFeatures.HistoryMonths(tenant?.SubscriptionTier ?? "Trial");
+        var cutoffDate = DateTime.UtcNow.AddMonths(-historyMonths);
+
         var departments = await _db.Departments
             .Where(d => d.TenantID == tenantId)
             .ToListAsync();
@@ -51,7 +58,8 @@ public class FinanceManagerVarianceController : FinanceManagerBaseController
             .Where(p => deptIds.Contains(p.DepartmentID)
                      && p.TenantID == tenantId
                      && p.ProposalStatus == "Approved"
-                     && (p.PlannedYear ?? (p.FiscalYear > 0 ? p.FiscalYear : p.SubmittedAt.Year)) == fiscalYear);
+                     && (p.PlannedYear ?? (p.FiscalYear > 0 ? p.FiscalYear : p.SubmittedAt.Year)) == fiscalYear
+                     && p.SubmittedAt >= cutoffDate);
 
         var proposalsRaw = await proposalsQuery
             .Select(p => new
@@ -80,7 +88,8 @@ public class FinanceManagerVarianceController : FinanceManagerBaseController
         var expensesRaw = await _db.Expenses
             .Where(e => e.Status == "Reconciled"
                      && e.TenantID == tenantId
-                     && deptIds.Contains(e.DepartmentID))
+                     && deptIds.Contains(e.DepartmentID)
+                     && (e.ExpenseDate ?? e.ReconciledAt ?? e.SubmittedAt) >= cutoffDate)
             .Select(e => new
             {
                 e.DepartmentID,
@@ -142,46 +151,52 @@ public class FinanceManagerVarianceController : FinanceManagerBaseController
                 : new List<MonthlyVarianceDto>();
 
             // ML: get expected YTD spending for this dept+period
-            double mlExpected;
-            bool isAnomaly;
-            string mlNote;
-            string mlModel;
+            double? mlExpected = null;
+            bool isAnomaly = false;
+            string mlNote = "";
+            string mlModel = "";
 
-            if (filterMonth == null)
+            if (canUseML)
             {
-                // Full Year view: sum ML predictions for every elapsed month so far.
-                // Use the actual planned monthly rate (budgetReference / months elapsed)
-                // so ML expected aligns with the real planned pace, not the raw annual cap.
-                var currentMonth = DateTime.Now.Year == fiscalYear ? DateTime.Now.Month : 12;
-                var monthlyBudgetProbe = budgetReference > 0
-                    ? (double)(budgetReference / currentMonth)   // actual planned monthly rate
-                    : (double)(cap / 12);                        // fallback: cap evenly divided
-                var ytdMlTotal = 0.0;
-                string lastNote = "";
-                string lastModel = "";
-
-                for (int mi = 1; mi <= currentMonth; mi++)
+                if (filterMonth == null)
                 {
-                    var mStr = MonthOrder[mi - 1];
-                    var (mExp, _, mNote, mMod) = await GetMlExpected(
-                        client, dept.DepartmentName, mStr, monthlyBudgetProbe, 0);
-                    ytdMlTotal += mExp;
-                    if (!string.IsNullOrEmpty(mNote)) lastNote = mNote;
-                    if (!string.IsNullOrEmpty(mMod)) lastModel = mMod;
-                }
+                    // Full Year view: sum ML predictions for every elapsed month so far.
+                    // Use the actual planned monthly rate (budgetReference / months elapsed)
+                    // so ML expected aligns with the real planned pace, not the raw annual cap.
+                    var currentMonth = DateTime.Now.Year == fiscalYear ? DateTime.Now.Month : 12;
+                    var monthlyBudgetProbe = budgetReference > 0
+                        ? (double)(budgetReference / currentMonth)   // actual planned monthly rate
+                        : (double)(cap / 12);                        // fallback: cap evenly divided
+                    var ytdMlTotal = 0.0;
+                    string lastNote = "";
+                    string lastModel = "";
 
-                mlExpected = Math.Round(ytdMlTotal, 2);
-                isAnomaly = actualSpent > 0 && mlExpected > 0
-                             && ((double)actualSpent - mlExpected) / mlExpected * 100 > 20;
-                mlNote = lastNote;
-                mlModel = lastModel;
-            }
-            else
-            {
-                // Single month view: single ML call, compare to that month's actual.
-                var budgetProbe = (double)(budgetReference > 0 ? budgetReference : cap / 12);
-                (mlExpected, isAnomaly, mlNote, mlModel) =
-                    await GetMlExpected(client, dept.DepartmentName, filterMonth, budgetProbe, (double)actualSpent);
+                    for (int mi = 1; mi <= currentMonth; mi++)
+                    {
+                        var mStr = MonthOrder[mi - 1];
+                        var (mExp, _, mNote, mMod) = await GetMlExpected(
+                            client, dept.DepartmentName, mStr, monthlyBudgetProbe, 0);
+                        ytdMlTotal += mExp;
+                        if (!string.IsNullOrEmpty(mNote)) lastNote = mNote;
+                        if (!string.IsNullOrEmpty(mMod)) lastModel = mMod;
+                    }
+
+                    mlExpected = Math.Round(ytdMlTotal, 2);
+                    isAnomaly = actualSpent > 0 && mlExpected > 0
+                                 && ((double)actualSpent - mlExpected.Value) / mlExpected.Value * 100 > 20;
+                    mlNote = lastNote;
+                    mlModel = lastModel;
+                }
+                else
+                {
+                    // Single month view: single ML call, compare to that month's actual.
+                    var budgetProbe = (double)(budgetReference > 0 ? budgetReference : cap / 12);
+                    var (mExp, mAnom, mNote, mMod) = await GetMlExpected(client, dept.DepartmentName, filterMonth, budgetProbe, (double)actualSpent);
+                    mlExpected = mExp;
+                    isAnomaly = mAnom;
+                    mlNote = mNote;
+                    mlModel = mMod;
+                }
             }
 
 
@@ -310,7 +325,7 @@ public record DeptVarianceDto(
     double VariancePct,
     string Status,
     List<MonthlyVarianceDto> MonthlyBreakdown,
-    double MlExpectedSpending,   // RF model's predicted spending for this period
+    double? MlExpectedSpending,   // RF model's predicted spending for this period
     bool IsAnomaly,            // actual >> ML expected → flag for investigation
     string MlModelUsed,
     string MlConfidenceNote);

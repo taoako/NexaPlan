@@ -54,7 +54,8 @@ namespace NexaPlan.API.Controllers.SuperAdmin
         {
             var tenant = new Tenant
             {
-                CompanyName = request.OrgName, SubscriptionTier = request.Tier, OrgType = request.OrgType,
+                CompanyName = request.OrgName, SubscriptionTier = request.Tier, 
+                OrgType = "Corporate", OrgLabel = "Department",
                 ContactPerson = $"{request.AdminFirstName} {request.AdminLastName}",
                 ContactEmail = request.AdminEmail, IsActive = true, RegistrationStatus = "Active", CreatedAt = DateTime.UtcNow
             };

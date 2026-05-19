@@ -15,10 +15,6 @@ export function BillingView({ addToast }: BillingViewProps) {
   const [refundType, setRefundType] = useState<'full' | 'partial'>('full');
   const [partialAmount, setPartialAmount] = useState('');
   const [refundLoading, setRefundLoading] = useState(false);
-  const [pricingConfig, setPricingConfig] = useState<api.PricingConfig | null>(null);
-  const [pricingLoading, setPricingLoading] = useState(false);
-  const [pricingError, setPricingError] = useState<string | null>(null);
-  const [savingPricing, setSavingPricing] = useState(false);
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
@@ -34,30 +30,7 @@ export function BillingView({ addToast }: BillingViewProps) {
     }
   };
 
-  const fetchPricing = async () => {
-    try {
-      setPricingLoading(true);
-      setPricingError(null);
-      const data = await api.getPricing();
-      setPricingConfig({
-        price_starter_monthly: data.price_starter_monthly || '0',
-        price_starter_annual: data.price_starter_annual || '0',
-        price_professional_monthly: data.price_professional_monthly || '0',
-        price_professional_annual: data.price_professional_annual || '0',
-        price_enterprise_monthly: data.price_enterprise_monthly || '0',
-        price_enterprise_annual: data.price_enterprise_annual || '0',
-        pricing_vat_inclusive: data.pricing_vat_inclusive || 'false'
-      });
-    } catch (err) {
-      console.error('Failed to load pricing:', err);
-      setPricingError('Unable to load pricing configuration.');
-      addToast('Failed to load pricing configuration.', 'error');
-    } finally {
-      setPricingLoading(false);
-    }
-  };
-
-  useEffect(() => { fetchInvoices(); fetchPricing(); }, []);
+  useEffect(() => { fetchInvoices(); }, []);
   useEffect(() => { setPage(1); }, [invoices.length]);
 
   const handleSync = async () => {
@@ -87,32 +60,6 @@ export function BillingView({ addToast }: BillingViewProps) {
       addToast(err.message || 'Refund failed.', 'error');
     } finally {
       setRefundLoading(false);
-    }
-  };
-
-  const handleSavePricing = async () => {
-    if (!pricingConfig) return;
-    setSavingPricing(true);
-    try {
-      const sanitizeMoney = (value: string) => {
-        const n = Number(value);
-        return Number.isFinite(n) && n >= 0 ? String(n) : '0';
-      };
-      await api.savePricing({
-        ...pricingConfig,
-        price_starter_monthly: sanitizeMoney(pricingConfig.price_starter_monthly),
-        price_starter_annual: sanitizeMoney(pricingConfig.price_starter_annual),
-        price_professional_monthly: sanitizeMoney(pricingConfig.price_professional_monthly),
-        price_professional_annual: sanitizeMoney(pricingConfig.price_professional_annual),
-        price_enterprise_monthly: sanitizeMoney(pricingConfig.price_enterprise_monthly),
-        price_enterprise_annual: sanitizeMoney(pricingConfig.price_enterprise_annual),
-      });
-      await fetchPricing();
-      addToast('Pricing configuration saved successfully.', 'success');
-    } catch (err: any) {
-      addToast(err.message || 'Failed to save pricing.', 'error');
-    } finally {
-      setSavingPricing(false);
     }
   };
 
@@ -206,93 +153,6 @@ export function BillingView({ addToast }: BillingViewProps) {
           onPageChange={setPage}
         />
       </div>
-
-      {/* Pricing Management */}
-      {pricingLoading && (
-        <div className="bg-white rounded-md border border-slate-200 shadow-sm p-6">
-          <div className="flex items-center gap-3 text-slate-600">
-            <RefreshCw className="w-4 h-4 animate-spin" />
-            <span className="text-sm font-semibold">Loading pricing configuration...</span>
-          </div>
-        </div>
-      )}
-
-      {!pricingLoading && pricingError && (
-        <div className="bg-white rounded-md border border-amber-200 shadow-sm p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-[18px] font-semibold text-slate-900">Pricing Configuration Unavailable</h2>
-              <p className="text-sm text-slate-500 mt-0.5">{pricingError} Try reloading pricing to manage tiers.</p>
-            </div>
-            <button onClick={fetchPricing} className="border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-md text-sm font-semibold flex items-center gap-2">
-              <RefreshCw className="w-4 h-4" /> Reload Pricing
-            </button>
-          </div>
-        </div>
-      )}
-
-      {!pricingLoading && pricingConfig && (
-        <div className="bg-white rounded-md border border-slate-200 shadow-sm p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-[20px] font-semibold text-slate-900">SaaS Pricing Configuration</h2>
-              <p className="text-sm text-slate-500 mt-0.5">Manage live subscription tiers and global tax rules.</p>
-            </div>
-            <button onClick={handleSavePricing} disabled={savingPricing} className={`flex items-center gap-2 px-6 py-2.5 rounded-md font-bold transition-all ${savingPricing ? 'bg-slate-400 text-white' : 'bg-[#4F46E5] hover:bg-[#4338CA] text-white'}`}>
-              {savingPricing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />} Save Pricing
-            </button>
-          </div>
-
-          <div className="mb-8 bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between">
-            <div>
-              <div className="font-bold text-slate-900">Global VAT Application</div>
-              <div className="text-sm text-slate-600">If inclusive, the configured price is the final charge and 12% VAT is extracted. If exclusive, 12% VAT is added on top.</div>
-            </div>
-            <button
-              onClick={() => setPricingConfig({ ...pricingConfig, pricing_vat_inclusive: pricingConfig.pricing_vat_inclusive === 'true' ? 'false' : 'true' })}
-              className={`w-14 h-7 rounded-full relative transition-all ${pricingConfig.pricing_vat_inclusive === 'true' ? 'bg-[#10B981]' : 'bg-slate-300'}`}
-            >
-              <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all ${pricingConfig.pricing_vat_inclusive === 'true' ? 'right-1' : 'left-1'}`}></div>
-            </button>
-          </div>
-
-          <div className="grid grid-cols-3 gap-6">
-            <div className="space-y-4 p-5 bg-slate-50 rounded-xl border border-slate-200">
-              <h3 className="font-bold text-slate-800 border-b pb-2 mb-4">Starter Tier</h3>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Monthly (₱)</label>
-                <input type="number" value={pricingConfig.price_starter_monthly} onChange={e => setPricingConfig({...pricingConfig, price_starter_monthly: e.target.value})} className="w-full px-3 py-2 border rounded-md" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Annual (₱)</label>
-                <input type="number" value={pricingConfig.price_starter_annual} onChange={e => setPricingConfig({...pricingConfig, price_starter_annual: e.target.value})} className="w-full px-3 py-2 border rounded-md" />
-              </div>
-            </div>
-            <div className="space-y-4 p-5 bg-slate-50 rounded-xl border border-slate-200">
-              <h3 className="font-bold text-blue-800 border-b pb-2 mb-4">Professional Tier</h3>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Monthly (₱)</label>
-                <input type="number" value={pricingConfig.price_professional_monthly} onChange={e => setPricingConfig({...pricingConfig, price_professional_monthly: e.target.value})} className="w-full px-3 py-2 border rounded-md focus:ring-blue-500" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Annual (₱)</label>
-                <input type="number" value={pricingConfig.price_professional_annual} onChange={e => setPricingConfig({...pricingConfig, price_professional_annual: e.target.value})} className="w-full px-3 py-2 border rounded-md focus:ring-blue-500" />
-              </div>
-            </div>
-            <div className="space-y-4 p-5 bg-slate-50 rounded-xl border border-slate-200">
-              <h3 className="font-bold text-slate-900 border-b pb-2 mb-4">Enterprise Tier</h3>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Monthly (₱)</label>
-                <input type="number" value={pricingConfig.price_enterprise_monthly} onChange={e => setPricingConfig({...pricingConfig, price_enterprise_monthly: e.target.value})} className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Annual (₱)</label>
-                <input type="number" value={pricingConfig.price_enterprise_annual} onChange={e => setPricingConfig({...pricingConfig, price_enterprise_annual: e.target.value})} className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500" />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Invoice Detail Modal */}
       {selectedInvoice && (

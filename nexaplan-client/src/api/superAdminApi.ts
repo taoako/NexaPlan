@@ -92,7 +92,7 @@ export const getTenants = (search?: string) =>
   apiFetch<TenantDto[]>(`/tenants${search ? `?search=${encodeURIComponent(search)}` : ''}`);
 
 export const provisionTenant = (data: {
-  orgName: string; orgType: string;
+  orgName: string;
   adminFirstName: string; adminLastName: string;
   adminEmail: string; tier: string;
 }) => apiFetch<{ message: string; tenantId: number; tempPassword: string }>('/tenants', {

@@ -9,23 +9,28 @@ import { VarianceView } from './views/VarianceView';
 import { ScenariosView } from './views/ScenariosView';
 import { ExpensesView } from './views/ExpensesView';
 import { deptHeadApi } from '../../../api/deptHeadApi';
+import * as mainAdminApi from '../../../api/mainAdminApi';
+import { FeaturesContext, TierFeatures } from '../../../context/FeaturesContext';
 
 interface DepartmentHeadSystemProps {
-  onBack: () => void;
+  onLogout: () => void;
 }
 
 export type ModuleView = 'overview' | 'proposals' | 'new-request' | 'variance' | 'scenarios' | 'expenses';
 
 interface Toast { id: number; message: string; type: 'success' | 'error' | 'info' | 'warning'; }
 
-export function DepartmentHeadSystem({ onBack }: DepartmentHeadSystemProps) {
+export function DepartmentHeadSystem({ onLogout }: DepartmentHeadSystemProps) {
   const [activeModule, setActiveModule] = useState<ModuleView>('overview');
+  const [editingProposalId, setEditingProposalId] = useState<number | null>(null);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [features, setFeatures] = useState<TierFeatures | null>(null);
   const profileRef = useRef<HTMLDivElement>(null);
   
   const [activeScenario, setActiveScenario] = useState<any>(null);
   const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const tenantId: number = storedUser.tenantId ?? 0;
   const userName = storedUser.firstName && storedUser.lastName 
     ? `${storedUser.firstName} ${storedUser.lastName}` 
     : (storedUser.name ?? 'Dept Head');
@@ -72,7 +77,19 @@ export function DepartmentHeadSystem({ onBack }: DepartmentHeadSystemProps) {
         console.error('Failed to load active scenario', err);
       }
     };
+
+    const fetchFeatures = async () => {
+      if (!tenantId) return;
+      try {
+        const data = await mainAdminApi.getSettings(tenantId);
+        setFeatures(data.features);
+      } catch (err) {
+        console.error("Failed to load tier features", err);
+      }
+    };
+
     fetchActiveScenario();
+    fetchFeatures();
   }, [activeModule]);
 
   return (
@@ -139,7 +156,7 @@ export function DepartmentHeadSystem({ onBack }: DepartmentHeadSystemProps) {
                   <div className="text-xs text-slate-500">{storedUser.email || 'depthead@nexaplan.ph'}</div>
                 </div>
                 <div className="py-1">
-                  <button onClick={() => { setShowProfileDropdown(false); onBack(); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#EF4444] hover:bg-red-50 transition-colors font-semibold">
+                  <button onClick={() => { setShowProfileDropdown(false); onLogout(); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#EF4444] hover:bg-red-50 transition-colors font-semibold">
                     <LogOut className="w-4 h-4" />Logout
                   </button>
                 </div>
@@ -150,12 +167,27 @@ export function DepartmentHeadSystem({ onBack }: DepartmentHeadSystemProps) {
       </nav>
 
       <div className="p-8">
-        {activeModule === 'overview' && <OverviewView onNavigateToScenarios={() => setActiveModule('scenarios')} />}
-        {activeModule === 'proposals' && <ProposalsView setActiveModule={setActiveModule} addToast={addToast} />}
-        {activeModule === 'new-request' && <NewRequestView setActiveModule={setActiveModule} addToast={addToast} />}
-        {activeModule === 'expenses' && <ExpensesView addToast={addToast} />}
-        {activeModule === 'variance' && <VarianceView />}
-        {activeModule === 'scenarios' && <ScenariosView />}
+        <FeaturesContext.Provider value={features}>
+          {activeModule === 'overview' && <OverviewView onNavigateToScenarios={() => setActiveModule('scenarios')} />}
+          {activeModule === 'proposals' && (
+            <ProposalsView 
+              setActiveModule={setActiveModule} 
+              addToast={addToast} 
+              onEdit={(id) => { setEditingProposalId(id); setActiveModule('new-request'); }}
+            />
+          )}
+          {activeModule === 'new-request' && (
+            <NewRequestView 
+              setActiveModule={setActiveModule} 
+              addToast={addToast} 
+              editingProposalId={editingProposalId}
+              onClearEdit={() => setEditingProposalId(null)}
+            />
+          )}
+          {activeModule === 'expenses' && <ExpensesView addToast={addToast} />}
+          {activeModule === 'variance' && <VarianceView />}
+          {activeModule === 'scenarios' && <ScenariosView />}
+        </FeaturesContext.Provider>
       </div>
 
       {/* Toast Container */}

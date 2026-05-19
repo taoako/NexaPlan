@@ -74,7 +74,8 @@ namespace NexaPlan.API.Controllers
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
                     Phone = request.Phone,
-                    OrgType = string.IsNullOrWhiteSpace(request.OrgType) ? "Corporate" : request.OrgType,
+                    OrgType = "Corporate",
+                    OrgLabel = "Department",
                     ContactPerson = $"{request.FirstName} {request.LastName}".Trim(),
                     ContactEmail = request.Email
                 };
@@ -123,7 +124,16 @@ namespace NexaPlan.API.Controllers
                 .ToListAsync();
 
             var user = allUsers.FirstOrDefault(u =>
+                !string.IsNullOrEmpty(u.Email) && 
                 string.Equals(u.Email.Trim(), emailInput, StringComparison.OrdinalIgnoreCase));
+
+            if (user == null)
+            {
+                // Fallback check for Name if email was used as Name (common in some legacy registrations)
+                user = allUsers.FirstOrDefault(u =>
+                    !string.IsNullOrEmpty(u.Name) && 
+                    string.Equals(u.Name.Trim(), emailInput, StringComparison.OrdinalIgnoreCase));
+            }
 
             if (user == null)
                 return BadRequest(new { message = "No account found with that email address." });
@@ -134,7 +144,8 @@ namespace NexaPlan.API.Controllers
             if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             {
                 user.AccessFailedCount += 1;
-                if (user.AccessFailedCount >= 5)
+                int maxAttempts = user.Tenant?.MaxFailedLoginAttempts ?? 5;
+                if (user.AccessFailedCount >= maxAttempts)
                 {
                     user.IsLocked = true;
                     await _context.SaveChangesAsync();

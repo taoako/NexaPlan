@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NexaPlan.API.Data;
 using NexaPlan.API.Models;
+using NexaPlan.API.Helpers;
 using System.Text.Json;
 
 namespace NexaPlan.API.Controllers.DeptHead
@@ -192,6 +193,13 @@ namespace NexaPlan.API.Controllers.DeptHead
             if (tenantId == 0) return NoTenant();
             if (userId   == 0) return NoUser();
             if (deptId == 0) return BadRequest(new { message = "User is not assigned to a department." });
+
+            var tenant = await _context.Tenants.FindAsync(tenantId);
+            if (!TierFeatures.CanSubmitScenarioPitch(tenant?.SubscriptionTier ?? "Trial"))
+                return StatusCode(402, new {
+                    error = "Scenario pitching requires the Professional or Enterprise plan.",
+                    upgradeRequired = true
+                });
 
             var pitch = new ScenarioPitch
             {

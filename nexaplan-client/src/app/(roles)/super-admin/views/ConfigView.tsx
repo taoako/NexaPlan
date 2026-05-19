@@ -91,7 +91,7 @@ export function ConfigView() {
         </div>
       </div>
 
-      {/* Gateway Secrets Removed */}
+      {/* Gateway Secrets Moved to Server Config */}
 
       {/* API & Compute Settings */}
       <div className="grid grid-cols-2 gap-6">

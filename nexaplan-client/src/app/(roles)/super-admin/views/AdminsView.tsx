@@ -195,14 +195,16 @@ export function AdminsView({ addToast }: AdminsViewProps) {
                 </td>
                 <td className="px-6 py-4 text-sm text-slate-700"><div className="flex items-center gap-2"><Clock className="w-4 h-4 text-slate-400" /> {admin.lastLogin}</div></td>
                 <td className="px-6 py-4">
-                  <span className={`inline-flex px-3 py-1 rounded-md text-xs font-bold ${admin.status === 'active' ? 'bg-[#10B981]/10 text-[#10B981]' : 'bg-[#EF4444]/10 text-[#EF4444]'}`}>
-                    {admin.status === 'active' ? 'Active' : '🔒 Locked'}
+                  <span className={`inline-flex px-3 py-1 rounded-md text-xs font-bold ${admin.status === 'active' ? 'bg-[#10B981]/10 text-[#10B981]' : (admin.isLocked ? 'bg-[#EF4444]/10 text-[#EF4444]' : 'bg-slate-100 text-slate-500')}`}>
+                    {admin.status === 'active' ? 'Active' : (admin.isLocked ? '🔒 Locked' : 'Disabled')}
                   </span>
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex gap-3">
-                    {admin.isLocked ? (
-                      <button onClick={() => setUnlockAdminId(admin.userID)} className="text-[#10B981] hover:text-[#059669] text-sm font-bold hover:underline flex items-center gap-1"><Key className="w-3 h-3" /> Unlock</button>
+                    {admin.status !== 'active' ? (
+                      <button onClick={() => setUnlockAdminId(admin.userID)} className="text-[#10B981] hover:text-[#059669] text-sm font-bold hover:underline flex items-center gap-1">
+                        <Key className="w-3 h-3" /> {admin.isLocked ? 'Unlock' : 'Enable'}
+                      </button>
                     ) : (
                       <>
                         <button onClick={() => { setEditAdminId(admin.userID); setEditAdminData({ name: admin.name, email: admin.email, org: admin.org, isLocked: admin.isLocked }); setShowNewPwd(false); }} className="text-[#4F46E5] hover:text-[#4338CA] text-sm font-bold hover:underline">Edit</button>

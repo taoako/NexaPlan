@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Download, X, Zap, CheckCircle2, Lock, Activity } from 'lucide-react';
 import { motion } from 'motion/react';
 import { deptHeadApi } from '../../../../api/deptHeadApi';
+import { useCurrency } from '../../../../context/CurrencyContext';
 
 export function VarianceView() {
+  const { fmt } = useCurrency();
   const [timeFilter, setTimeFilter] = useState<string>('FY2026');
   const [data, setData] = useState<any>(null);
   const [previewScenarioMultiplier, setPreviewScenarioMultiplier] = useState<number>(1.0);
@@ -131,21 +133,21 @@ export function VarianceView() {
           <div className="text-sm font-bold text-slate-600 mb-2">Projected Budget ({timeFilter})</div>
           <div className="flex items-baseline gap-2">
             <motion.div animate={{ scale: isScenarioTransitioning ? 1.05 : 1 }} className="text-4xl font-black text-[#0A192F]">
-              ₱{totalBudgeted.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {fmt(totalBudgeted)}
             </motion.div>
           </div>
         </div>
         
         <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
           <div className="text-sm font-bold text-slate-600 mb-2">Actual Spent ({timeFilter})</div>
-          <div className="text-4xl font-black text-slate-900">₱{totalActual.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+          <div className="text-4xl font-black text-slate-900">{fmt(totalActual)}</div>
         </div>
         
         <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm relative overflow-hidden">
           <div className={`absolute top-0 left-0 w-1 h-full ${varianceIsUnder ? 'bg-[#10B981]' : 'bg-[#EF4444]'}`}></div>
           <div className="text-sm font-bold text-slate-600 mb-2">Scenario Variance</div>
           <div className={`text-4xl font-black ${varianceIsUnder ? 'text-[#10B981]' : 'text-[#EF4444]'}`}>
-            {varianceIsUnder ? '-' : '+'}₱{Math.abs(totalVariance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {varianceIsUnder ? '-' : '+'}{fmt(Math.abs(totalVariance))}
           </div>
         </div>
       </div>
@@ -170,7 +172,7 @@ export function VarianceView() {
                       <h3 className="font-bold text-slate-900">{project.title}</h3>
                       <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-black uppercase rounded">{project.priority}</span>
                     </div>
-                    <div className="text-sm font-black text-slate-900">₱{project.amount.toLocaleString()}</div>
+                    <div className="text-sm font-black text-slate-900">{fmt(project.amount)}</div>
                   </div>
                   
                   <div className="flex items-center justify-between">

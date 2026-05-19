@@ -3,12 +3,14 @@ import { Download, FileText, Calendar, AlertTriangle, CheckCircle2 } from 'lucid
 import { Scenario } from '../FinanceManagerSystem';
 import { financeManagerApi, getVarianceData, VarianceSummary } from '../../../../api/financeManagerApi';
 import { TablePagination } from '../../../../components/TablePagination';
+import { useFeatures } from '../../../../context/FeaturesContext';
 
 interface VarianceViewProps {
-  activeScenario: Scenario;
+  activeScenario: Scenario | null;
 }
 
 export function VarianceView({ activeScenario }: VarianceViewProps) {
+  const features = useFeatures();
   const [generatingReport, setGeneratingReport] = useState<string | null>(null);
   const [allocData, setAllocData] = useState<any>(null);
   const [showNet, setShowNet] = useState(false); // false = Gross (with tax), true = Net (without tax)
@@ -134,8 +136,10 @@ export function VarianceView({ activeScenario }: VarianceViewProps) {
         <table className="w-full">
           <thead className="bg-slate-50 border-b border-[#d1d5db]">
             <tr>
-              {['Department','Budgeted','Actual','Variance','ML Expected','% Used','Pacing vs Time','Status','Audit'].map(h=>(
-                <th key={h} className={`px-6 py-3 text-left text-[11px] font-black uppercase tracking-wider ${h === 'ML Expected' ? 'text-purple-500' : 'text-slate-500'}`}>{h}</th>
+              {['Department','Budgeted','Actual','Variance', (features?.canSeeMLVarianceCol ? 'ML Expected' : null), '% Used','Pacing vs Time','Status','Audit']
+                .filter(Boolean)
+                .map(h=>(
+                  <th key={h as string} className={`px-6 py-3 text-left text-[11px] font-black uppercase tracking-wider ${h === 'ML Expected' ? 'text-purple-500' : 'text-slate-500'}`}>{h as string}</th>
               ))}
             </tr>
           </thead>
@@ -169,23 +173,25 @@ export function VarianceView({ activeScenario }: VarianceViewProps) {
                     {v >= 0 ? '-' : '+'}₱{Math.abs(v).toLocaleString(undefined,{maximumFractionDigits:0})}
                   </td>
                   {/* ML Expected column */}
-                  <td className="px-6 py-3.5">
-                    {row.mlExpectedSpending > 0 ? (
-                      <span 
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border cursor-help ${
-                          row.isAnomaly
-                            ? 'bg-red-50 text-red-600 border-red-200'
-                            : 'bg-purple-50 text-purple-700 border-purple-200'
-                        }`}
-                        title={row.mlConfidenceNote || 'ML Predicted Utilization'}
-                      >
-                        {row.isAnomaly && <span>⚠ </span>}
-                        ₱{(showNet ? row.mlExpectedSpending / (1 + VAT_RATE) : row.mlExpectedSpending).toLocaleString(undefined,{maximumFractionDigits:0})}
-                      </span>
-                    ) : (
-                      <span className="text-slate-300 text-xs">—</span>
-                    )}
-                  </td>
+                  {features?.canSeeMLVarianceCol && (
+                    <td className="px-6 py-3.5">
+                      {row.mlExpectedSpending > 0 ? (
+                        <span 
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border cursor-help ${
+                            row.isAnomaly
+                              ? 'bg-red-50 text-red-600 border-red-200'
+                              : 'bg-purple-50 text-purple-700 border-purple-200'
+                          }`}
+                          title={row.mlConfidenceNote || 'ML Predicted Utilization'}
+                        >
+                          {row.isAnomaly && <span>⚠ </span>}
+                          ₱{(showNet ? (row.mlExpectedSpending ?? 0) / (1 + VAT_RATE) : (row.mlExpectedSpending ?? 0)).toLocaleString(undefined,{maximumFractionDigits:0})}
+                        </span>
+                      ) : (
+                        <span className="text-slate-300 text-xs">—</span>
+                      )}
+                    </td>
+                  )}
                   <td className="px-6 py-3.5">
                     <div className="flex items-center gap-2">
                       <div className="w-20 bg-slate-100 rounded-full h-1.5 overflow-hidden">

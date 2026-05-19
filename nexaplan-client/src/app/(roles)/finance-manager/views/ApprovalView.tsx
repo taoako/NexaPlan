@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { CheckCircle2, Clock, AlertCircle, XCircle, Activity, ToggleLeft, ToggleRight, TriangleAlert } from 'lucide-react';
 import { financeManagerApi } from '../../../../api/financeManagerApi';
 import { deptHeadApi } from '../../../../api/deptHeadApi'; // Reuse getLineItems if needed
+import { useCurrency } from '../../../../context/CurrencyContext';
 
 export function ApprovalView() {
+  const { fmt } = useCurrency();
   const [proposals, setProposals] = useState<any[]>([]);
   const [selectedProposal, setSelectedProposal] = useState<any>(null);
   const [lineItems, setLineItems] = useState<any[]>([]);
@@ -124,7 +126,7 @@ export function ApprovalView() {
               <h3 className="font-bold text-[14px] text-slate-900 mb-1">{p.title}</h3>
               <p className="text-[12px] text-slate-500 mb-3">{p.department} · {p.submittedBy}</p>
               <div className="flex items-center justify-between">
-                <span className="text-[18px] font-black text-slate-900">₱{p.amount.toLocaleString()}</span>
+                <span className="text-[18px] font-black text-slate-900">{fmt(p.amount)}</span>
                 <div className="flex items-center gap-2">
                   <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${
                     p.status.toLowerCase() === 'pending' ? 'bg-[#F59E0B]/10 text-[#D97706] border border-[#F59E0B]/40' : 
@@ -195,8 +197,8 @@ export function ApprovalView() {
                     <tr key={li.lineItemId} className={`border-b border-slate-100 ${isRejected ? 'opacity-50 bg-slate-50' : ''}`}>
                       <td className={`px-4 py-3 ${isRejected ? 'line-through text-slate-400' : ''}`}>{li.description}</td>
                       <td className={`px-4 py-3 ${isRejected ? 'line-through text-slate-400' : ''}`}>{li.quantity}</td>
-                      <td className={`px-4 py-3 font-mono ${isRejected ? 'line-through text-slate-400' : ''}`}>₱{li.unitCost.toLocaleString()}</td>
-                      <td className={`px-4 py-3 font-mono font-bold ${isRejected ? 'line-through text-slate-400' : ''}`}>₱{li.total.toLocaleString()}</td>
+                      <td className={`px-4 py-3 font-mono ${isRejected ? 'line-through text-slate-400' : ''}`}>{fmt(li.unitCost)}</td>
+                      <td className={`px-4 py-3 font-mono font-bold ${isRejected ? 'line-through text-slate-400' : ''}`}>{fmt(li.total)}</td>
                       <td className="px-4 py-3 text-right">
                         <button onClick={() => toggleItemRejection(li.lineItemId)} className="flex items-center gap-1 justify-end text-xs font-bold w-full">
                           {isRejected ? (
@@ -214,8 +216,8 @@ export function ApprovalView() {
                   <tr>
                     <td colSpan={3} className="px-4 py-3 text-right text-[13px] font-bold">Adjusted Total:</td>
                     <td colSpan={2} className="px-4 py-3 font-mono font-black text-[17px] text-[#0052FF]">
-                      ₱{activeTotal.toLocaleString()}
-                      {rejectedItems.length > 0 && <span className="ml-2 text-xs font-normal text-slate-400 line-through">₱{selectedProposal.amount.toLocaleString()}</span>}
+                      {fmt(activeTotal)}
+                      {rejectedItems.length > 0 && <span className="ml-2 text-xs font-normal text-slate-400 line-through">{fmt(selectedProposal.amount)}</span>}
                     </td>
                   </tr>
                 </tfoot>
@@ -238,9 +240,9 @@ export function ApprovalView() {
                         const base = (vatIncTotal / 1.12) + vatExcTotal;
                         return (
                           <div className="space-y-1 text-xs font-mono">
-                            <div className="flex justify-between text-slate-600"><span>Requested (VAT Inclusive):</span><span className="font-bold">₱{activeTotal.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</span></div>
-                            <div className="flex justify-between text-slate-600"><span>Estimated Base Cost:</span><span className="font-bold">₱{base.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</span></div>
-                            <div className="flex justify-between text-emerald-700 font-bold"><span>Estimated 12% VAT:</span><span>₱{vat.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</span></div>
+                            <div className="flex justify-between text-slate-600"><span>Requested (VAT Inclusive):</span><span className="font-bold">{fmt(activeTotal)}</span></div>
+                            <div className="flex justify-between text-slate-600"><span>Estimated Base Cost:</span><span className="font-bold">{fmt(base)}</span></div>
+                            <div className="flex justify-between text-emerald-700 font-bold"><span>Estimated 12% VAT:</span><span>{fmt(vat)}</span></div>
                           </div>
                         );
                       })()}
@@ -252,7 +254,7 @@ export function ApprovalView() {
                       <TriangleAlert className="w-5 h-5 shrink-0 text-red-500" />
                       <div>
                         <strong>Budget Impact Warning:</strong> Approving this request will push the {selectedProposal.department} department over its allocated budget cap for the quarter.
-                        <div className="mt-1 font-mono text-xs text-red-600">Cap: ₱{deptCap.toLocaleString()} · Spent + Request: ₱{(deptSpent + activeTotal).toLocaleString()}</div>
+                        <div className="mt-1 font-mono text-xs text-red-600">Cap: {fmt(deptCap)} · Spent + Request: {fmt(deptSpent + activeTotal)}</div>
                       </div>
                     </div>
                   )}

@@ -79,9 +79,9 @@ export function PricingTable({ onStartTrial, onSelectPlan }: PricingTableProps) 
 
               <div className="mb-8">
                 <div className="flex items-center gap-2 mb-3">
-                  {plan.name === 'Starter' && <Rocket className="w-5 h-5 text-slate-400" />}
-                  {plan.name === 'Professional' && <Zap className="w-5 h-5 text-blue-500 fill-blue-500" />}
-                  {plan.name === 'Enterprise' && <Shield className="w-5 h-5 text-indigo-600" />}
+                  {plan.name.toLowerCase() === 'starter' && <Rocket className="w-5 h-5 text-slate-400" />}
+                  {plan.name.toLowerCase() === 'professional' && <Zap className="w-5 h-5 text-blue-500 fill-blue-500" />}
+                  {plan.name.toLowerCase() === 'enterprise' && <Shield className="w-5 h-5 text-indigo-600" />}
                   <span className={`text-sm font-black uppercase tracking-widest ${plan.isPopular ? 'text-blue-600' : 'text-slate-500'}`}>
                     {plan.name}
                   </span>
@@ -96,13 +96,13 @@ export function PricingTable({ onStartTrial, onSelectPlan }: PricingTableProps) 
               </div>
 
               <button
-                onClick={() => plan.name === 'Starter' ? onStartTrial() : onSelectPlan(plan.name.toLowerCase())}
+                onClick={() => plan.name.toLowerCase() === 'starter' ? onStartTrial() : onSelectPlan(plan.name)}
                 className={`w-full py-4 rounded-xl font-black transition-all duration-300 mb-8 shadow-lg ${plan.isPopular
                   ? 'bg-[#0052FF] text-white hover:bg-blue-600 shadow-blue-200'
                   : 'bg-[#0A192F] text-white hover:bg-slate-800 shadow-slate-200'
                   }`}
               >
-                {plan.name === 'Starter' ? 'Start 14-Day Free Trial' : `Choose ${plan.name}`}
+                {plan.name.toLowerCase() === 'starter' ? 'Start 14-Day Free Trial' : `Choose ${plan.name}`}
               </button>
 
               <div className="space-y-4 flex-1">

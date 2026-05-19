@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, ArrowRightLeft, X, FileText, CheckCircle2, Building2, AlertTriangle } from 'lucide-react';
 import { financeManagerApi } from '../../../../api/financeManagerApi';
+import { useCurrency } from '../../../../context/CurrencyContext';
 
 export function AllocationView() {
+  const { fmt, symbol } = useCurrency();
   const [selectedDept, setSelectedDept] = useState<any>(null);
   const [showTransfer, setShowTransfer] = useState(false);
   const [transferForm, setTransferForm] = useState({ from: '', to: '', amount: '' });
   const [pendingTransfer, setPendingTransfer] = useState<{ from: string; to: string; amount: number } | null>(null);
   const [allocData, setAllocData] = useState<any>(null);
-  const [allocForm, setAllocForm] = useState({ departmentId: '', amount: '' });
+  const [allocForm, setAllocForm] = useState({ departmentId: '', amount: '', mode: 'add' as 'add' | 'subtract' | 'set' });
   const [capWarning, setCapWarning] = useState<string | null>(null);
   
   // UI Modals
@@ -56,17 +58,17 @@ export function AllocationView() {
   const handleSetAllocation = async () => {
     if (!allocForm.departmentId || !allocForm.amount) return setModalMessage({ title: 'Error', message: 'Please select a department and amount.', type: 'error' });
     const amt = parseFloat(allocForm.amount);
-    if (isNaN(amt) || amt < 0) return setModalMessage({ title: 'Error', message: 'Invalid allocation amount.', type: 'error' });
+    if (isNaN(amt) || amt < 0) return setModalMessage({ title: 'Error', message: 'Invalid amount.', type: 'error' });
 
     try {
-      const result = await financeManagerApi.setAllocation(parseInt(allocForm.departmentId, 10), amt);
+      const result = await financeManagerApi.adjustAllocation(parseInt(allocForm.departmentId, 10), amt, allocForm.mode);
       if (result.warning) {
         setCapWarning(result.warning);
         fetchAllocations();
       } else {
         setModalMessage({ title: 'Success', message: 'Allocation updated successfully.', type: 'success' });
         setShowNewAlloc(false);
-        setAllocForm({ departmentId: '', amount: '' });
+        setAllocForm({ departmentId: '', amount: '', mode: 'add' });
         setCapWarning(null);
         fetchAllocations();
       }
@@ -74,8 +76,6 @@ export function AllocationView() {
       setModalMessage({ title: 'Update Failed', message: err.message || 'Failed to update allocation.', type: 'error' });
     }
   };
-
-  const safeLocale = (val: any) => (val || 0).toLocaleString();
 
   if (!allocData) return <div className="p-12 text-center text-slate-500">Loading allocations...</div>;
 
@@ -105,10 +105,10 @@ export function AllocationView() {
         
         <div className="grid grid-cols-4 gap-5 mb-6">
           {[
-            {label:'Company Budget',val:`₱${safeLocale(allocData.totalCompanyBudget)}`,sub:'Total pool',c:'#0F172A'},
-            {label:'Total Allocated',val:`₱${safeLocale(allocData.totalAllocated)}`,sub:`${(((allocData.totalAllocated || 0) / (allocData.totalCompanyBudget || 1)) * 100).toFixed(1)}% distributed`,c:'#0052FF'},
+            {label:'Company Budget',val:fmt(allocData.totalCompanyBudget),sub:'Total pool',c:'#0F172A'},
+            {label:'Total Allocated',val:fmt(allocData.totalAllocated),sub:`${(((allocData.totalAllocated || 0) / (allocData.totalCompanyBudget || 1)) * 100).toFixed(1)}% distributed`,c:'#0052FF'},
             {label:'Pending Requests',val:(allocData.pendingRequests || 0).toString(),sub:'Requires review',c:'#D97706'},
-            {label:'Approved This Month',val:(allocData.approvedCountThisMonth || 0).toString(),sub:`₱${safeLocale(allocData.approvedThisMonth)} total`,c:'#10B981'},
+            {label:'Approved This Month',val:(allocData.approvedCountThisMonth || 0).toString(),sub:`${fmt(allocData.approvedThisMonth)} total`,c:'#10B981'},
           ].map((k,i)=>(
             <div key={i} className="bg-white rounded-xl p-5 border border-[#d1d5db] shadow-sm relative overflow-hidden group">
               <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 relative z-10">{k.label}</div>
@@ -138,7 +138,7 @@ export function AllocationView() {
                   <div className="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden">
                     <div className="bg-[#0052FF] h-2 rounded-full transition-all duration-500" style={{width:`${dept.pct || 0}%`}}/>
                   </div>
-                  <div className="w-32 text-right font-mono font-bold text-[13px] text-slate-800">₱{safeLocale(dept.amount)}</div>
+                  <div className="w-32 text-right font-mono font-bold text-[13px] text-slate-800">{fmt(dept.amount)}</div>
                   <div className="w-12 text-right text-[13px] text-slate-500">{(dept.pct || 0).toFixed(1)}%</div>
                 </div>
               );
@@ -172,14 +172,14 @@ export function AllocationView() {
                 </div>
                 <div className="flex justify-between items-center text-xs text-slate-500">
                   <div className="flex items-center gap-1"><FileText className="w-3.5 h-3.5" /> ID: PRJ-{prop.id}</div>
-                  <div className="font-mono font-bold text-slate-700 text-sm">₱{safeLocale(prop.amount)}</div>
+                  <div className="font-mono font-bold text-slate-700 text-sm">{fmt(prop.amount)}</div>
                 </div>
               </div>
             ))}
             <div className="mt-6 p-4 bg-blue-50 border border-blue-100 rounded-xl">
               <div className="text-xs font-bold text-blue-800 uppercase mb-1">Total Analyzed</div>
-              <div className="text-xl font-black text-blue-900">₱{safeLocale(selectedDept.spent)}</div>
-              <div className="text-xs text-blue-600 mt-1">Remaining unallocated: ₱{safeLocale((selectedDept.amount || 0) - (selectedDept.spent || 0))}</div>
+              <div className="text-xl font-black text-blue-900">{fmt(selectedDept.spent)}</div>
+              <div className="text-xs text-blue-600 mt-1">Remaining unallocated: {fmt((selectedDept.amount || 0) - (selectedDept.spent || 0))}</div>
             </div>
           </div>
         </div>
@@ -203,7 +203,7 @@ export function AllocationView() {
                   onChange={(e) => setTransferForm(prev => ({ ...prev, from: e.target.value }))}
                 >
                   <option value="">Select source department...</option>
-                  {allocData.departments.map((d: any) => <option key={d.name} value={d.name}>{d.name} (₱{safeLocale(d.amount)})</option>)}
+                  {allocData.departments.map((d: any) => <option key={d.name} value={d.name}>{d.name} ({fmt(d.amount)})</option>)}
                 </select>
               </div>
               
@@ -215,12 +215,12 @@ export function AllocationView() {
                   onChange={(e) => setTransferForm(prev => ({ ...prev, to: e.target.value }))}
                 >
                   <option value="">Select target department...</option>
-                  {allocData.departments.map((d: any) => <option key={d.name} value={d.name}>{d.name} (₱{safeLocale(d.amount)})</option>)}
+                  {allocData.departments.map((d: any) => <option key={d.name} value={d.name}>{d.name} ({fmt(d.amount)})</option>)}
                 </select>
               </div>
               
               <div>
-                <label className="block text-xs font-black text-slate-500 uppercase mb-2">Amount to Transfer (₱)</label>
+                <label className="block text-xs font-black text-slate-500 uppercase mb-2">Amount to Transfer ({symbol})</label>
                 <input 
                   type="number"
                   min="0"
@@ -285,15 +285,15 @@ export function AllocationView() {
                   <div className="grid grid-cols-2 gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100 animate-in fade-in slide-in-from-top-2 duration-300">
                     <div>
                       <div className="text-[10px] font-bold text-slate-400 uppercase">Current Allocation</div>
-                      <div className="font-mono font-bold text-slate-700">₱{safeLocale(d.amount)}</div>
+                      <div className="font-mono font-bold text-slate-700">{fmt(d.amount)}</div>
                     </div>
                     <div>
                       <div className="text-[10px] font-bold text-slate-400 uppercase">Actual Spent</div>
-                      <div className="font-mono font-bold text-emerald-600">₱{safeLocale(d.spent)}</div>
+                      <div className="font-mono font-bold text-emerald-600">{fmt(d.spent)}</div>
                     </div>
                     <div className="col-span-2 pt-2 border-t border-slate-200">
                       <div className="text-[10px] font-bold text-slate-400 uppercase">Global Budget Remaining</div>
-                      <div className="font-mono font-bold text-blue-600">₱{safeLocale(remainingGlobal)}</div>
+                      <div className="font-mono font-bold text-blue-600">{fmt(remainingGlobal)}</div>
                       <div className="text-[9px] text-slate-400 mt-0.5 leading-tight italic">
                         Max amount you can allocate to this department without exceeding the company's total annual budget.
                       </div>
@@ -313,9 +313,34 @@ export function AllocationView() {
               )}
 
               <div>
-                <label className="block text-xs font-black text-slate-500 uppercase mb-2">New Annual Cap (₱)</label>
+                <label className="block text-xs font-black text-slate-500 uppercase mb-2">Adjustment Mode</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: 'add', label: 'Add to Budget' },
+                    { id: 'subtract', label: 'Subtract from Budget' },
+                    { id: 'set', label: 'Set Absolute Cap' }
+                  ].map(mode => (
+                    <button
+                      key={mode.id}
+                      onClick={() => setAllocForm(p => ({ ...p, mode: mode.id as any }))}
+                      className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all ${
+                        allocForm.mode === mode.id 
+                          ? 'bg-[#0052FF] border-[#0052FF] text-white' 
+                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      {mode.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-slate-500 uppercase mb-2">
+                  {allocForm.mode === 'add' ? `Amount to Add (${symbol})` : allocForm.mode === 'subtract' ? `Amount to Subtract (${symbol})` : `New Annual Cap (${symbol})`}
+                </label>
                 <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₱</span>
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">{symbol}</span>
                   <input
                     type="number"
                     min="0"
@@ -349,7 +374,7 @@ export function AllocationView() {
             </div>
             <h3 className="font-black text-lg text-slate-900 text-center mb-2">Confirm Transfer</h3>
             <p className="text-sm text-slate-600 text-center mb-6">
-              Move ₱{pendingTransfer.amount.toLocaleString()} from {pendingTransfer.from} to {pendingTransfer.to}?
+              Move {fmt(pendingTransfer.amount)} from {pendingTransfer.from} to {pendingTransfer.to}?
             </p>
             <div className="flex gap-3">
               <button

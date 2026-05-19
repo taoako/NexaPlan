@@ -14,9 +14,9 @@ import type { TenantDto, SummaryDto } from '../../../api/superAdminApi';
 
 export type DashboardView = 'overview' | 'tenants' | 'billing' | 'pricing' | 'admins' | 'config' | 'maintenance' | 'trial-requests';
 
-interface SuperAdminSystemProps { onBack: () => void; }
+interface SuperAdminSystemProps { onLogout: () => void; }
 
-export default function SuperAdminSystem({ onBack }: SuperAdminSystemProps) {
+export default function SuperAdminSystem({ onLogout }: SuperAdminSystemProps) {
   const [currentView, setCurrentView] = useState<DashboardView>('overview');
   const [searchQuery, setSearchQuery] = useState('');
   const [pendingTrialCount, setPendingTrialCount] = useState(0);
@@ -29,7 +29,7 @@ export default function SuperAdminSystem({ onBack }: SuperAdminSystemProps) {
   // Provision modal state
   const [showProvisionModal, setShowProvisionModal] = useState(false);
   const [provisionStep, setProvisionStep] = useState(0);
-  const [provisionData, setProvisionData] = useState({ orgName: '', orgType: 'Corporate', adminFirst: '', adminLast: '', adminEmail: '', tier: 'starter' });
+  const [provisionData, setProvisionData] = useState({ orgName: '', adminFirst: '', adminLast: '', adminEmail: '', tier: 'starter' });
   const [provisionLoading, setProvisionLoading] = useState(false);
 
   // Edit tenant state
@@ -91,7 +91,6 @@ export default function SuperAdminSystem({ onBack }: SuperAdminSystemProps) {
     try {
       const result = await api.provisionTenant({
         orgName: provisionData.orgName,
-        orgType: provisionData.orgType,
         adminFirstName: provisionData.adminFirst,
         adminLastName: provisionData.adminLast,
         adminEmail: provisionData.adminEmail,
@@ -100,7 +99,7 @@ export default function SuperAdminSystem({ onBack }: SuperAdminSystemProps) {
       addToast(result.message, 'success');
       setShowProvisionModal(false);
       setProvisionStep(0);
-      setProvisionData({ orgName: '', orgType: 'Corporate', adminFirst: '', adminLast: '', adminEmail: '', tier: 'starter' });
+      setProvisionData({ orgName: '', adminFirst: '', adminLast: '', adminEmail: '', tier: 'starter' });
       fetchData();
     } catch (err: any) {
       addToast(err.message || 'Provisioning failed', 'error');
@@ -180,7 +179,7 @@ export default function SuperAdminSystem({ onBack }: SuperAdminSystemProps) {
 
   return (
     <div className="flex flex-col h-screen w-full bg-[#F1F5F9] font-['Inter']">
-      <SuperAdminTopNav currentView={currentView} setCurrentView={setCurrentView} onBack={onBack} pendingTrialCount={pendingTrialCount} />
+      <SuperAdminTopNav currentView={currentView} setCurrentView={setCurrentView} onLogout={onLogout} pendingTrialCount={pendingTrialCount} />
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="h-[72px] bg-white border-b border-[#E2E8F0] flex items-center justify-between px-8 shrink-0">
@@ -264,17 +263,6 @@ export default function SuperAdminSystem({ onBack }: SuperAdminSystemProps) {
                   <div>
                     <label className="block text-sm font-bold text-slate-700 mb-2">Organization Name *</label>
                     <input type="text" value={provisionData.orgName} onChange={e => setProvisionData(p => ({ ...p, orgName: e.target.value }))} placeholder="e.g. Davao City Government" className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#4F46E5] outline-none" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2">Organizational Type *</label>
-                    <div className="grid grid-cols-2 gap-3">
-                      {[{ value: 'Corporate', sub: 'Uses "Departments"' }, { value: 'Government', sub: 'Uses "Bureaus/Offices"' }].map(opt => (
-                        <button key={opt.value} onClick={() => setProvisionData(p => ({ ...p, orgType: opt.value }))} className={`p-4 border-2 rounded-lg text-left transition-all ${provisionData.orgType === opt.value ? 'border-[#4F46E5] bg-[#4F46E5]/5' : 'border-slate-200'}`}>
-                          <div className="font-bold text-slate-900">{opt.value}</div>
-                          <div className="text-xs text-slate-500 mt-0.5">{opt.sub}</div>
-                        </button>
-                      ))}
-                    </div>
                   </div>
                 </div>
               )}

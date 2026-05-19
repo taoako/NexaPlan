@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using NexaPlan.API.Data;
 using NexaPlan.API.DTOs;
 using NexaPlan.API.Models;
+using NexaPlan.API.Helpers;
 
 namespace NexaPlan.API.Controllers.MainAdmin
 {
@@ -73,6 +74,15 @@ namespace NexaPlan.API.Controllers.MainAdmin
             int userId = GetUserId();
             if (userId == 0) return NoUser();
             if (!await IsMainAdminAsync(tenantId, userId)) return Forbid();
+
+            var tenant = await _context.Tenants.FindAsync(tenantId);
+            var deptCount = await _context.Departments.CountAsync(d => d.TenantID == tenantId);
+            var maxDepts = TierFeatures.MaxDepartments(tenant?.SubscriptionTier ?? "Trial");
+
+            if (maxDepts != int.MaxValue && deptCount >= maxDepts)
+                return BadRequest(new {
+                    error = $"Your {tenant?.SubscriptionTier ?? "Trial"} plan allows a maximum of {maxDepts} departments. Upgrade to add more."
+                });
 
             if (await _context.Departments.AnyAsync(d => d.TenantID == tenantId && d.DepartmentName == request.Name))
                 return BadRequest(new { message = "A department with that name already exists." });

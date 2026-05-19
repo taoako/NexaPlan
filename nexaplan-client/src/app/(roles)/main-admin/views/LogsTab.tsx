@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Search, Download, RefreshCw, Calendar } from 'lucide-react';
 import type { MainAdminLog } from '../../../../api/mainAdminApi';
 import { TablePagination } from '../../../../components/TablePagination';
+import { apiUrl } from '../../../../config/api';
 
 interface Props {
   logs: MainAdminLog[];
@@ -34,11 +35,41 @@ export function LogsTab({ logs, loading, onFilter }: Props) {
   const actionLabel = (a: string) => a.replace(/_/g,' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
   const pagedLogs = logs.slice((page - 1) * pageSize, page * pageSize);
 
-  const exportCsv = () => {
-    const rows = [['Time','Action','Target','User','IP'],...logs.map(l=>[l.time,l.action,l.target,l.userName,l.ip])];
-    const csv = rows.map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');
-    const a = document.createElement('a'); a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-    a.download = `nexaplan-logs-${Date.now()}.csv`; a.click();
+  const exportCsv = async () => {
+    const q = new URLSearchParams();
+    if (search) q.set('search', search);
+    if (type !== 'All') q.set('type', type);
+    if (from) q.set('dateFrom', from);
+    if (to) q.set('dateTo', to);
+
+    const userStr = localStorage.getItem('user');
+    const user = userStr ? JSON.parse(userStr) : null;
+    const tenantId = user?.tenantId || 0;
+
+    // Use apiUrl helper to ensure we hit the backend, not the Vite dev server
+    const url = apiUrl(`/api/main-admin/export?${q.toString()}`);
+    
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'X-Tenant-Id': String(tenantId),
+          'X-User-Id': user?.userId?.toString() || '',
+        }
+      });
+      if (!response.ok) throw new Error('Export failed');
+      
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `NexaPlan_AuditLog_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (err) {
+      console.error('Export failed', err);
+      alert('Professional export failed. Please try again.');
+    }
   };
 
   return (

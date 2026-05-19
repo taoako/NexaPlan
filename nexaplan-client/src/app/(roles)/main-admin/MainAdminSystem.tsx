@@ -11,12 +11,15 @@ import { SettingsTab } from './views/SettingsTab';
 import { LogsTab } from './views/LogsTab';
 import { BillingTab } from './views/BillingTab';
 import * as api from '../../../api/mainAdminApi';
+import { FeaturesContext, TierFeatures } from '../../../context/FeaturesContext';
+import { useCurrency } from '../../../context/CurrencyContext';
 
 type Tab = 'overview' | 'forecasting' | 'users' | 'departments' | 'settings' | 'logs' | 'billing';
 interface Toast { id: number; message: string; type: 'success' | 'error' | 'info'; }
-interface Props { onBack?: () => void; }
+interface Props { onLogout?: () => void; }
 
-export function MainAdminSystem({ onBack }: Props) {
+export function MainAdminSystem({ onLogout }: Props) {
+  const { setCurrency } = useCurrency();
   // ── Auth: read from localStorage ──
   const storedUser = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
   const tenantId: number = storedUser.tenantId ?? 0;
@@ -42,6 +45,7 @@ export function MainAdminSystem({ onBack }: Props) {
   const [deptLabel, setDeptLabel] = useState('Department');
   const [roles, setRoles] = useState<api.RoleOption[]>([]);
   const [settings, setSettings] = useState<api.MainAdminSettings | null>(null);
+  const [features, setFeatures] = useState<TierFeatures | null>(null);
   const [logs, setLogs] = useState<api.MainAdminLog[]>([]);
   const [billing, setBilling] = useState<api.MainAdminBilling | null>(null);
   const [loading, setLoading] = useState(false);
@@ -58,9 +62,33 @@ export function MainAdminSystem({ onBack }: Props) {
   const fetchUsers    = useCallback(async () => { if (!tenantId) return; try { setUsers(await api.getUsers(tenantId)); } catch (e: any) { addToast(e.message, 'error'); } }, [tenantId, addToast]);
   const fetchDepts    = useCallback(async () => { if (!tenantId) return; try { const r = await api.getDepartments(tenantId); setDepartments(r.departments); setDeptLabel(r.label); } catch (e: any) { addToast(e.message, 'error'); } }, [tenantId, addToast]);
   const fetchRoles    = useCallback(async () => { if (!tenantId) return; try { setRoles(await api.getRoles(tenantId)); } catch {}  }, [tenantId]);
-  const fetchSettings = useCallback(async () => { if (!tenantId) return; try { setSettings(await api.getSettings(tenantId)); } catch (e: any) { addToast(e.message, 'error'); } }, [tenantId, addToast]);
+  const fetchSettings = useCallback(async () => { 
+    if (!tenantId) return; 
+    try { 
+      const data = await api.getSettings(tenantId);
+      setSettings(data);
+      setFeatures(data.features);
+      if (data.defaultCurrency) {
+        setCurrency(data.defaultCurrency);
+      }
+    } catch (e: any) { 
+      addToast(e.message, 'error'); 
+    } 
+  }, [tenantId, addToast, setCurrency]);
   const fetchBilling  = useCallback(async () => { if (!tenantId) return; try { setBilling(await api.getBilling(tenantId)); } catch (e: any) { addToast(e.message, 'error'); } }, [tenantId, addToast]);
   const fetchLogs     = useCallback(async (params?: Parameters<typeof api.getLogs>[1]) => { if (!tenantId) return; try { setLogs(await api.getLogs(tenantId, params)); } catch (e: any) { addToast(e.message, 'error'); } }, [tenantId, addToast]);
+
+  // ── Load features once on mount ──
+  useEffect(() => {
+    fetchSettings();
+  }, [fetchSettings]);
+
+  // ── Listen for upgrade requests from sub-components ──
+  useEffect(() => {
+    const handleNav = () => setActiveTab('billing');
+    window.addEventListener('navigate-to-billing', handleNav);
+    return () => window.removeEventListener('navigate-to-billing', handleNav);
+  }, []);
 
   // ── Load on tab switch ──
   useEffect(() => {
@@ -87,9 +115,13 @@ export function MainAdminSystem({ onBack }: Props) {
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
-    window.location.reload(); // Return to landing; App.jsx will see no user and show landing
+    if (onLogout) {
+      onLogout();
+    } else {
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
+      window.location.reload();
+    }
   };
 
   const NAV: { id: Tab; label: string; icon: React.ReactNode }[] = [
@@ -180,79 +212,81 @@ export function MainAdminSystem({ onBack }: Props) {
 
       {/* ── Main Content ── */}
       <main className="flex-1 overflow-y-auto p-6">
-        {activeTab === 'overview' && (
-          <OverviewTab
-            summary={summary}
-            loading={loading}
-            onRoleClick={(role) => { setFilterRole(role); setActiveTab('users'); }}
-          />
-        )}
+        <FeaturesContext.Provider value={features}>
+          {activeTab === 'overview' && (
+            <OverviewTab
+              summary={summary}
+              loading={loading}
+              onRoleClick={(role) => { setFilterRole(role); setActiveTab('users'); }}
+            />
+          )}
 
-        {activeTab === 'forecasting' && (
-          <ForecastingTab departments={departments} />
-        )}
+          {activeTab === 'forecasting' && (
+            <ForecastingTab departments={departments} />
+          )}
 
-        {activeTab === 'users' && (
-          <UsersTab
-            users={users}
-            departments={departments}
-            roles={roles}
-            tenantId={tenantId}
-            currentUserId={currentUserId}
-            filterRole={filterRole}
-            loading={loading}
-            onRefresh={() => { fetchUsers(); fetchSummary(); }}
-            addToast={addToast}
-            onCreateUser={(data) => api.createUser(tenantId, data)}
-            onUpdateUser={(id, data) => api.updateUser(tenantId, id, data)}
-            onSuspendUser={(id) => api.suspendUser(tenantId, id)}
-            onActivateUser={(id) => api.activateUser(tenantId, id)}
-            onDeleteUser={(id) => api.deleteUser(tenantId, id)}
-            onBulkAction={(ids, action, roleId) => api.bulkAction(tenantId, ids, action, roleId)}
-          />
-        )}
+          {activeTab === 'users' && (
+            <UsersTab
+              users={users}
+              departments={departments}
+              roles={roles}
+              tenantId={tenantId}
+              currentUserId={currentUserId}
+              filterRole={filterRole}
+              loading={loading}
+              onRefresh={() => { fetchUsers(); fetchSummary(); }}
+              addToast={addToast}
+              onCreateUser={(data) => api.createUser(tenantId, data)}
+              onUpdateUser={(id, data) => api.updateUser(tenantId, id, data)}
+              onSuspendUser={(id) => api.suspendUser(tenantId, id)}
+              onActivateUser={(id) => api.activateUser(tenantId, id)}
+              onDeleteUser={(id) => api.deleteUser(tenantId, id)}
+              onBulkAction={(ids, action, roleId) => api.bulkAction(tenantId, ids, action, roleId)}
+            />
+          )}
 
-        {activeTab === 'departments' && (
-          <DepartmentsTab
-            departments={departments}
-            users={users}
-            deptLabel={deptLabel}
-            loading={loading}
-            onRefresh={() => { fetchDepts(); fetchSummary(); }}
-            addToast={addToast}
-            onCreate={(data) => api.createDepartment(tenantId, data)}
-            onUpdate={(id, data) => api.updateDepartment(tenantId, id, data)}
-            onDelete={(id) => api.deleteDepartment(tenantId, id)}
-          />
-        )}
+          {activeTab === 'departments' && (
+            <DepartmentsTab
+              departments={departments}
+              users={users}
+              deptLabel={deptLabel}
+              loading={loading}
+              onRefresh={() => { fetchDepts(); fetchSummary(); }}
+              addToast={addToast}
+              onCreate={(data) => api.createDepartment(tenantId, data)}
+              onUpdate={(id, data) => api.updateDepartment(tenantId, id, data)}
+              onDelete={(id) => api.deleteDepartment(tenantId, id)}
+            />
+          )}
 
-        {activeTab === 'settings' && (
-          <SettingsTab
-            settings={settings}
-            loading={loading}
-            addToast={addToast}
-            onSave={(data) => api.updateSettings(tenantId, data)}
-          />
-        )}
+          {activeTab === 'settings' && (
+            <SettingsTab
+              settings={settings}
+              loading={loading}
+              addToast={addToast}
+              onSave={(data) => api.updateSettings(tenantId, data)}
+            />
+          )}
 
-        {activeTab === 'logs' && (
-          <LogsTab
-            logs={logs}
-            loading={loading}
-            onFilter={(params) => fetchLogs(params)}
-          />
-        )}
+          {activeTab === 'logs' && (
+            <LogsTab
+              logs={logs}
+              loading={loading}
+              onFilter={(params) => fetchLogs(params)}
+            />
+          )}
 
-        {activeTab === 'billing' && (
-          <BillingTab
-            billing={billing}
-            tenantId={tenantId}
-            loading={loading}
-            addToast={addToast}
-            onUpgrade={(action, newTier) => api.upgradePlan(tenantId, action, newTier)}
-            onCancel={() => api.cancelPlan(tenantId)}
-          />
-        )}
+          {activeTab === 'billing' && (
+            <BillingTab
+              billing={billing}
+              tenantId={tenantId}
+              loading={loading}
+              addToast={addToast}
+              onUpgrade={(action, newTier) => api.upgradePlan(tenantId, action, newTier)}
+              onCancel={() => api.cancelPlan(tenantId)}
+            />
+          )}
+        </FeaturesContext.Provider>
       </main>
 
       {/* ── Toast Notifications ── */}

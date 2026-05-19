@@ -27,34 +27,45 @@ namespace NexaPlan.API.Controllers
         [HttpPost("checkout")]
         public async Task<IActionResult> CreateCheckout([FromBody] CheckoutRequestDto request)
         {
-            var pricingKeys = await _context.SystemConfigs
-                .Where(c => c.ConfigKey.StartsWith("price_") || c.ConfigKey == "pricing_vat_inclusive")
-                .ToDictionaryAsync(c => c.ConfigKey, c => c.ConfigValue);
+            // 1. Resolve Pricing and Plan details
+            var vatConfig = await _context.SystemConfigs.FirstOrDefaultAsync(c => c.ConfigKey == "pricing_vat_inclusive");
+            bool vatInclusive = bool.Parse(vatConfig?.ConfigValue ?? "true");
+
+            var plan = await _context.PricingPlans
+                .FirstOrDefaultAsync(p => p.Name.ToLower() == request.PlanTier.ToLower());
 
             decimal basePrice = 0;
             string planName = "";
 
-            if (request.PlanTier.Equals("starter", StringComparison.OrdinalIgnoreCase))
+            if (plan != null)
             {
-                basePrice = decimal.Parse(pricingKeys.GetValueOrDefault("price_starter_monthly", "4950"));
-                planName = "NexaPlan Starter (Monthly)";
-            }
-            else if (request.PlanTier.Equals("professional", StringComparison.OrdinalIgnoreCase))
-            {
-                basePrice = decimal.Parse(pricingKeys.GetValueOrDefault("price_professional_monthly", "12900"));
-                planName = "NexaPlan Professional (Monthly)";
-            }
-            else if (request.PlanTier.Equals("enterprise", StringComparison.OrdinalIgnoreCase))
-            {
-                basePrice = decimal.Parse(pricingKeys.GetValueOrDefault("price_enterprise_monthly", "29900"));
-                planName = "NexaPlan Enterprise (Monthly)";
+                basePrice = plan.MonthlyPrice;
+                planName = $"NexaPlan {plan.Name} (Monthly)";
             }
             else
             {
-                return BadRequest(new { message = "Invalid plan tier." });
+                // Fallback for legacy requests or if table is being seeded
+                if (request.PlanTier.Equals("starter", StringComparison.OrdinalIgnoreCase))
+                {
+                    basePrice = 4950;
+                    planName = "NexaPlan Starter (Monthly)";
+                }
+                else if (request.PlanTier.Equals("professional", StringComparison.OrdinalIgnoreCase))
+                {
+                    basePrice = 12900;
+                    planName = "NexaPlan Professional (Monthly)";
+                }
+                else if (request.PlanTier.Equals("enterprise", StringComparison.OrdinalIgnoreCase))
+                {
+                    basePrice = 29900;
+                    planName = "NexaPlan Enterprise (Monthly)";
+                }
+                else
+                {
+                    return BadRequest(new { message = $"Plan tier '{request.PlanTier}' not found." });
+                }
             }
 
-            bool vatInclusive = bool.Parse(pricingKeys.GetValueOrDefault("pricing_vat_inclusive", "true"));
             decimal grandTotal = 0;
             decimal taxAmount = 0;
 
@@ -71,33 +82,50 @@ namespace NexaPlan.API.Controllers
 
             long finalChargeCents = (long)Math.Round(grandTotal * 100);
 
+            // 2. Validate Infrastructure Config
             var frontendBaseUrl = _configuration["Frontend:BaseUrl"];
             if (string.IsNullOrWhiteSpace(frontendBaseUrl))
-                return BadRequest(new { message = "Frontend BaseUrl is not configured." });
+                return BadRequest(new { message = "Frontend BaseUrl is not configured in appsettings." });
 
-            // Check database config first
-            var dbConfigSecret = await _context.SystemConfigs.FirstOrDefaultAsync(c => c.ConfigKey == "PayMongoSecret");
-            var secretKey = dbConfigSecret?.ConfigValue;
+            var secretKey = _configuration["PayMongo:SecretKey"];
 
-            if (string.IsNullOrWhiteSpace(secretKey))
+            if (string.IsNullOrWhiteSpace(secretKey) || secretKey.Contains("your-paymongo-secret"))
             {
-                secretKey = _configuration["PayMongo:SecretKey"];
+                return BadRequest(new { message = "PayMongo Secret Key is missing or invalid in the server configuration." });
             }
 
-            if (string.IsNullOrWhiteSpace(secretKey))
+            // 3. User & Tenant Pre-validation / Cleanup
+            var existingUser = await _context.Users
+                .Include(u => u.Tenant)
+                .FirstOrDefaultAsync(u => u.Name == request.Email || u.Email == request.Email);
+
+            if (existingUser != null)
             {
-                return BadRequest(new { message = "PayMongo Secret Key is not configured in DB or appsettings." });
+                // If the user exists but is not active (pending payment/approval),
+                // we delete the old records to allow a fresh checkout attempt.
+                if (!existingUser.IsActive && existingUser.Tenant?.RegistrationStatus == "PendingPayment")
+                {
+                    var oldTenant = existingUser.Tenant;
+                    var oldInvoices = await _context.Invoices.Where(i => i.TenantID == oldTenant.TenantID).ToListAsync();
+                    var oldSessions = await _context.PaymentSessions.Where(p => p.TenantID == oldTenant.TenantID).ToListAsync();
+
+                    _context.Invoices.RemoveRange(oldInvoices);
+                    _context.PaymentSessions.RemoveRange(oldSessions);
+                    _context.Users.Remove(existingUser);
+                    _context.Tenants.Remove(oldTenant);
+                    await _context.SaveChangesAsync();
+                }
+                else
+                {
+                    return BadRequest(new { message = "An account with this email already exists and is active or pending review." });
+                }
             }
 
-            if (await _context.Users.AnyAsync(u => u.Name == request.Email))
-            {
-                return BadRequest(new { message = "User already exists." });
-            }
-
+            // 4. Create local records (Transaction-like scope)
             var tenant = new Tenant
             {
                 CompanyName = request.CompanyName,
-                SubscriptionTier = request.PlanTier,
+                SubscriptionTier = plan?.Name ?? request.PlanTier,
                 RegistrationStatus = "PendingPayment",
                 IsActive = false,
                 CreatedAt = DateTime.UtcNow,
@@ -110,12 +138,13 @@ namespace NexaPlan.API.Controllers
             _context.Tenants.Add(tenant);
             await _context.SaveChangesAsync();
 
-            var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
-
             var user = new User
             {
                 Name = request.Email,
-                PasswordHash = passwordHash,
+                Email = request.Email, // FIX: set Email field
+                FirstName = request.FirstName,
+                LastName = request.LastName,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
                 TenantID = tenant.TenantID,
                 RoleID = 2,
                 IsActive = false
@@ -128,7 +157,7 @@ namespace NexaPlan.API.Controllers
             {
                 TenantID = tenant.TenantID,
                 UserID = user.UserID,
-                PlanTier = request.PlanTier,
+                PlanTier = tenant.SubscriptionTier,
                 Amount = finalChargeCents,
                 Currency = "PHP",
                 Status = "Pending",
@@ -152,11 +181,16 @@ namespace NexaPlan.API.Controllers
             _context.Invoices.Add(invoice);
             await _context.SaveChangesAsync();
 
-
-
+            // 5. PayMongo API Call
             try
             {
                 var client = _httpClientFactory.CreateClient("PayMongo");
+                
+                // Safety check for BaseAddress
+                if (client.BaseAddress == null)
+                {
+                    client.BaseAddress = new Uri("https://api.paymongo.com/v1/");
+                }
 
                 var authValue = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{secretKey}:"));
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", authValue);
@@ -180,7 +214,7 @@ namespace NexaPlan.API.Controllers
                                     quantity = 1
                                 }
                             },
-                            description = $"{planName} subscription",
+                            description = $"{planName} subscription for {request.CompanyName}",
                             metadata = new
                             {
                                 tenantId = tenant.TenantID,
@@ -197,13 +231,18 @@ namespace NexaPlan.API.Controllers
 
                 if (!response.IsSuccessStatusCode)
                 {
+                    // Rollback local records on API failure
                     _context.Invoices.Remove(invoice);
                     _context.Users.Remove(user);
                     _context.Tenants.Remove(tenant);
                     _context.PaymentSessions.Remove(paymentSession);
                     await _context.SaveChangesAsync();
 
-                    return StatusCode((int)response.StatusCode, new { message = "PayMongo checkout creation failed.", details = responseBody });
+                    return StatusCode((int)response.StatusCode, new { 
+                        message = "PayMongo checkout creation failed.", 
+                        details = responseBody,
+                        hint = "Check if your Secret Key is correct and has access to Checkout Sessions."
+                    });
                 }
 
                 using var doc = JsonDocument.Parse(responseBody);
@@ -224,7 +263,7 @@ namespace NexaPlan.API.Controllers
                 _context.Tenants.Remove(tenant);
                 _context.PaymentSessions.Remove(paymentSession);
                 await _context.SaveChangesAsync();
-                return StatusCode(500, new { message = "Failed to start checkout session.", error = ex.Message });
+                return StatusCode(500, new { message = "Critical failure during checkout session creation.", error = ex.Message });
             }
         }
 

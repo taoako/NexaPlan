@@ -7,6 +7,9 @@ import {
   deptHeadApi, ScenarioSummary, ScenarioImpactResult,
   PitchDecision, SubmittedPitch
 } from '../../../../api/deptHeadApi';
+import { useFeatures } from '../../../../context/FeaturesContext';
+import { useCurrency } from '../../../../context/CurrencyContext';
+import UpgradeBanner from '../../../../components/UpgradeBanner';
 
 interface Toast { id: number; msg: string; type: 'success' | 'error' | 'info'; }
 
@@ -27,6 +30,8 @@ function normalizeScenario(raw: any): ScenarioSummary {
 }
 
 export function ScenariosView() {
+  const features = useFeatures();
+  const { fmt } = useCurrency();
   const fiscalYear = new Date().getFullYear();
 
   // ── Data state ──────────────────────────────────────────────────────────────
@@ -59,8 +64,6 @@ export function ScenariosView() {
     setToasts(t => [...t, { id, msg, type }]);
     setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 4000);
   };
-
-  const fmt = (n: number) => '₱' + Math.round(n).toLocaleString();
 
   const fetchImpact = useCallback(async (mult: number) => {
     setImpactLoading(true);
@@ -166,6 +169,14 @@ export function ScenariosView() {
     </div>
   );
 
+  if (features && !features.canUseScenarios) {
+    return (
+      <div className="p-8">
+        <UpgradeBanner feature="Scenario Planning & Response" requiredTier="Professional" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Header */}
@@ -175,12 +186,18 @@ export function ScenariosView() {
           <p className="text-slate-600 mt-1">Model budget cuts and formally respond to Finance Manager scenarios</p>
         </div>
         <button
-          disabled={!canSubmit}
-          onClick={() => setModalOpen(true)}
+          disabled={!canSubmit || !features?.canSubmitPitch}
+          onClick={() => {
+            if (!features?.canSubmitPitch) {
+              addToast('Scenario pitching requires the Professional plan.', 'error');
+              return;
+            }
+            setModalOpen(true);
+          }}
           className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all shadow-lg ${
             pitchSubmitted
               ? 'bg-slate-100 text-slate-500 cursor-default border border-slate-200'
-              : canSubmit
+              : (canSubmit && features?.canSubmitPitch)
                 ? 'bg-[#10B981] hover:bg-emerald-600 text-white'
                 : 'bg-slate-200 text-slate-400 cursor-not-allowed'
           }`}

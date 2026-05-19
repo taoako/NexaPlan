@@ -2,12 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Search, Filter, FileText, Calendar, Edit3, Copy, RefreshCw } from 'lucide-react';
 import { ModuleView } from '../DepartmentHeadSystem';
 import { deptHeadApi } from '../../../../api/deptHeadApi';
+import { useCurrency } from '../../../../context/CurrencyContext';
 
 interface ProposalsViewProps {
   setActiveModule: (module: ModuleView) => void;
+  addToast: (msg: string, type?: 'success' | 'error' | 'info') => void;
+  onEdit: (id: number) => void;
 }
 
-export function ProposalsView({ setActiveModule }: ProposalsViewProps) {
+export function ProposalsView({ setActiveModule, addToast, onEdit }: ProposalsViewProps) {
+  const { fmt } = useCurrency();
   const [proposals, setProposals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -149,7 +153,7 @@ export function ProposalsView({ setActiveModule }: ProposalsViewProps) {
                 <div className="flex items-center justify-between mb-6">
                   <div className={isFrozen ? 'opacity-50 grayscale' : ''}>
                     <div className="text-sm text-slate-600 mb-1">Requested Amount</div>
-                    <div className="text-2xl font-black text-slate-900">₱{proposal.totalAmount?.toLocaleString()}</div>
+                    <div className="text-2xl font-black text-slate-900">{fmt(proposal.totalAmount)}</div>
                   </div>
                   <div className="text-right">
                     <div className="text-sm text-slate-600 mb-1">Category</div>
@@ -168,7 +172,7 @@ export function ProposalsView({ setActiveModule }: ProposalsViewProps) {
                     View Details
                   </button>
                   {proposal.status.toLowerCase() === 'draft' || proposal.status.toLowerCase() === 'changesrequested' ? (
-                    <button onClick={() => setModalMessage('Edit is not implemented in this demo.')} className="flex items-center justify-center gap-2 bg-[#6366F1] hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-bold text-sm transition-all">
+                    <button onClick={() => onEdit(proposal.proposalId)} className="flex items-center justify-center gap-2 bg-[#6366F1] hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-bold text-sm transition-all">
                       <Edit3 className="w-4 h-4" /> Edit
                     </button>
                   ) : (

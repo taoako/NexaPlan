@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using NexaPlan.API.Data;
 using NexaPlan.API.DTOs;
 using NexaPlan.API.Models;
+using NexaPlan.API.Helpers;
 
 namespace NexaPlan.API.Controllers.MainAdmin
 {
@@ -47,6 +48,15 @@ namespace NexaPlan.API.Controllers.MainAdmin
         {
             int tenantId = GetTenantId();
             if (tenantId == 0) return NoTenant();
+
+            var tenant = await _context.Tenants.FindAsync(tenantId);
+            var userCount = await _context.Users.CountAsync(u => u.TenantID == tenantId && u.RoleID != 2); // exclude Main Admin
+            var maxUsers = TierFeatures.MaxUsers(tenant?.SubscriptionTier ?? "Trial");
+
+            if (maxUsers != int.MaxValue && userCount >= maxUsers)
+                return BadRequest(new {
+                    error = $"Your {tenant?.SubscriptionTier ?? "Trial"} plan allows a maximum of {maxUsers} users. Upgrade to add more."
+                });
 
             if (await _context.Users.AnyAsync(u => u.Email == request.Email && u.TenantID == tenantId))
                 return BadRequest(new { message = "Email already in use within this organization." });

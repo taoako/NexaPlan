@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { deptHeadApi } from '../../../../api/deptHeadApi';
 import { Activity, AlertTriangle } from 'lucide-react';
+import { useCurrency } from '../../../../context/CurrencyContext';
 
 interface OverviewViewProps {
   onNavigateToScenarios?: () => void;
 }
 
 export function OverviewView({ onNavigateToScenarios }: OverviewViewProps = {}) {
+  const { fmt } = useCurrency();
   const [data, setData] = useState<any>(null);
   const [riskData, setRiskData] = useState<any>(null);
   const [activeScenario, setActiveScenario] = useState<any>(null);
@@ -125,17 +127,17 @@ export function OverviewView({ onNavigateToScenarios }: OverviewViewProps = {}) 
       <div className="grid grid-cols-4 gap-6">
         <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
           <div className="text-sm font-bold text-slate-600 mb-2">Allocated Budget</div>
-          <div className="text-3xl font-black text-slate-900 mb-1">₱{data.allocatedBudget?.toLocaleString()}</div>
+          <div className="text-3xl font-black text-slate-900 mb-1">{fmt(data.allocatedBudget)}</div>
           <div className="text-sm text-[#6366F1]">FY {new Date().getFullYear()}</div>
         </div>
         <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
           <div className="text-sm font-bold text-slate-600 mb-2">Spent to Date</div>
-          <div className="text-3xl font-black text-slate-900 mb-1">₱{data.spentToDate?.toLocaleString()}</div>
+          <div className="text-3xl font-black text-slate-900 mb-1">{fmt(data.spentToDate)}</div>
           <div className="text-sm text-slate-600">{data.utilizationPct}% utilized</div>
         </div>
         <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
           <div className="text-sm font-bold text-slate-600 mb-2">Remaining</div>
-          <div className="text-3xl font-black text-[#10B981] mb-1">₱{data.remaining?.toLocaleString()}</div>
+          <div className="text-3xl font-black text-[#10B981] mb-1">{fmt(data.remaining)}</div>
           <div className="text-sm text-slate-600">{100 - (data.utilizationPct || 0)}% available</div>
         </div>
         <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
@@ -158,7 +160,7 @@ export function OverviewView({ onNavigateToScenarios }: OverviewViewProps = {}) 
                       style={{ height: `${Math.min((m.percentage / 100) * 200, 200)}px` }}
                     ></div>
                     <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-2 py-1 rounded text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
-                      ₱{m.spentAmount?.toLocaleString()} ({m.percentage}%)
+                      {fmt(m.spentAmount)} ({m.percentage}%)
                     </div>
                   </>
                 ) : (

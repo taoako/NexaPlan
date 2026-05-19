@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NexaPlan.API.Data;
 using NexaPlan.API.Models;
+using NexaPlan.API.Helpers;
 
 namespace NexaPlan.API.Controllers.FinanceManager
 {
@@ -36,7 +37,7 @@ namespace NexaPlan.API.Controllers.FinanceManager
             if (tenantId == 0) return NoTenant();
 
             var scenarios = await _context.BudgetScenarios
-                .Where(s => s.TenantID == tenantId)
+                .Where(s => s.TenantID == tenantId && !s.IsArchived)
                 .OrderByDescending(s => s.IsActive)
                 .ThenBy(s => s.CreatedAt)
                 .ToListAsync();
@@ -63,7 +64,8 @@ namespace NexaPlan.API.Controllers.FinanceManager
                 name = s.ScenarioName,
                 multiplier = s.AdjustmentMultiplier,
                 isActive = s.IsActive,
-                desc = s.Description
+                desc = s.Description,
+                pitchCount = _context.ScenarioPitches.Count(p => p.ScenarioId == s.ScenarioID && p.Status == "Pending Review")
             }));
         }
 
@@ -74,6 +76,23 @@ namespace NexaPlan.API.Controllers.FinanceManager
             var userId = GetUserId();
             if (tenantId == 0) return NoTenant();
             if (userId == 0) return NoUser();
+
+            var tenant = await _context.Tenants.FindAsync(tenantId);
+
+            if (!TierFeatures.CanUseScenarios(tenant?.SubscriptionTier ?? "Trial"))
+                return StatusCode(402, new {
+                    error = "Scenario planning requires the Professional or Enterprise plan.",
+                    upgradeRequired = true
+                });
+
+            var scenarioCount = await _context.BudgetScenarios
+                .CountAsync(s => s.TenantID == tenantId && !s.IsArchived);
+            var maxScenarios = TierFeatures.MaxScenarios(tenant?.SubscriptionTier ?? "Trial");
+
+            if (maxScenarios != int.MaxValue && scenarioCount >= maxScenarios)
+                return BadRequest(new {
+                    error = $"Your {tenant?.SubscriptionTier ?? "Trial"} plan allows a maximum of {maxScenarios} active scenarios. Archive one to create a new one."
+                });
 
             var scenario = new BudgetScenario
             {

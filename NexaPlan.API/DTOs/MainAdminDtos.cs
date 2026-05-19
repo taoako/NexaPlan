@@ -18,7 +18,11 @@ namespace NexaPlan.API.DTOs
         string CompanyName,
         string ContactPerson,
         string ContactEmail,
-        string Phone
+        string Phone,
+        int SessionTimeoutMinutes = 30,
+        int MinPasswordLength = 8,
+        int MaxFailedLoginAttempts = 5,
+        string? NotificationPreferences = null
     );
 
     // ─── Billing DTOs ───

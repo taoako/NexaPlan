@@ -38,6 +38,7 @@ export const financeManagerApi = {
   getAllocations: () => apiFetch<any>('/allocations'),
   transferFunds: (from: string, to: string, amount: number) => apiFetch<any>('/allocations/transfer', { method: 'POST', body: JSON.stringify({ from, to, amount }) }),
   setAllocation: (departmentId: number, amount: number) => apiFetch<any>('/allocations/set', { method: 'POST', body: JSON.stringify({ departmentId, amount }) }),
+  adjustAllocation: (departmentId: number, amount: number, mode: 'add' | 'subtract' | 'set') => apiFetch<any>('/allocations/adjust', { method: 'POST', body: JSON.stringify({ departmentId, amount, mode }) }),
   // Expense Reconciliation
   getExpenses: (status?: string) => apiFetch<any[]>(`/expenses${status ? `?status=${status}` : ''}`),
   reconcileExpense: (id: number, spentDate?: string) => apiFetch<any>(`/expenses/${id}/reconcile`, { method: 'POST', body: JSON.stringify({ spentDate: spentDate || null }) }),

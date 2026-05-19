@@ -230,7 +230,7 @@ namespace NexaPlan.API.Controllers.FinanceManager
 
             var fiscalYear = DateTime.UtcNow.Year;
             var allocation = await _context.DepartmentAllocations
-                .FirstOrDefaultAsync(a => a.TenantID == tenantId && a.DepartmentID == dept.DepartmentID && a.FiscalYear == fiscalYear);
+                .FirstOrDefaultAsync(a => a.TenantID == tenantId && a.DepartmentID == req.DepartmentId && a.FiscalYear == fiscalYear);
 
             if (allocation == null)
             {
@@ -288,8 +288,88 @@ namespace NexaPlan.API.Controllers.FinanceManager
 
             return Ok(new { message = "Allocation updated successfully.", warning = mlWarning });
         }
+
+        [HttpPost("allocations/adjust")]
+        public async Task<IActionResult> AdjustAllocation([FromBody] AdjustAllocationRequest req)
+        {
+            var tenantId = GetTenantId();
+            if (tenantId <= 0) return NoTenant();
+
+            var dept = await _context.Departments.FirstOrDefaultAsync(d => d.TenantID == tenantId && d.DepartmentID == req.DepartmentId);
+            if (dept == null) return BadRequest(new { message = "Department not found." });
+
+            var fiscalYear = DateTime.UtcNow.Year;
+            var allocation = await _context.DepartmentAllocations
+                .FirstOrDefaultAsync(a => a.TenantID == tenantId && a.DepartmentID == req.DepartmentId && a.FiscalYear == fiscalYear);
+
+            decimal currentCap = allocation?.TotalAllocatedCap ?? dept.AnnualBudgetCap;
+            decimal newCap = req.Mode.ToLower() switch
+            {
+                "add" => currentCap + req.Amount,
+                "subtract" => currentCap - req.Amount,
+                _ => req.Amount // default to set
+            };
+
+            if (newCap < 0) return BadRequest(new { message = "Resulting allocation cannot be negative." });
+
+            // Safety check against spend
+            var approvedRows = await _context.BudgetProposals
+                .Where(p => p.TenantID == tenantId && p.DepartmentID == dept.DepartmentID && p.ProposalStatus == "Approved")
+                .Select(p => new { p.RequestedAmount, p.TotalAmount })
+                .ToListAsync();
+
+            var approvedTotal = approvedRows.Sum(p => p.RequestedAmount > 0 ? p.RequestedAmount : p.TotalAmount);
+            var protectedSpend = Math.Max(approvedTotal, dept.ActualSpent);
+
+            if (newCap < protectedSpend)
+            {
+                return BadRequest(new
+                {
+                    message = "Allocation cannot be adjusted below already approved budgets or actual spend.",
+                    approvedTotal = approvedTotal,
+                    actualSpent = dept.ActualSpent,
+                    resultingCap = newCap
+                });
+            }
+
+            if (allocation == null)
+            {
+                allocation = new Models.DepartmentAllocation
+                {
+                    TenantID = tenantId,
+                    DepartmentID = dept.DepartmentID,
+                    FiscalYear = fiscalYear,
+                    TotalAllocatedCap = newCap,
+                    SetByAdminID = GetUserId(),
+                    SetAt = DateTime.UtcNow
+                };
+                _context.DepartmentAllocations.Add(allocation);
+            }
+            else
+            {
+                allocation.TotalAllocatedCap = newCap;
+                allocation.SetByAdminID = GetUserId();
+                allocation.SetAt = DateTime.UtcNow;
+            }
+
+            dept.AnnualBudgetCap = newCap;
+
+            _context.AuditLogs.Add(new Models.AuditLog
+            {
+                TenantID = tenantId,
+                UserID = GetUserId(),
+                ActionType = "ALLOCATION_ADJUSTED",
+                TargetResources = $"Dept:{dept.DepartmentName} NewCap:₱{newCap} (Mode:{req.Mode} Adj:₱{req.Amount})",
+                IPAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                TimeStamp = DateTime.UtcNow
+            });
+
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Allocation adjusted successfully.", newCap });
+        }
     }
 
     public record TransferRequest(string From, string To, decimal Amount);
     public record SetAllocationRequest(int DepartmentId, decimal Amount);
+    public record AdjustAllocationRequest(int DepartmentId, decimal Amount, string Mode); // Mode: "add", "subtract", "set"
 }

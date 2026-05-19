@@ -53,6 +53,24 @@ namespace NexaPlan.API.Controllers.MainAdmin
                 .OrderBy(i => i.DueDate)
                 .FirstOrDefaultAsync();
 
+            DateTime? nextDate = nextInvoice?.DueDate;
+            if (nextDate == null)
+            {
+                var latestPaid = await _context.Invoices
+                    .Where(i => i.TenantID == tenantId && i.Status)
+                    .OrderByDescending(i => i.BillingDate)
+                    .FirstOrDefaultAsync();
+                
+                if (latestPaid != null)
+                {
+                    nextDate = latestPaid.BillingDate.AddMonths(1);
+                }
+                else
+                {
+                    nextDate = tenant.CreatedAt.AddMonths(1);
+                }
+            }
+
             // Department budget summaries for quick-toggles on overview
             var deptSummaries = depts.Select(d => {
                 var head = users.FirstOrDefault(u => u.UserID == d.HeadUserID);
@@ -75,7 +93,7 @@ namespace NexaPlan.API.Controllers.MainAdmin
                 totalDepartments = depts.Count,
                 roleDistribution,
                 mfaEnabled = settings?.RequireMFA ?? false,
-                nextBillingDate = nextInvoice?.DueDate,
+                nextBillingDate = nextDate,
                 departments = deptSummaries,
                 recentActivity = recentLogs.Select(l => new {
                     logId = l.LogID,

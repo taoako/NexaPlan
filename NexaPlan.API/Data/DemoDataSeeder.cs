@@ -509,15 +509,15 @@ public static class DemoDataSeeder
                 Description = "Budgeting essentials for small teams.",
                 MonthlyPrice = 4950m,
                 AnnualPrice = 4207.5m,
-                MaxSeats = 15,
+                MaxSeats = 3,
                 IsPopular = false
             };
             starter.Benefits = new List<PricingBenefit>
             {
-                new() { BenefitText = "Up to 3 budget managers" },
-                new() { BenefitText = "5 department allocations" },
-                new() { BenefitText = "Basic forecasting (12 months)" },
-                new() { BenefitText = "Email support" }
+                new() { BenefitText = "Up to 3 users" },
+                new() { BenefitText = "5 departments" },
+                new() { BenefitText = "12 months historical data" },
+                new() { BenefitText = "Standard Support" }
             };
 
             var pro = new PricingPlan
@@ -526,15 +526,16 @@ public static class DemoDataSeeder
                 Description = "Scaling support for growing companies.",
                 MonthlyPrice = 12900m,
                 AnnualPrice = 10965m,
-                MaxSeats = 50,
+                MaxSeats = 15,
                 IsPopular = true
             };
             pro.Benefits = new List<PricingBenefit>
             {
-                new() { BenefitText = "Up to 15 budget managers" },
+                new() { BenefitText = "Up to 15 users" },
                 new() { BenefitText = "Unlimited departments" },
-                new() { BenefitText = "AI forecasting (24 months)" },
-                new() { BenefitText = "Priority support" }
+                new() { BenefitText = "AI forecasting (24 months history)" },
+                new() { BenefitText = "Scenario Planning & Pitching" },
+                new() { BenefitText = "Priority Support" }
             };
 
             var enterprise = new PricingPlan
@@ -543,15 +544,16 @@ public static class DemoDataSeeder
                 Description = "Deep analytics for large enterprises.",
                 MonthlyPrice = 29900m,
                 AnnualPrice = 25415m,
-                MaxSeats = 200,
+                MaxSeats = 0,
                 IsPopular = false
             };
             enterprise.Benefits = new List<PricingBenefit>
             {
                 new() { BenefitText = "Unlimited users" },
-                new() { BenefitText = "Advanced ML forecasting" },
-                new() { BenefitText = "Custom model training" },
-                new() { BenefitText = "24/7 phone & chat support" }
+                new() { BenefitText = "Advanced AI (Confidence Bands)" },
+                new() { BenefitText = "Real-time Anomaly Detection" },
+                new() { BenefitText = "Unlimited historical data" },
+                new() { BenefitText = "Dedicated Support Manager" }
             };
 
             db.PricingPlans.AddRange(starter, pro, enterprise);

@@ -2,12 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { CheckCircle2, Save, Plus, X, Upload } from 'lucide-react';
 import { ModuleView, PriorityLevel } from '../DepartmentHeadSystem';
 import { deptHeadApi } from '../../../../api/deptHeadApi';
+import { useCurrency } from '../../../../context/CurrencyContext';
 
 interface NewRequestViewProps {
   setActiveModule: (module: ModuleView) => void;
+  addToast: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
+  editingProposalId?: number | null;
+  onClearEdit?: () => void;
 }
 
-export function NewRequestView({ setActiveModule }: NewRequestViewProps) {
+export function NewRequestView({ setActiveModule, addToast, editingProposalId, onClearEdit }: NewRequestViewProps) {
+  const { fmt, symbol } = useCurrency();
   const [requestTitle, setRequestTitle] = useState('');
   const [requestCategory, setRequestCategory] = useState('Equipment');
   const [requestPriority, setRequestPriority] = useState<PriorityLevel>('High');
@@ -21,6 +26,45 @@ export function NewRequestView({ setActiveModule }: NewRequestViewProps) {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [modalMessage, setModalMessage] = useState<{title: string, message: string, type: 'error' | 'success' | 'info'} | null>(null);
   const [guardInfo, setGuardInfo] = useState<{ totalAllocatedCap: number; committedFunds: number; remainingCap: number } | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [isLoadingPlans, setIsLoadingPlans] = useState(false);
+
+  useEffect(() => {
+    if (editingProposalId) {
+      fetchProposalDetails(editingProposalId);
+    }
+  }, [editingProposalId]);
+
+  const fetchProposalDetails = async (id: number) => {
+    try {
+      setIsLoadingPlans(true);
+      const proposals = await deptHeadApi.getProposals();
+      const p = proposals.find((x: any) => x.proposalId === id);
+      if (p) {
+        setRequestTitle(p.title);
+        setRequestCategory(p.category);
+        setRequestPriority(p.priority as PriorityLevel);
+        setRequestPlannedMonth(p.plannedMonth || '');
+        setRequestPlannedYear(p.plannedYear || new Date().getFullYear());
+        setRequestJustification(p.justification);
+        
+        const items = await deptHeadApi.getLineItems(id);
+        setLineItems(items.map((li: any) => ({
+          description: li.description,
+          quantity: li.quantity.toString(),
+          unitCost: li.unitCost.toString(),
+          total: li.total,
+          isVatInclusive: li.isVatInclusive
+        })));
+        setIsEditMode(true);
+      }
+    } catch (err) {
+      console.error('Failed to load proposal details', err);
+      addToast('Failed to load proposal details.', 'error');
+    } finally {
+      setIsLoadingPlans(false);
+    }
+  };
 
   // Auto-save logic placeholder (could be connected to real API if wanted, but standard local save indicator for now)
   useEffect(() => {
@@ -92,19 +136,8 @@ export function NewRequestView({ setActiveModule }: NewRequestViewProps) {
     if (!requestTitle) return setModalMessage({ title: 'Missing Title', message: 'Please add a request title before submitting.', type: 'error' });
     try {
       setIsSaving(true);
-      if (!saveAsDraft) {
-        const guard = await deptHeadApi.getAllocationGuard();
-        const committed = guard?.committedFunds ?? 0;
-        const cap = guard?.totalAllocatedCap ?? 0;
-        if (cap > 0 && (committed + totalRequestAmount) > cap) {
-          return setModalMessage({
-            title: 'Request Exceeds Allocation',
-            message: `Request exceeds the allocated departmental ceiling set by the Main Admin. Cap: ₱${cap.toLocaleString()} · Committed: ₱${committed.toLocaleString()} · Requested: ₱${totalRequestAmount.toLocaleString()}.`,
-            type: 'error'
-          });
-        }
-      }
-      await deptHeadApi.createProposal({
+      
+      const payload = {
         title: requestTitle,
         category: requestCategory,
         priority: requestPriority,
@@ -120,13 +153,22 @@ export function NewRequestView({ setActiveModule }: NewRequestViewProps) {
           unitCost: parseFloat(li.unitCost) || 0,
           isVatInclusive: li.isVatInclusive
         }))
-      });
-      setModalMessage({ title: 'Success', message: saveAsDraft ? 'Draft saved.' : 'Proposal submitted for review.', type: 'success' });
+      };
+
+      if (isEditMode && editingProposalId) {
+        await deptHeadApi.updateProposal(editingProposalId, payload);
+        addToast(saveAsDraft ? 'Draft updated.' : 'Proposal resubmitted.', 'success');
+      } else {
+        await deptHeadApi.createProposal(payload);
+        addToast(saveAsDraft ? 'Draft saved.' : 'Proposal submitted for review.', 'success');
+      }
+      
+      if (onClearEdit) onClearEdit();
       refreshGuard();
       setActiveModule('proposals');
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      const message = err instanceof Error && err.message ? err.message : 'Unable to save the request. Please try again.';
+      const message = err.message || 'Unable to save the request. Please try again.';
       setModalMessage({ title: 'Save Failed', message, type: 'error' });
     } finally {
       setIsSaving(false);
@@ -138,18 +180,28 @@ export function NewRequestView({ setActiveModule }: NewRequestViewProps) {
       <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-black text-[#0A192F]">Submit New Budget Request</h1>
-          <p className="text-slate-600 mt-2">Create a detailed budget proposal for finance approval</p>
+          <h1 className="text-3xl font-black text-[#0A192F]">{isEditMode ? 'Edit Budget Proposal' : 'Submit New Budget Request'}</h1>
+          <p className="text-slate-600 mt-2">{isEditMode ? `Updating proposal: ${requestTitle}` : 'Create a detailed budget proposal for finance approval'}</p>
         </div>
         
-        <div className="flex items-center gap-2 text-sm text-slate-500 bg-white px-4 py-2 rounded-full border border-slate-200">
-          {isSaving ? (
-            <><div className="w-4 h-4 border-2 border-[#6366F1] border-t-transparent rounded-full animate-spin"></div> Saving...</>
-          ) : lastSaved ? (
-            <><CheckCircle2 className="w-4 h-4 text-[#10B981]" /> Saved at {lastSaved.toLocaleTimeString()}</>
-          ) : (
-            <><Save className="w-4 h-4" /> Not saved yet</>
+        <div className="flex items-center gap-3">
+          {isEditMode && (
+            <button 
+              onClick={() => { if (onClearEdit) onClearEdit(); setActiveModule('proposals'); }}
+              className="px-6 py-3 border-2 border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl font-bold transition-all"
+            >
+              Cancel Edit
+            </button>
           )}
+          <div className="flex items-center gap-2 text-sm text-slate-500 bg-white px-4 py-2 rounded-full border border-slate-200">
+            {isSaving ? (
+              <><div className="w-4 h-4 border-2 border-[#6366F1] border-t-transparent rounded-full animate-spin"></div> Saving...</>
+            ) : lastSaved ? (
+              <><CheckCircle2 className="w-4 h-4 text-[#10B981]" /> Saved at {lastSaved.toLocaleTimeString()}</>
+            ) : (
+              <><Save className="w-4 h-4" /> Not saved yet</>
+            )}
+          </div>
         </div>
       </div>
 
@@ -162,16 +214,16 @@ export function NewRequestView({ setActiveModule }: NewRequestViewProps) {
           <div className="flex items-center gap-6 text-sm">
             <div className="text-right">
               <div className="text-[11px] text-blue-600">Cap</div>
-              <div className="font-mono font-bold text-blue-900">₱{guardInfo.totalAllocatedCap.toLocaleString()}</div>
+              <div className="font-mono font-bold text-blue-900">{fmt(guardInfo.totalAllocatedCap)}</div>
             </div>
             <div className="text-right">
               <div className="text-[11px] text-blue-600">Committed</div>
-              <div className="font-mono font-bold text-blue-900">₱{guardInfo.committedFunds.toLocaleString()}</div>
+              <div className="font-mono font-bold text-blue-900">{fmt(guardInfo.committedFunds)}</div>
             </div>
             <div className="text-right">
               <div className="text-[11px] text-blue-600">Remaining</div>
               <div className={`font-mono font-bold ${guardInfo.remainingCap < 0 ? 'text-red-600' : 'text-blue-900'}`}>
-                ₱{guardInfo.remainingCap.toLocaleString()}
+                {fmt(guardInfo.remainingCap)}
               </div>
             </div>
           </div>
@@ -297,7 +349,7 @@ export function NewRequestView({ setActiveModule }: NewRequestViewProps) {
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-xs font-bold text-slate-600 mb-1">Unit Cost (₱)</label>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">Unit Cost ({symbol})</label>
                   <input
                     type="number"
                     value={item.unitCost}
@@ -309,7 +361,7 @@ export function NewRequestView({ setActiveModule }: NewRequestViewProps) {
                 <div className="col-span-2">
                   <label className="block text-xs font-bold text-slate-600 mb-1">Total</label>
                   <div className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-mono font-bold text-slate-900">
-                    ₱{item.total.toLocaleString()}
+                    {fmt(item.total)}
                   </div>
                 </div>
                 <div className="col-span-2">
@@ -350,16 +402,16 @@ export function NewRequestView({ setActiveModule }: NewRequestViewProps) {
           <div className="mt-6 flex justify-end">
             <div className="bg-[#6366F1]/10 px-6 py-4 rounded-xl space-y-1">
               <div className="text-sm font-bold text-slate-600 mb-1">Total Request Amount</div>
-              <div className="text-3xl font-black text-[#6366F1]">₱{totalRequestAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+              <div className="text-3xl font-black text-[#6366F1]">{fmt(totalRequestAmount)}</div>
               {estimatedVat > 0 && (
                 <div className="text-xs text-slate-500 space-y-0.5 pt-1 border-t border-[#6366F1]/20 mt-2">
                   <div className="flex justify-between gap-8">
                     <span>Estimated Base (ex-VAT):</span>
-                    <span className="font-mono font-bold">₱{estimatedBase.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                    <span className="font-mono font-bold">{fmt(estimatedBase)}</span>
                   </div>
                   <div className="flex justify-between gap-8 text-emerald-600">
                     <span>Estimated 12% VAT:</span>
-                    <span className="font-mono font-bold">₱{estimatedVat.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                    <span className="font-mono font-bold">{fmt(estimatedVat)}</span>
                   </div>
                 </div>
               )}

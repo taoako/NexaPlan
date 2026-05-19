@@ -9,9 +9,10 @@ interface TenantsViewProps {
   onEdit: (tenant: TenantDto) => void;
   onArchive: (id: number) => void;
   onImpersonate: (tenant: TenantDto) => void;
+  addToast: (message: string, type?: 'success' | 'error' | 'info') => void;
 }
 
-export function TenantsView({ tenants, onProvision, onEdit, onArchive, onImpersonate }: TenantsViewProps) {
+export function TenantsView({ tenants, onProvision, onEdit, onArchive, onImpersonate, addToast }: TenantsViewProps) {
   const [page, setPage] = useState(1);
   const pageSize = 10;
   const pagedTenants = tenants.slice((page - 1) * pageSize, page * pageSize);

@@ -32,15 +32,31 @@ namespace NexaPlan.API.Controllers.MainAdmin
                 .Take(12)
                 .ToListAsync();
 
+            // 1. Find next pending invoice
             var nextInvoice = invoices.FirstOrDefault(i => !i.Status && i.DueDate >= DateTime.UtcNow);
+            
+            // 2. If no pending, estimate based on latest paid or tenant creation
+            DateTime? nextDate = nextInvoice?.DueDate;
+            if (nextDate == null)
+            {
+                var latestPaid = invoices.FirstOrDefault(i => i.Status);
+                if (latestPaid != null)
+                {
+                    nextDate = latestPaid.BillingDate.AddMonths(1);
+                }
+                else if (tenant != null)
+                {
+                    nextDate = tenant.CreatedAt.AddMonths(1);
+                }
+            }
 
             return Ok(new
             {
                 plan = tenant?.SubscriptionTier ?? "Unknown",
                 status = tenant?.RegistrationStatus ?? "Unknown",
-                nextBillingDate = nextInvoice?.DueDate,
-                daysUntilDue = nextInvoice != null
-                    ? (int?)(nextInvoice.DueDate - DateTime.UtcNow).TotalDays
+                nextBillingDate = nextDate,
+                daysUntilDue = nextDate.HasValue
+                    ? (int?)(nextDate.Value - DateTime.UtcNow).TotalDays
                     : null,
                 invoices = invoices.Select(inv => new
                 {

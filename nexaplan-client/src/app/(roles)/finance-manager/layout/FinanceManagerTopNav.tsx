@@ -13,10 +13,10 @@ interface FinanceManagerTopNavProps {
   activeModule: ModuleView;
   setActiveModule: (module: ModuleView) => void;
   navTabs: NavTab[];
-  onBack: () => void;
+  onLogout: () => void;
 }
 
-export function FinanceManagerTopNav({ activeModule, setActiveModule, navTabs, onBack }: FinanceManagerTopNavProps) {
+export function FinanceManagerTopNav({ activeModule, setActiveModule, navTabs, onLogout }: FinanceManagerTopNavProps) {
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
   const [modalMessage, setModalMessage] = useState<string | null>(null);
@@ -112,7 +112,7 @@ export function FinanceManagerTopNav({ activeModule, setActiveModule, navTabs, o
                 </button>
               </div>
               <div className="py-1 border-t border-slate-100">
-                <button onClick={() => { setShowProfileDropdown(false); onBack(); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#EF4444] hover:bg-red-50 transition-colors font-semibold">
+                <button type="button" onClick={() => { setShowProfileDropdown(false); onLogout(); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#EF4444] hover:bg-red-50 transition-colors font-semibold">
                   <LogOut className="w-4 h-4" />Logout
                 </button>
               </div>

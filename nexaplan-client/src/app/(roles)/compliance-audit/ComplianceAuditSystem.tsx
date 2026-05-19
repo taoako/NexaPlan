@@ -27,10 +27,10 @@ export const ModalContext = createContext<ModalContextType>({
 export const useAuditorModal = () => useContext(ModalContext);
 
 interface ComplianceAuditSystemProps {
-  onBack?: () => void;
+  onLogout?: () => void;
 }
 
-export function ComplianceAuditSystem({ onBack }: ComplianceAuditSystemProps) {
+export function ComplianceAuditSystem({ onLogout }: ComplianceAuditSystemProps) {
   const [activeModule, setActiveModule] = useState<ModuleView>('overview');
   const [dateRange, setDateRange] = useState('Q1 2026 - Q4 2026');
   const [targetDept, setTargetDept] = useState('All Departments');
@@ -174,7 +174,7 @@ export function ComplianceAuditSystem({ onBack }: ComplianceAuditSystemProps) {
                     </button>
                   </div>
                   <div className="py-1 border-t border-slate-100">
-                    <button onClick={() => { setShowProfileDropdown(false); onBack?.(); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#EF4444] hover:bg-red-50 transition-colors font-semibold">
+                    <button onClick={() => { setShowProfileDropdown(false); onLogout?.(); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#EF4444] hover:bg-red-50 transition-colors font-semibold">
                       <LogOut className="w-4 h-4" /> Logout
                     </button>
                   </div>

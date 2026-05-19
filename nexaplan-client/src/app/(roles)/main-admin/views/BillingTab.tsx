@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { CreditCard, RefreshCw, CheckCircle2, AlertCircle, Clock, ArrowUp, XCircle, RotateCcw, AlertTriangle, Zap, Calendar } from 'lucide-react';
 import type { MainAdminBilling } from '../../../../api/mainAdminApi';
 import { getPricing, PricingPlan } from '../../../../api/superAdminApi';
+import { useCurrency } from '../../../../context/CurrencyContext';
 
 interface Props {
   billing: MainAdminBilling | null;
@@ -19,6 +20,7 @@ const TIERS = [
 ];
 
 export function BillingTab({ billing, tenantId, loading, addToast, onUpgrade, onCancel }: Props) {
+  const { fmt } = useCurrency();
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [actioning, setActioning] = useState(false);
@@ -192,7 +194,7 @@ export function BillingTab({ billing, tenantId, loading, addToast, onUpgrade, on
               {billing.invoices.map(inv => (
                 <tr key={inv.invoiceId} className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-4 text-sm font-mono font-bold text-slate-900">{inv.invoiceNumber}</td>
-                  <td className="px-6 py-4 text-sm font-bold text-slate-900">₱{inv.amount.toLocaleString()}</td>
+                  <td className="px-6 py-4 text-sm font-bold text-slate-900">{fmt(inv.amount)}</td>
                   <td className="px-6 py-4 text-sm text-slate-600">{new Date(inv.dueDate).toLocaleDateString('en-PH')}</td>
                   <td className="px-6 py-4 text-sm text-slate-600 capitalize">{inv.paymentMethod}</td>
                   <td className="px-6 py-4"><div className="flex items-center gap-2">{statusIcon(inv.status)}{statusBadge(inv.status)}</div></td>
@@ -228,19 +230,19 @@ export function BillingTab({ billing, tenantId, loading, addToast, onUpgrade, on
                   <div 
                     key={t.planID} 
                     onClick={() => handleUpgrade('Upgrade', t.name)} 
-                    className={`group flex flex-col p-5 border-2 rounded-2xl cursor-pointer transition-all hover:border-indigo-500 hover:bg-indigo-50/30 ${billing.plan === t.name ? 'border-indigo-500 bg-indigo-50 ring-4 ring-indigo-500/10' : 'border-slate-100'}`}
+                    className={`group flex flex-col p-5 border-2 rounded-2xl cursor-pointer transition-all hover:border-indigo-500 hover:bg-indigo-50/30 ${billing.plan.toLowerCase() === t.name.toLowerCase() ? 'border-indigo-500 bg-indigo-50 ring-4 ring-indigo-500/10' : 'border-slate-100'}`}
                   >
                     <div className="flex justify-between items-start mb-4">
                       <div>
                         <p className="font-black text-slate-900 text-lg">{t.name}</p>
                         <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{t.maxSeats} Seats Included</p>
                       </div>
-                      {billing.plan === t.name && <CheckCircle2 className="w-5 h-5 text-indigo-600" />}
+                      {billing.plan.toLowerCase() === t.name.toLowerCase() && <CheckCircle2 className="w-5 h-5 text-indigo-600" />}
                     </div>
                     <div className="mt-auto">
                       <p className="text-xs text-slate-500 mb-2 line-clamp-2 h-8">{t.description}</p>
                       <div className="flex items-baseline gap-1">
-                        <span className="font-black text-slate-900 text-xl">₱{t.monthlyPrice.toLocaleString()}</span>
+                        <span className="font-black text-slate-900 text-xl">{fmt(t.monthlyPrice)}</span>
                         <span className="text-slate-400 text-[10px] font-bold">/mo</span>
                       </div>
                     </div>

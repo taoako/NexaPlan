@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, Edit, Trash2, RefreshCw, X, Check, DollarSign, Users, ToggleLeft, ToggleRight, Building2 } from 'lucide-react';
 import type { MainAdminDepartment, MainAdminUser } from '../../../../api/mainAdminApi';
+import { useCurrency } from '../../../../context/CurrencyContext';
 
 interface Props {
   departments: MainAdminDepartment[];
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export function DepartmentsTab({ departments, users, deptLabel, loading, onRefresh, addToast, onCreate, onUpdate, onDelete }: Props) {
+  const { fmt, symbol } = useCurrency();
   const [showModal, setShowModal] = useState(false);
   const [editDept, setEditDept] = useState<MainAdminDepartment | null>(null);
   const [form, setForm] = useState({ name: '', headUserId: 0, budgetCap: 0 });
@@ -58,8 +60,6 @@ export function DepartmentsTab({ departments, users, deptLabel, loading, onRefre
     finally { setSaving(false); }
   };
 
-  const fmt = (n: number) => n > 0 ? `₱${n.toLocaleString()}` : 'No Cap Set';
-
   // ── Shared modal body (rendered inline — NOT as a nested component to preserve input focus) ──
   const modalContent = (isEdit: boolean) => (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-end">
@@ -89,7 +89,7 @@ export function DepartmentsTab({ departments, users, deptLabel, loading, onRefre
             </select>
           </div>
           <div>
-            <label className="block text-xs font-black text-slate-500 uppercase mb-2">Annual Budget Cap (₱)</label>
+            <label className="block text-xs font-black text-slate-500 uppercase mb-2">Annual Budget Cap ({symbol})</label>
             <input
               type="number"
               min={0}

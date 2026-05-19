@@ -20,7 +20,6 @@ namespace NexaPlan.API.DTOs
 
     public record ProvisionTenantDto(
         string OrgName,
-        string OrgType,
         string AdminFirstName,
         string AdminLastName,
         string AdminEmail,

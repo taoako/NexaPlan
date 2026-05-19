@@ -104,6 +104,7 @@ export const deptHeadApi = {
   getAllocationGuard: () => apiFetch<any>('/allocations/guard'),
   getProposals:       () => apiFetch<any[]>('/proposals'),
   createProposal:     (data: ProposalReq) => apiFetch<any>('/proposals', { method: 'POST', body: JSON.stringify(data) }),
+  updateProposal:     (id: number, data: ProposalReq) => apiFetch<any>(`/proposals/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   submitProposal:     (id: number) => apiFetch<any>(`/proposals/${id}/submit`, { method: 'POST', body: '{}' }),
   deleteProposal:     (id: number) => apiFetch<any>(`/proposals/${id}`, { method: 'DELETE' }),
   getLineItems:       (id: number) => apiFetch<any[]>(`/proposals/${id}/line-items`),

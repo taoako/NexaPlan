@@ -4,11 +4,11 @@ using NexaPlan.API.Data;
 using NexaPlan.API.DTOs;
 using NexaPlan.API.Helpers;
 
-namespace NexaPlan.API.Controllers.FinanceManager;
+namespace NexaPlan.API.Controllers.MainAdmin;
 
 [ApiController]
-[Route("api/finance-manager/forecast")]
-public class FinanceManagerAnalyticsController : FinanceManagerBaseController
+[Route("api/main-admin/forecast")]
+public class MainAdminAnalyticsController : MainAdminBaseController
 {
     private readonly IHttpClientFactory _http;
 
@@ -16,12 +16,12 @@ public class FinanceManagerAnalyticsController : FinanceManagerBaseController
         { "JAN","FEB","MAR","APR","MAY","JUN",
           "JUL","AUG","SEP","OCT","NOV","DEC" };
 
-    public FinanceManagerAnalyticsController(AppDbContext context, IHttpClientFactory http) : base(context)
+    public MainAdminAnalyticsController(AppDbContext context, IHttpClientFactory http) : base(context)
     {
         _http = http;
     }
 
-    // GET /api/finance-manager/forecast?fiscalYear=2026
+    // GET /api/main-admin/forecast?fiscalYear=2026
     [HttpGet]
     public async Task<IActionResult> GetForecast([FromQuery] int fiscalYear = 2026)
     {
@@ -49,7 +49,7 @@ public class FinanceManagerAnalyticsController : FinanceManagerBaseController
             .Where(a => a.FiscalYear == fiscalYear && deptIds.Contains(a.DepartmentID))
             .ToListAsync();
 
-        // Org-level monthly accumulators (1-indexed, index 0 unused)
+        // Org-level monthly accumulators
         var actualByMonth = new double[13];
         var approvedByMonth = new double[13];
         var pendingByMonth = new double[13];
@@ -68,8 +68,6 @@ public class FinanceManagerAnalyticsController : FinanceManagerBaseController
                 ?.TotalAllocatedCap ?? dept.AnnualBudgetCap);
             var monthlyBudget = annualCap / 12;
 
-            // ── ACTUAL line: reconciled expenses grouped by receipt date first,
-            //    then fallback to reconciled/submitted date for legacy rows.
             var reconciledExpenses = await _context.Expenses
                 .Where(e => e.Status == "Reconciled"
                          && e.TenantID == tenantId
@@ -84,17 +82,12 @@ public class FinanceManagerAnalyticsController : FinanceManagerBaseController
                 })
                 .ToListAsync();
 
-            Console.WriteLine($"[ANALYTICS] Dept={dept.DepartmentName} | Reconciled expenses found={reconciledExpenses.Count}");
-
             var reconciledByMonth = reconciledExpenses
                 .Where(e => (e.ExpenseDate ?? e.ReconciledAt ?? e.SubmittedAt).Year == fiscalYear)
                 .GroupBy(e => ResolveMonthIndex(null, e.ExpenseDate ?? e.ReconciledAt ?? e.SubmittedAt))
                 .Where(g => g.Key.HasValue)
                 .ToDictionary(g => g.Key!.Value, g => (double)g.Sum(e => (double)e.Amount));
 
-            Console.WriteLine($"[ANALYTICS] Dept={dept.DepartmentName} | Expenses matching fiscalYear={fiscalYear}: {reconciledByMonth.Count} month(s) with data");
-
-            // ── COMMITTED (Projected) line: approved proposals by normalized planned month
             var approvedProposals = await _context.BudgetProposals
                 .Where(p => p.DepartmentID == dept.DepartmentID
                          && p.TenantID == tenantId
@@ -112,9 +105,6 @@ public class FinanceManagerAnalyticsController : FinanceManagerBaseController
             var approvedByMonthMap = BuildMonthlyTotals(
                 approvedProposals.Select(p => (p.PlannedMonth, (DateTime?)p.SubmittedAt, (double)p.Amount)));
 
-            Console.WriteLine($"[ANALYTICS] Dept={dept.DepartmentName} | Approved proposals found={approvedProposals.Count} | Months with committed data={approvedByMonthMap.Count}");
-
-            // ── UPPER BOUND: approved + pending proposals (worst case all get approved)
             var pendingProposals = await _context.BudgetProposals
                 .Where(p => p.DepartmentID == dept.DepartmentID
                          && p.TenantID == tenantId
@@ -132,7 +122,6 @@ public class FinanceManagerAnalyticsController : FinanceManagerBaseController
             var pendingByMonthMap = BuildMonthlyTotals(
                 pendingProposals.Select(p => (p.PlannedMonth, (DateTime?)p.SubmittedAt, (double)p.Amount)));
 
-            // Accumulate org-level totals
             for (int m = 1; m <= 12; m++)
             {
                 budgetByMonth[m] += monthlyBudget;
@@ -141,7 +130,6 @@ public class FinanceManagerAnalyticsController : FinanceManagerBaseController
                 pendingByMonth[m] += pendingByMonthMap.TryGetValue(m, out var pendingTotal) ? pendingTotal : 0;
             }
 
-            // ── Per-dept monthly breakdown with ML risk dots ──────────────────────────
             var monthlyForecasts = new List<MonthForecastDto>();
 
             for (int i = 0; i < 12; i++)
@@ -153,7 +141,6 @@ public class FinanceManagerAnalyticsController : FinanceManagerBaseController
                 var varPct = monthlyBudget > 0 ? (committed - monthlyBudget) / monthlyBudget * 100 : 0;
                 var riskLevel = varPct > 15 ? "High" : varPct > 5 ? "Medium" : "Low";
 
-                // ML risk signal: RF model predicts utilization ratio for this dept+month
                 double mlPredicted = 0;
                 string mlRisk = "Low";
                 double mlUpper = 0;
@@ -182,7 +169,7 @@ public class FinanceManagerAnalyticsController : FinanceManagerBaseController
                         }
                     }
                 }
-                catch { /* ML is additive — never block */ }
+                catch { }
 
                 mlUpperByMonth[monthInt] += mlUpper;
                 mlLowerByMonth[monthInt] += mlLower;
@@ -210,7 +197,6 @@ public class FinanceManagerAnalyticsController : FinanceManagerBaseController
                 monthlyForecasts));
         }
 
-        // ── Org-level trend forecast from real historical data ─────────────────────
         var orgActuals = Enumerable.Range(1, 12).Select(m => actualByMonth[m]).ToList();
         var monthsWithData = orgActuals.Count(v => v > 0);
         List<TrendPoint>? trendPts = null;
@@ -221,7 +207,6 @@ public class FinanceManagerAnalyticsController : FinanceManagerBaseController
             var lastIdx = orgActuals.FindLastIndex(v => v > 0);
             var historical = orgActuals.Take(lastIdx + 1).ToList();
             var remaining = 12 - historical.Count;
-
             if (remaining > 0 && historical.Count >= 2)
             {
                 try
@@ -244,16 +229,15 @@ public class FinanceManagerAnalyticsController : FinanceManagerBaseController
                         }
                     }
                 }
-                catch { /* trend is optional */ }
+                catch { }
             }
         }
 
-        // ── Build unified chart data (one row per month) ──────────────────────────
         var chartData = Enumerable.Range(1, 12).Select(m =>
         {
             var ms = MonthNames[m - 1];
             var tp = trendPts?.FirstOrDefault(t => t.Month == ms);
-            var row = new
+            return new
             {
                 month = ms,
                 budget = Math.Round(budgetByMonth[m], 2),
@@ -265,8 +249,6 @@ public class FinanceManagerAnalyticsController : FinanceManagerBaseController
                 trendUpper = tp != null ? (double?)Math.Round(tp.UpperBound, 2) : null,
                 trendLower = tp != null ? (double?)Math.Round(tp.LowerBound, 2) : null
             };
-            Console.WriteLine($"[CHARTDATA] {ms}: budget={row.budget} | actual={row.actual?.ToString() ?? "null"} | committed={row.committed}");
-            return row;
         }).ToList();
 
         var projectedEOY = approvedByMonth.Skip(1).Sum();
@@ -291,81 +273,35 @@ public class FinanceManagerAnalyticsController : FinanceManagerBaseController
         });
     }
 
-    // ── Hybrid Insight Engine (DB utilization + ML risk, mutually exclusive rules) ──
     private static List<InsightDto> GenerateInsights(List<DeptForecastDto> depts)
     {
         var insights = new List<InsightDto>();
-
         foreach (var dept in depts)
         {
             if (!dept.MonthlyForecasts.Any()) continue;
-
-            // ── DB utilization: committed funds (sum of approved proposals) vs annual cap ──
             var committedFunds = dept.MonthlyForecasts.Sum(m => m.PredictedSpending);
-            var currentUtilizationPct = dept.AnnualBudget > 0
-                ? (committedFunds / dept.AnnualBudget) * 100.0
-                : 0.0;
+            var currentUtilizationPct = dept.AnnualBudget > 0 ? (committedFunds / dept.AnnualBudget) * 100.0 : 0.0;
             var utilizationDisplay = Math.Round(currentUtilizationPct, 1);
-
-            // ── Dominant ML risk across all months for this dept ──────────────────────
             var mlRisk = dept.MonthlyForecasts.Any(m => m.MlRiskLevel == "High") ? "High"
-                       : dept.MonthlyForecasts.Any(m => m.MlRiskLevel == "Medium") ? "Medium"
-                       : "Low";
+                       : dept.MonthlyForecasts.Any(m => m.MlRiskLevel == "Medium") ? "Medium" : "Low";
+            var modelUsed = dept.MonthlyForecasts.Where(m => !string.IsNullOrEmpty(m.MlModelUsed)).Select(m => m.MlModelUsed).FirstOrDefault() ?? "ML Model";
 
-            var modelUsed = dept.MonthlyForecasts
-                .Where(m => !string.IsNullOrEmpty(m.MlModelUsed))
-                .Select(m => m.MlModelUsed)
-                .FirstOrDefault() ?? "ML Model";
-
-            // ── Rule 1 — Critical Overrun (High/Medium ML risk AND >= 75% DB utilization) ─
             if ((mlRisk == "High" || mlRisk == "Medium") && currentUtilizationPct >= 75)
-            {
-                insights.Add(new InsightDto(
-                    "Warning",
-                    $"Budget Overrun Risk — {dept.DepartmentName}",
-                    $"Live DB data shows {utilizationDisplay}% of funds are already committed. The {modelUsed} model confirms a high probability of exceeding the budget cap by end-of-year.",
-                    "Hybrid (DB + ML)"));
-            }
-            // ── Rule 2 — Late Surge (High/Medium ML risk AND < 75% DB utilization) ──────
+                insights.Add(new InsightDto("Warning", $"Budget Overrun Risk — {dept.DepartmentName}", $"Live DB data shows {utilizationDisplay}% of funds are already committed. The {modelUsed} model confirms a high probability of exceeding the budget cap by end-of-year.", "Hybrid (DB + ML)"));
             else if ((mlRisk == "High" || mlRisk == "Medium") && currentUtilizationPct < 75)
-            {
-                insights.Add(new InsightDto(
-                    "Caution",
-                    $"Hidden Burn Rate — {dept.DepartmentName}",
-                    $"Current DB commitments are low ({utilizationDisplay}%), but the {modelUsed} model predicts standard enterprise utilization by EOY. Do not reallocate funds prematurely.",
-                    "Hybrid (DB + ML)"));
-            }
-            // ── Rule 3 — Safe Reallocation (Low ML risk AND < 60% DB utilization) ────────
+                insights.Add(new InsightDto("Caution", $"Hidden Burn Rate — {dept.DepartmentName}", $"Current DB commitments are low ({utilizationDisplay}%), but the {modelUsed} model predicts standard enterprise utilization by EOY. Do not reallocate funds prematurely.", "Hybrid (DB + ML)"));
             else if (mlRisk == "Low" && currentUtilizationPct < 60)
             {
                 var safeToMove = Math.Round(dept.AnnualBudget * (1.0 - currentUtilizationPct / 100.0) * 0.5);
-                insights.Add(new InsightDto(
-                    "Opportunity",
-                    $"Safe Reallocation — {dept.DepartmentName}",
-                    $"Both live DB activity and the {modelUsed} model project a stable surplus. Approximately ₱{safeToMove:N0} could be safely reallocated to at-risk departments.",
-                    "Hybrid (DB + ML)"));
+                insights.Add(new InsightDto("Opportunity", $"Safe Reallocation — {dept.DepartmentName}", $"Both live DB activity and the {modelUsed} model project a stable surplus. Approximately ₱{safeToMove:N0} could be safely reallocated to at-risk departments.", "Hybrid (DB + ML)"));
             }
         }
-
         return insights.Take(4).ToList();
     }
 
-    private static object BuildEmptyResponse() => new
-    {
-        projectedEOY = 0.0,
-        totalBudget = 0.0,
-        variancePct = 0.0,
-        depletionRisk = "Low",
-        monthsOfData = 0,
-        trendMethod = "none",
-        hasEnoughData = false,
-        chartData = new List<object>(),
-        departments = new List<object>(),
-        insights = new List<object>()
-    };
+    private static object BuildEmptyResponse() => new { projectedEOY = 0.0, totalBudget = 0.0, variancePct = 0.0, depletionRisk = "Low", monthsOfData = 0, trendMethod = "none", hasEnoughData = false, chartData = new List<object>(), departments = new List<object>(), insights = new List<object>() };
 
-    private static Dictionary<int, double> BuildMonthlyTotals(
-        IEnumerable<(string? PlannedMonth, DateTime? FallbackDate, double Amount)> items)
+    private static Dictionary<int, double> BuildMonthlyTotals(IEnumerable<(string? PlannedMonth, DateTime? FallbackDate, double Amount)> items)
     {
         var result = new Dictionary<int, double>();
         foreach (var item in items)
@@ -384,23 +320,14 @@ public class FinanceManagerAnalyticsController : FinanceManagerBaseController
         if (!string.IsNullOrWhiteSpace(monthText))
         {
             var normalized = monthText.Trim().ToUpperInvariant();
-
-            // Handle numeric months if entered as strings
             if (int.TryParse(normalized, out var m) && m >= 1 && m <= 12) return m;
-
-            // Handle full names or 3-letter abbreviations
             var fullMonthNames = new[] { "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER" };
-
             for (int i = 0; i < 12; i++)
             {
-                if (normalized == MonthNames[i] || normalized == fullMonthNames[i] || (normalized.Length >= 3 && normalized.StartsWith(MonthNames[i])))
-                {
-                    return i + 1;
-                }
+                if (normalized == MonthNames[i] || normalized == fullMonthNames[i] || (normalized.Length >= 3 && normalized.StartsWith(MonthNames[i]))) return i + 1;
             }
         }
         return fallbackDate?.Month;
     }
-
     record TrendPoint(string Month, double Predicted, double UpperBound, double LowerBound);
 }

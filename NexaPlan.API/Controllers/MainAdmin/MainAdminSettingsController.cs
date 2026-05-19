@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using NexaPlan.API.Data;
 using NexaPlan.API.DTOs;
 using NexaPlan.API.Models;
+using NexaPlan.API.Helpers;
 
 namespace NexaPlan.API.Controllers.MainAdmin
 {
@@ -38,7 +39,21 @@ namespace NexaPlan.API.Controllers.MainAdmin
                 companyName = tenant?.CompanyName ?? "",
                 contactPerson = tenant?.ContactPerson ?? "",
                 contactEmail = tenant?.ContactEmail ?? "",
-                phone = tenant?.Phone ?? ""
+                phone = tenant?.Phone ?? "",
+                // Security Policy
+                sessionTimeoutMinutes = tenant?.SessionTimeoutMinutes ?? 30,
+                minPasswordLength = tenant?.MinPasswordLength ?? 8,
+                maxFailedLoginAttempts = tenant?.MaxFailedLoginAttempts ?? 5,
+                // Notifications
+                notificationPreferences = tenant?.NotificationPreferences,
+                // Subscription & Data (Read-only)
+                subscriptionTier = tenant?.SubscriptionTier ?? "Trial",
+                registrationStatus = tenant?.RegistrationStatus ?? "Pending",
+                orgType = tenant?.OrgType ?? "Corporate",
+                orgLabel = tenant?.OrgLabel ?? "Department",
+                tenantId = tenantId,
+                // Tier Features
+                features = TierFeatures.BuildFeaturesPayload(tenant?.SubscriptionTier ?? "Trial")
             });
         }
 
@@ -67,6 +82,13 @@ namespace NexaPlan.API.Controllers.MainAdmin
                 tenant.ContactPerson = request.ContactPerson;
                 tenant.ContactEmail = request.ContactEmail;
                 tenant.Phone = request.Phone;
+                // Security Policy
+                tenant.SessionTimeoutMinutes = request.SessionTimeoutMinutes;
+                tenant.MinPasswordLength = request.MinPasswordLength;
+                tenant.MaxFailedLoginAttempts = request.MaxFailedLoginAttempts;
+                // Notifications
+                if (request.NotificationPreferences != null)
+                    tenant.NotificationPreferences = request.NotificationPreferences;
             }
 
             _context.AuditLogs.Add(new AuditLog { 

@@ -7,20 +7,34 @@ import { ForecastingView } from './views/ForecastingView';
 import { ScenariosView } from './views/ScenariosView';
 import { VarianceView } from './views/VarianceView';
 import { financeManagerApi } from '../../../api/financeManagerApi';
+import * as mainAdminApi from '../../../api/mainAdminApi';
 import { ReconciliationView } from './views/ReconciliationView';
+import { FeaturesContext, TierFeatures } from '../../../context/FeaturesContext';
 
 interface FinanceManagerSystemProps { 
-  onBack: () => void; 
+  onLogout: () => void; 
+}
+
+export interface Scenario {
+  id: number;
+  name: string;
+  desc: string;
+  multiplier: number;
+  isActive: boolean;
 }
 
 export type ModuleView = 'allocation' | 'approval' | 'reconciliation' | 'forecasting' | 'scenarios' | 'variance';
 
 interface Toast { id: number; message: string; type: 'success' | 'error' | 'info' | 'warning'; }
 
-export function FinanceManagerSystem({ onBack }: FinanceManagerSystemProps) {
+export function FinanceManagerSystem({ onLogout }: FinanceManagerSystemProps) {
   const [activeModule, setActiveModule] = useState<ModuleView>('allocation');
-  const [activeScenario, setActiveScenario] = useState<any>(null);
+  const [activeScenario, setActiveScenario] = useState<Scenario | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [features, setFeatures] = useState<TierFeatures | null>(null);
+
+  const storedUser = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
+  const tenantId: number = storedUser.tenantId ?? 0;
 
   const addToast = useCallback((message: string, type: 'success' | 'error' | 'info' | 'warning' = 'info') => {
     const id = Date.now();
@@ -30,6 +44,7 @@ export function FinanceManagerSystem({ onBack }: FinanceManagerSystemProps) {
 
   useEffect(() => {
     fetchActiveScenario();
+    fetchFeatures();
   }, [activeModule]);
 
   const fetchActiveScenario = async () => {
@@ -39,6 +54,16 @@ export function FinanceManagerSystem({ onBack }: FinanceManagerSystemProps) {
       setActiveScenario(active);
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const fetchFeatures = async () => {
+    if (!tenantId) return;
+    try {
+      const data = await mainAdminApi.getSettings(tenantId);
+      setFeatures(data.features);
+    } catch (err) {
+      console.error("Failed to load tier features", err);
     }
   };
 
@@ -66,17 +91,19 @@ export function FinanceManagerSystem({ onBack }: FinanceManagerSystemProps) {
         activeModule={activeModule}
         setActiveModule={setActiveModule}
         navTabs={navTabs}
-        onBack={onBack}
+        onLogout={onLogout}
       />
 
       {/* Main Content Area - Routing to Views */}
       <div className="flex-1 overflow-auto bg-[#F8FAFC]">
-        {activeModule === 'allocation' && <AllocationView />}
-        {activeModule === 'approval' && <ApprovalView />}
-        {activeModule === 'reconciliation' && <ReconciliationView addToast={addToast} />}
-        {activeModule === 'forecasting' && <ForecastingView />}
-        {activeModule === 'scenarios' && <ScenariosView />}
-        {activeModule === 'variance' && <VarianceView activeScenario={activeScenario} />}
+        <FeaturesContext.Provider value={features}>
+          {activeModule === 'allocation' && <AllocationView />}
+          {activeModule === 'approval' && <ApprovalView />}
+          {activeModule === 'reconciliation' && <ReconciliationView addToast={addToast} />}
+          {activeModule === 'forecasting' && <ForecastingView />}
+          {activeModule === 'scenarios' && <ScenariosView />}
+          {activeModule === 'variance' && <VarianceView activeScenario={activeScenario} />}
+        </FeaturesContext.Provider>
       </div>
 
       {/* Toast Container */}

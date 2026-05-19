@@ -34,7 +34,7 @@ namespace NexaPlan.API.Controllers.SuperAdmin
                     a.Tenant?.CompanyName ?? "Unknown",
                     a.MfaEnabled, a.IsLocked,
                     a.LastLoginAt.HasValue ? FormatTimeAgo(a.LastLoginAt.Value) : "Never",
-                    a.IsLocked ? "locked" : (a.IsActive ? "active" : "inactive")
+                    a.IsLocked ? "locked" : (a.IsActive ? "active" : "disabled")
                 );
             }).ToList();
 

@@ -72,6 +72,18 @@ export interface MainAdminSettings {
   contactPerson: string;
   contactEmail: string;
   phone: string;
+  // Part 2.1 — Security Policy
+  sessionTimeoutMinutes: number;
+  minPasswordLength: number;
+  maxFailedLoginAttempts: number;
+  // Part 2.2 — Notifications
+  notificationPreferences: string | null;
+  // Part 2.3 — Subscription (Read-only)
+  subscriptionTier: string;
+  registrationStatus: string;
+  orgType: string;
+  orgLabel: string;
+  tenantId: number;
 }
 
 export interface MainAdminLog {
@@ -181,6 +193,10 @@ export const getLogs = (tenantId: number, params?: { search?: string; type?: str
   if (params?.to) q.set('to', params.to);
   return apiFetch<MainAdminLog[]>(`/logs?${q.toString()}`, tenantId);
 };
+
+// ─── Analytics ───
+export const getForecast = (tenantId: number, fiscalYear: number = 2026) =>
+  apiFetch<any>(`/forecast?fiscalYear=${fiscalYear}`, tenantId);
 
 // ─── Billing ───
 export const getBilling = (tenantId: number) => apiFetch<MainAdminBilling>('/billing', tenantId);

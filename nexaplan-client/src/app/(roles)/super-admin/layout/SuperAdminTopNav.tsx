@@ -6,11 +6,11 @@ import type { DashboardView } from '../SuperAdminSystem';
 interface SuperAdminTopNavProps {
   currentView: DashboardView;
   setCurrentView: React.Dispatch<React.SetStateAction<DashboardView>>;
-  onBack: () => void;
+  onLogout: () => void;
   pendingTrialCount: number;
 }
 
-export function SuperAdminTopNav({ currentView, setCurrentView, onBack, pendingTrialCount }: SuperAdminTopNavProps) {
+export function SuperAdminTopNav({ currentView, setCurrentView, onLogout, pendingTrialCount }: SuperAdminTopNavProps) {
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
   const [modalMessage, setModalMessage] = useState<string | null>(null);
@@ -139,7 +139,7 @@ export function SuperAdminTopNav({ currentView, setCurrentView, onBack, pendingT
                 </button>
               </div>
               <div className="py-1 border-t border-slate-100">
-                <button onClick={() => { setShowProfileDropdown(false); onBack(); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#EF4444] hover:bg-red-50 transition-colors font-semibold">
+                <button onClick={() => { setShowProfileDropdown(false); onLogout(); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#EF4444] hover:bg-red-50 transition-colors font-semibold">
                   <LogOut className="w-4 h-4" /> Logout
                 </button>
               </div>

@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { CheckCircle2, XCircle, Clock, Receipt, AlertTriangle, Filter, ArrowUpDown } from 'lucide-react';
 import { financeManagerApi } from '../../../../api/financeManagerApi';
 import { TablePagination } from '../../../../components/TablePagination';
+import { useCurrency } from '../../../../context/CurrencyContext';
 
 export function ReconciliationView({ addToast }: { addToast: (msg: string, type: 'success' | 'error' | 'info' | 'warning') => void }) {
+  const { fmt } = useCurrency();
   const [expenses, setExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('');
@@ -118,7 +120,7 @@ export function ReconciliationView({ addToast }: { addToast: (msg: string, type:
           </div>
           <div>
             <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Total Reconciled Spend</div>
-            <div className="text-[22px] font-black text-slate-900">₱{reconciledTotal.toLocaleString()}</div>
+            <div className="text-[22px] font-black text-slate-900">{fmt(reconciledTotal)}</div>
           </div>
         </div>
         <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm flex items-center gap-4">
@@ -156,10 +158,10 @@ export function ReconciliationView({ addToast }: { addToast: (msg: string, type:
                     <div className="font-semibold text-[13px] text-slate-900">{exp.proposalTitle}</div>
                     <div className="text-[11px] font-mono text-slate-500">PRJ-{exp.proposalId}</div>
                   </td>
-                  <td className="px-5 py-3.5 font-mono text-[13px] text-slate-500">₱{exp.proposalBudget.toLocaleString()}</td>
-                  <td className="px-5 py-3.5 font-mono font-bold text-[14px] text-slate-900">₱{exp.actualAmount.toLocaleString()}</td>
+                  <td className="px-5 py-3.5 font-mono text-[13px] text-slate-500">{fmt(exp.proposalBudget)}</td>
+                  <td className="px-5 py-3.5 font-mono font-bold text-[14px] text-slate-900">{fmt(exp.actualAmount)}</td>
                   <td className={`px-5 py-3.5 font-mono font-bold text-[13px] ${isPositive ? 'text-emerald-600' : 'text-red-500'}`}>
-                    {isPositive ? '-' : '+'}₱{Math.abs(exp.variance).toLocaleString()}
+                    {isPositive ? '-' : '+'}{fmt(Math.abs(exp.variance))}
                     {!isPositive && <span className="ml-1 text-[10px] font-bold">OVER</span>}
                   </td>
                   <td className="px-5 py-3.5">
