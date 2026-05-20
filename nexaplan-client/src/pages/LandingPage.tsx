@@ -153,7 +153,7 @@ export function LandingPage({ onNavigate, onSelectPlan, isLoggedIn, userRole }: 
           </h1>
 
           <p className="text-[18px] text-slate-500 leading-relaxed mb-10 max-w-[560px] mx-auto">
-            Enterprise finance platform built for Philippine companies. Automate multi-level approvals, predict spend with 94% AI accuracy, and give every department head real-time visibility.
+            Enterprise finance platform built for Philippine companies. Automate multi-level approvals, predict spend with 81% AI accuracy, and give every department head real-time visibility.
           </p>
 
           <div className="flex gap-3.5 mb-12 justify-center">
@@ -426,11 +426,10 @@ export function LandingPage({ onNavigate, onSelectPlan, isLoggedIn, userRole }: 
             plans.map((plan) => (
               <div
                 key={plan.planID}
-                className={`p-8 rounded-2xl border-2 transition-all duration-300 relative ${
-                  plan.isPopular 
-                    ? 'bg-[#0A192F] border-[#0052FF] shadow-2xl transform scale-105 z-10' 
+                className={`p-8 rounded-2xl border-2 transition-all duration-300 relative ${plan.isPopular
+                    ? 'bg-[#0A192F] border-[#0052FF] shadow-2xl transform scale-105 z-10'
                     : 'bg-white border-slate-200 hover:border-[#0052FF] hover:shadow-xl'
-                }`}
+                  }`}
               >
                 {plan.isPopular && (
                   <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-[#0052FF] text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest">
@@ -455,11 +454,10 @@ export function LandingPage({ onNavigate, onSelectPlan, isLoggedIn, userRole }: 
 
                 <button
                   onClick={() => selectPlan(plan.name.toLowerCase())}
-                  className={`w-full py-3 rounded-lg font-bold transition-all duration-300 mb-6 ${
-                    plan.isPopular 
-                      ? 'bg-[#0052FF] text-white hover:bg-blue-600' 
+                  className={`w-full py-3 rounded-lg font-bold transition-all duration-300 mb-6 ${plan.isPopular
+                      ? 'bg-[#0052FF] text-white hover:bg-blue-600'
                       : 'bg-slate-900 text-white hover:bg-slate-800'
-                  }`}
+                    }`}
                 >
                   Purchase Plan
                 </button>
