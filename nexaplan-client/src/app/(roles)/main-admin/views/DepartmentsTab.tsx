@@ -1,7 +1,38 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Edit, Trash2, RefreshCw, X, Check, DollarSign, Users, ToggleLeft, ToggleRight, Building2 } from 'lucide-react';
+import { Plus, Edit, Trash2, RefreshCw, X, Check, DollarSign, Users, ToggleLeft, ToggleRight, Building2, ChevronDown } from 'lucide-react';
 import type { MainAdminDepartment, MainAdminUser } from '../../../../api/mainAdminApi';
 import { useCurrency } from '../../../../context/CurrencyContext';
+
+// Standard department name lists — prevents free-text errors
+const BUREAU_OPTIONS = [
+  'Bureau of Internal Revenue',
+  'Bureau of Customs',
+  'Bureau of Treasury',
+  'Bureau of Fire Protection',
+  'Bureau of Jail Management and Penology',
+  'Bureau of Immigration',
+  'Bureau of Land Transportation',
+  'Bureau of Corrections',
+  'Bureau of Local Government Finance',
+  'Bureau of Plant Industry',
+];
+
+const DEPARTMENT_OPTIONS = [
+  'IT',
+  'Marketing',
+  'Sales',
+  'Human Resources',
+  'Operations',
+  'Finance',
+  'Legal',
+  'Procurement',
+  'Research & Development',
+  'Customer Service',
+  'Logistics',
+  'Compliance',
+  'Executive',
+  'Administration',
+];
 
 interface Props {
   departments: MainAdminDepartment[];
@@ -22,10 +53,18 @@ export function DepartmentsTab({ departments, users, deptLabel, loading, onRefre
   const [form, setForm] = useState({ name: '', headUserId: 0, budgetCap: 0 });
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const [useManualName, setUseManualName] = useState(false);
 
   useEffect(() => {
-    if (editDept) setForm({ name: editDept.name, headUserId: editDept.headUserId ?? 0, budgetCap: editDept.budgetCap });
-    else setForm({ name: '', headUserId: 0, budgetCap: 0 });
+    if (editDept) {
+      setForm({ name: editDept.name, headUserId: editDept.headUserId ?? 0, budgetCap: editDept.budgetCap });
+      // If the saved name isn't in the standard list, switch to manual mode
+      const opts = deptLabel === 'Bureau' ? BUREAU_OPTIONS : DEPARTMENT_OPTIONS;
+      setUseManualName(!opts.includes(editDept.name));
+    } else {
+      setForm({ name: '', headUserId: 0, budgetCap: 0 });
+      setUseManualName(false);
+    }
   }, [editDept]);
 
   const inputCls = 'w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all text-sm font-medium';
@@ -74,12 +113,44 @@ export function DepartmentsTab({ departments, users, deptLabel, loading, onRefre
         <div className="flex-1 overflow-y-auto p-8 space-y-5">
           <div>
             <label className="block text-xs font-black text-slate-500 uppercase mb-2">{deptLabel} Name *</label>
-            <input
-              value={form.name}
-              onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-              className={inputCls}
-              placeholder={`e.g. ${deptLabel === 'Bureau' ? 'Bureau of Customs' : 'Finance'}`}
-            />
+            {useManualName ? (
+              <div className="relative">
+                <input
+                  type="text"
+                  value={form.name}
+                  onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                  className={`${inputCls} pr-10`}
+                  placeholder={`e.g. My Custom ${deptLabel}`}
+                  autoFocus
+                />
+              </div>
+            ) : (
+              <div className="relative">
+                <select
+                  value={form.name}
+                  onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                  className={`${inputCls} appearance-none pr-10 cursor-pointer`}
+                >
+                  <option value="">— Select a {deptLabel} —</option>
+                  {(deptLabel === 'Bureau' ? BUREAU_OPTIONS : DEPARTMENT_OPTIONS).map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              </div>
+            )}
+            <div className="flex items-center justify-between mt-1.5">
+              <p className="text-xs text-slate-400">
+                {useManualName ? 'Typing a custom name.' : 'Select from the standardized list.'}
+              </p>
+              <button
+                type="button"
+                onClick={() => { setUseManualName(m => !m); setForm(p => ({ ...p, name: '' })); }}
+                className="text-xs font-bold text-indigo-500 hover:text-indigo-700 transition-colors"
+              >
+                {useManualName ? '← Pick from list' : 'Type manually →'}
+              </button>
+            </div>
           </div>
           <div>
             <label className="block text-xs font-black text-slate-500 uppercase mb-2">Head / Lead</label>
@@ -118,7 +189,7 @@ export function DepartmentsTab({ departments, users, deptLabel, loading, onRefre
           <h2 className="text-xl font-black text-slate-900">{deptLabel}s & Permissions</h2>
           <p className="text-sm text-slate-500 mt-0.5">Manage organizational units and budget access controls.</p>
         </div>
-        <button onClick={() => { setShowModal(true); setEditDept(null); setForm({ name: '', headUserId: 0, budgetCap: 0 }); }} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-md">
+        <button onClick={() => { setShowModal(true); setEditDept(null); setForm({ name: '', headUserId: 0, budgetCap: 0 }); setUseManualName(false); }} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-md">
           <Plus className="w-4 h-4" /> New {deptLabel}
         </button>
       </div>

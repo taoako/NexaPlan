@@ -35,3 +35,14 @@ NexaPlan.API/ml_service/__pycache__/
 NexaPlan.API/ml_service/*.pyc
 NexaPlan.API/ml_service/venv/
 NexaPlan.API/ml_service/.env
+
+# ─── Publish Artifacts & Temp files ──────────────────────────────────────────
+MonsterASP_Publish/
+NexaPlan_Backend_Update.zip
+NexaPlan_Backend_Update/
+NexaPlan.API/publish/
+NexaPlan.API/publish_output/
+payload.json
+test_key.cs
+.antigravitycli/
+NexaPlan.API/test-token.json

@@ -12,6 +12,8 @@ import { ComplianceScansView } from './views/ComplianceScansView';
 import { FinancialStatementsView } from './views/FinancialStatementsView';
 import { VarianceSummaryView } from './views/VarianceSummaryView';
 import { auditorApi } from '../../../api/auditorApi';
+import { UserProfileView } from '../../../components/shared/UserProfileView';
+import { UserSecurityView } from '../../../components/shared/UserSecurityView';
 
 export type ModuleView = 'overview' | 'audit-trails' | 'compliance-scans' | 'financial-statements' | 'variance-summary';
 
@@ -47,6 +49,8 @@ interface ComplianceAuditSystemProps {
 
 export function ComplianceAuditSystem({ onLogout }: ComplianceAuditSystemProps) {
   const [activeModule, setActiveModule] = useState<ModuleView>('overview');
+  const [subView, setSubView] = useState<'profile' | 'security' | null>(null);
+
   const [dateRange, setDateRange] = useState('Q1 2026 - Q4 2026');
   const [targetDept, setTargetDept] = useState('all');
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
@@ -67,8 +71,24 @@ export function ComplianceAuditSystem({ onLogout }: ComplianceAuditSystemProps) 
 
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
-    if (savedUser) setUser(JSON.parse(savedUser));
+    if (savedUser) {
+      const parsed = JSON.parse(savedUser);
+      setUser(parsed);
+      if (parsed.requireMfa && !parsed.mfaEnabled) {
+        setAlertState({
+          show: true,
+          title: 'MFA REQUIRED',
+          message: 'MFA Setup is required for your account. Please configure it under Security in the profile dropdown.',
+          type: 'info'
+        });
+      }
+    }
   }, []);
+
+  const handleProfileUpdate = () => {
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) setUser(JSON.parse(savedUser));
+  };
 
   const auditorName = user
     ? (user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.name || 'Auditor')
@@ -129,6 +149,11 @@ export function ComplianceAuditSystem({ onLogout }: ComplianceAuditSystemProps) 
     setActiveModule('audit-trails');
   };
 
+  const addToast = useCallback((message: string, type: 'success' | 'error' | 'info' | 'warning' = 'info') => {
+    const alertType = type === 'warning' ? 'info' : type;
+    setAlertState({ show: true, title: type.toUpperCase(), message, type: alertType });
+  }, []);
+
   const modalContextValue = {
     showAlert: (title: string, message: string, type: 'info' | 'success' | 'error' = 'info') => {
       setAlertState({ show: true, title, message, type });
@@ -177,7 +202,7 @@ export function ComplianceAuditSystem({ onLogout }: ComplianceAuditSystemProps) 
               {modules.map(({ id, label, icon: Icon }) => (
                 <button
                   key={id}
-                  onClick={() => { setActiveModule(id); setAuditTrailPreFilter(null); }}
+                  onClick={() => { setActiveModule(id); setAuditTrailPreFilter(null); setSubView(null); }}
                   className={`flex items-center gap-2 px-4 py-2.5 rounded-md text-sm font-semibold transition-all ${
                     activeModule === id
                       ? 'bg-[#4F46E5] text-white'
@@ -249,6 +274,14 @@ export function ComplianceAuditSystem({ onLogout }: ComplianceAuditSystemProps) 
                       <div className="text-sm font-bold text-slate-900">{auditorName}</div>
                       <div className="text-xs text-slate-500">{user?.email || 'auditor@nexaplan.ph'}</div>
                     </div>
+                    <div className="py-1">
+                      <button onClick={() => { setShowProfileDropdown(false); setSubView('profile'); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors font-semibold">
+                        <User className="w-4 h-4 text-slate-400" />Profile Settings
+                      </button>
+                      <button onClick={() => { setShowProfileDropdown(false); setSubView('security'); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors font-semibold">
+                        <Lock className="w-4 h-4 text-slate-400" />Security
+                      </button>
+                    </div>
                     <div className="py-1 border-t border-slate-100">
                       <button onClick={() => { setShowProfileDropdown(false); onLogout?.(); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#EF4444] hover:bg-red-50 transition-colors font-semibold">
                         <LogOut className="w-4 h-4" /> Logout
@@ -302,7 +335,7 @@ export function ComplianceAuditSystem({ onLogout }: ComplianceAuditSystemProps) 
           </div>
 
           {/* Main Content */}
-          <div className="flex-1 overflow-auto bg-[#F1F5F9]">
+          <div className="flex-1 overflow-auto bg-[#F1F5F9] p-8">
             {activeModule === 'overview' && (
               <OverviewView onNavigate={handleNavigateToAuditTrails} />
             )}
@@ -318,6 +351,37 @@ export function ComplianceAuditSystem({ onLogout }: ComplianceAuditSystemProps) 
             {activeModule === 'financial-statements' && <FinancialStatementsView />}
             {activeModule === 'variance-summary' && <VarianceSummaryView />}
           </div>
+
+          {/* ─── Profile & Security Modals ─── */}
+          {subView === 'profile' && (
+            <div className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4">
+              <div className="bg-[#F8FAFC] rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-8 relative border border-slate-200">
+                <button 
+                  onClick={() => setSubView(null)} 
+                  className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+                <UserProfileView onBack={() => setSubView(null)} addToast={addToast} onProfileUpdate={handleProfileUpdate} />
+              </div>
+            </div>
+          )}
+
+          {subView === 'security' && (
+            <div className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4">
+              <div className="bg-[#F8FAFC] rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-8 relative border border-slate-200">
+                <button 
+                  onClick={() => setSubView(null)} 
+                  className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+                <UserSecurityView onBack={() => setSubView(null)} addToast={addToast} />
+              </div>
+            </div>
+          )}
+
+
 
           {/* Alert Modal */}
           {alertState.show && (

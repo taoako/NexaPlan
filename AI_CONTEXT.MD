@@ -48,7 +48,7 @@ This document provides essential context about the NexaPlan platform's architect
 
 **System Processes & UI Behaviors:**
 
-- **Review/View Details (Action):** Every row in the trial table is clickable. Pending requests say "Review →", while approved/rejected requests say "View Details", opening a comprehensive verification dossier.
+- **Review/View Details (Action):** Every row in the trial table is clickable. Pending requests say "Review â†’", while approved/rejected requests say "View Details", opening a comprehensive verification dossier.
 - **Approval Transaction:** Clicking "Approve" triggers a cascade of backend events: The account status shifts to "Active", the MySQL database allocates workspace storage, the PayMongo customer profile is drafted (awaiting future payment details), a 14-day trial countdown timer is initiated in the UI.
   - **Password Retrieval:** The system retrieves the original password hash the user submitted during the registration step, ensuring they can log in seamlessly with the credentials they initially created.
 
@@ -64,7 +64,7 @@ This document provides essential context about the NexaPlan platform's architect
   - Sanitized plaintext secrets in `NexaPlan.API/appsettings.json` and added `NexaPlan.API/appsettings.example.json` with placeholders.
   - Added `NexaPlan.API/appsettings.json` to `.gitignore` and removed it from tracking in the next commit (so secrets should be stored via user-secrets or environment variables).
 
-- **Important security note:** The repository previously contained plaintext secrets in history (appsettings). The automation removed them from the current HEAD by replacing values with placeholders, but the secrets still exist in the git history. If you want those secrets purged from the repository history, I can help run a history rewrite (BFG or git filter-repo) — note that rewriting history requires coordination for any collaborators and force-pushing the branch.
+- **Important security note:** The repository previously contained plaintext secrets in history (appsettings). The automation removed them from the current HEAD by replacing values with placeholders, but the secrets still exist in the git history. If you want those secrets purged from the repository history, I can help run a history rewrite (BFG or git filter-repo) â€” note that rewriting history requires coordination for any collaborators and force-pushing the branch.
 
 ## Session 36: Dashboard Layout & Data Integrity Fixes
 
@@ -100,15 +100,15 @@ This document provides essential context about the NexaPlan platform's architect
 - **Actionable Feedback:** All operations trigger Toast notifications via the `addToast()` system (success / error / info variants with iconography).
 - **Admin Lock Modal:** `AdminsView.tsx` now shows a proper `lockConfirmId` modal instead of `window.confirm()` for disabling admin accounts.
 
-## 5.5 Authentication (FIXED — Session 5)
+## 5.5 Authentication (FIXED â€” Session 5)
 
 **Login endpoint (`AuthController.Login`):**
 
-- EF Core CANNOT translate `u.Email.Trim()` or `u.Email.ToLower()` to MySQL SQL — these caused `null` user results even when email existed.
+- EF Core CANNOT translate `u.Email.Trim()` or `u.Email.ToLower()` to MySQL SQL â€” these caused `null` user results even when email existed.
 - **Final fix:** Fetch by `u.Email == request.Email.Trim()` (literal equality, MySQL handles case-insensitivity). If no results, fetch ALL users and filter in C# with `.Trim().ToLower()` comparison as fallback.
 - Returns `userId`, `tenantId`, `roleId`, `name`, `email`.
 
-**CRITICAL — Actual Role IDs in DB (from `Program.cs` seeding order):**
+**CRITICAL â€” Actual Role IDs in DB (from `Program.cs` seeding order):**
 | RoleID | Role Name |
 |---|---|
 | 1 | Super Admin |
@@ -118,25 +118,25 @@ This document provides essential context about the NexaPlan platform's architect
 | 5 | Auditor |
 | 6 | Viewer |
 
-⚠️ Previous code assumed Finance Manager = 4, Department Head = 3. **This was wrong.** All role checks must use 3 for Finance Manager and 4 for Department Head.
+âš ï¸� Previous code assumed Finance Manager = 4, Department Head = 3. **This was wrong.** All role checks must use 3 for Finance Manager and 4 for Department Head.
 
 **`ImpersonateTenant` endpoint:** Returns `userId` for correct session storage.
 
-## 6. Main Admin Dashboard (v2 — Fully Functional)
+## 6. Main Admin Dashboard (v2 â€” Fully Functional)
 
 **Overview:** The tenant-scoped workspace management system for the highest-privileged user within each client organization.
 
 ### Architecture
 
 - **Backend:** Split into dedicated controllers under `NexaPlan.API/Controllers/MainAdmin/`:
-  - `MainAdminBaseController.cs` — shared `GetTenantId()` helper; all others inherit from this
-  - `MainAdminSummaryController.cs` — `GET api/main-admin/summary`, `GET api/main-admin/roles`
-  - `MainAdminUsersController.cs` — full CRUD + bulk actions at `api/main-admin/users`
-  - `MainAdminDepartmentsController.cs` — full CRUD at `api/main-admin/departments`
-  - `MainAdminSettingsController.cs` — `GET/PUT api/main-admin/settings`
-  - `MainAdminLogsController.cs` — `GET api/main-admin/logs` (search, type, date range)
-  - `MainAdminBillingController.cs` — `GET api/main-admin/billing`, `POST billing/upgrade`, `POST billing/cancel`
-- **DTOs:** `NexaPlan.API/DTOs/MainAdminDtos.cs` — all request/response DTOs
+  - `MainAdminBaseController.cs` â€” shared `GetTenantId()` helper; all others inherit from this
+  - `MainAdminSummaryController.cs` â€” `GET api/main-admin/summary`, `GET api/main-admin/roles`
+  - `MainAdminUsersController.cs` â€” full CRUD + bulk actions at `api/main-admin/users`
+  - `MainAdminDepartmentsController.cs` â€” full CRUD at `api/main-admin/departments`
+  - `MainAdminSettingsController.cs` â€” `GET/PUT api/main-admin/settings`
+  - `MainAdminLogsController.cs` â€” `GET api/main-admin/logs` (search, type, date range)
+  - `MainAdminBillingController.cs` â€” `GET api/main-admin/billing`, `POST billing/upgrade`, `POST billing/cancel`
+- **DTOs:** `NexaPlan.API/DTOs/MainAdminDtos.cs` â€” all request/response DTOs
 - **Frontend:** `src/app/(roles)/main-admin/MainAdminSystem.tsx` (orchestrator) + individual view components in `views/`
 - **API Client:** `src/api/mainAdminApi.ts` with all fully-typed functions
 
@@ -144,34 +144,34 @@ This document provides essential context about the NexaPlan platform's architect
 
 | Tab                     | Status         | Key Features                                                                                                                                            |
 | ----------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Overview                | ✅ Live        | Seat usage + color warning (≥80% amber, ≥90% red), clickable role chart (routes to Users tab pre-filtered), dept quick-access, recent activity          |
-| Forecasting & Analytics | ✅ Live (stub) | Burn rate line chart (mock), dept budget table with status flags, AI warning modals; AI engine placeholder                                              |
-| Users & Roles           | ✅ Live        | Full CRUD, Finance Manager department restriction, `lastTempPassword` viewable with eye toggle, bulk activate/suspend/delete, role/status search filter |
-| Departments             | ✅ Live        | Card-grid CRUD, budget caps, head assignment, dynamic label (Dept/Bureau/Division by OrgType)                                                           |
-| Settings                | ✅ Live        | MFA toggle, fiscal year, currency, unsaved-changes warning banner                                                                                       |
-| Audit Logs              | ✅ Live        | Search, type filter, date range, CSV export                                                                                                             |
-| Billing                 | ✅ Live        | Plan card, next due date + countdown warning, Upgrade/Renew/Cancel actions via PayMongo checkout                                                        |
+| Overview                | âœ… Live        | Seat usage + color warning (â‰¥80% amber, â‰¥90% red), clickable role chart (routes to Users tab pre-filtered), dept quick-access, recent activity          |
+| Forecasting & Analytics | âœ… Live (stub) | Burn rate line chart (mock), dept budget table with status flags, AI warning modals; AI engine placeholder                                              |
+| Users & Roles           | âœ… Live        | Full CRUD, Finance Manager department restriction, `lastTempPassword` viewable with eye toggle, bulk activate/suspend/delete, role/status search filter |
+| Departments             | âœ… Live        | Card-grid CRUD, budget caps, head assignment, dynamic label (Dept/Bureau/Division by OrgType)                                                           |
+| Settings                | âœ… Live        | MFA toggle, fiscal year, currency, unsaved-changes warning banner                                                                                       |
+| Audit Logs              | âœ… Live        | Search, type filter, date range, CSV export                                                                                                             |
+| Billing                 | âœ… Live        | Plan card, next due date + countdown warning, Upgrade/Renew/Cancel actions via PayMongo checkout                                                        |
 
 ### Business Rules
 
-- **Finance Manager (RoleID = 4):** Cannot be assigned to a department — they have org-wide budget oversight. Enforced in both backend and frontend.
+- **Finance Manager (RoleID = 4):** Cannot be assigned to a department â€” they have org-wide budget oversight. Enforced in both backend and frontend.
 - **`LastTempPassword`:** Stored in plain text on `Users.LastTempPassword` (EF migration: `20260503081804_AddLastTempPassword`). Surfaced to admin in the edit modal with an eye toggle. Cleared/updated whenever a new temp password is set.
 - **Seat limits by tier:** Starter=15, Professional=50, Enterprise=200, Trial=10.
-- **Billing cancel** sets `Tenant.RegistrationStatus = "CancellationPending"` — plan stays active until cycle end.
+- **Billing cancel** sets `Tenant.RegistrationStatus = "CancellationPending"` â€” plan stays active until cycle end.
 - **Billing upgrade/renew** creates a new PayMongo checkout session for the selected tier.
 
 ### Session / Auth (FIXED)
 
-- `App.jsx` `useEffect` now restores sessions on **page refresh** by reading `localStorage.user.roleId` and routing accordingly (roleId 1→super-admin, 2→main-admin, 3→dept-head, 4→finance-manager, 5→auditor).
+- `App.jsx` `useEffect` now restores sessions on **page refresh** by reading `localStorage.user.roleId` and routing accordingly (roleId 1â†’super-admin, 2â†’main-admin, 3â†’dept-head, 4â†’finance-manager, 5â†’auditor).
 - **"Login As" impersonation** (SuperAdminSystem.tsx) now stores `roleId: 2` and `userId` in the `localStorage.user` object, then calls `window.location.reload()` instead of navigating to `/main-admin/dashboard` (which didn't exist in the SPA). App.jsx reads the refreshed state and routes correctly.
-- **Logout** calls `window.location.reload()` after clearing localStorage — App.jsx sees no user and shows landing page.
+- **Logout** calls `window.location.reload()` after clearing localStorage â€” App.jsx sees no user and shows landing page.
 
 ### Known / Future Work
 
-- AI Forecasting engine not yet implemented — tab shows mock data with "Coming Soon" notice.
+- AI Forecasting engine not yet implemented â€” tab shows mock data with "Coming Soon" notice.
 - Dept budget tracking uses estimated mock multipliers until real expense data is wired in.
 
-## 7. Super Admin Backend Refactor (v2 — Session 4)
+## 7. Super Admin Backend Refactor (v2 â€” Session 4)
 
 **The monolithic `SuperAdminController.cs` has been split into focused controllers under `NexaPlan.API/Controllers/SuperAdmin/`:**
 
@@ -185,14 +185,14 @@ This document provides essential context about the NexaPlan platform's architect
 | `SuperAdminBillingController.cs`   | `api/super-admin/invoices`       | Invoice list, PayMongo sync, refunds                                                               |
 | `SuperAdminConfigController.cs`    | `api/super-admin/config`         | System config CRUD (PayMongo keys, SMTP settings)                                                  |
 
-**Old `SuperAdminController.cs` has been deleted.** All frontend API calls continue to hit the same `api/super-admin/*` routes — no frontend changes needed.
+**Old `SuperAdminController.cs` has been deleted.** All frontend API calls continue to hit the same `api/super-admin/*` routes â€” no frontend changes needed.
 
 ## 8. UI Fixes (Session 4)
 
 - **OverviewTab:** Removed `max-w-*` constraint. Layout is now `w-full` with responsive Tailwind grid (`grid-cols-1 sm:grid-cols-2 xl:grid-cols-4` for KPIs, `grid-cols-1 lg:grid-cols-3` for the bottom panels). Fills the entire viewport at any screen size.
-- **BillingTab:** Removed `max-w-3xl` — now `w-full` so the plan card and invoice table stretch to fill available space.
+- **BillingTab:** Removed `max-w-3xl` â€” now `w-full` so the plan card and invoice table stretch to fill available space.
 
-## 9. Budget Planning & Scenarios (Phase 1 Completed — Session 6)
+## 9. Budget Planning & Scenarios (Phase 1 Completed â€” Session 6)
 
 **Overview:** Implemented the core engine for Department Head budget requests, variance analysis, and the Finance Manager scenario "Control Room."
 
@@ -224,9 +224,9 @@ This document provides essential context about the NexaPlan platform's architect
 
 ### Data Flow
 
-1. **Approval (Existing):** Finance Manager approves a proposal → funds are `Committed` (proposal total contributes to allocated spend).
-2. **Expense Log (New — Dept Head):** After the actual purchase, the Dept Head navigates to the new **"Log Expenses"** tab and submits an expense ticket linked to the approved `ProposalID`, entering the _exact_ amount spent and uploading a receipt.
-3. **Reconciliation (New — Finance Manager):** Finance Manager sees all pending expense tickets in the new **"Reconciliation"** tab. They review the receipt, then click **"Clear"** → the backend sets `Expense.Status = "Reconciled"`, accumulates `Department.ActualSpent += expense.Amount`, and logs an audit record.
+1. **Approval (Existing):** Finance Manager approves a proposal â†’ funds are `Committed` (proposal total contributes to allocated spend).
+2. **Expense Log (New â€” Dept Head):** After the actual purchase, the Dept Head navigates to the new **"Log Expenses"** tab and submits an expense ticket linked to the approved `ProposalID`, entering the _exact_ amount spent and uploading a receipt.
+3. **Reconciliation (New â€” Finance Manager):** Finance Manager sees all pending expense tickets in the new **"Reconciliation"** tab. They review the receipt, then click **"Clear"** â†’ the backend sets `Expense.Status = "Reconciled"`, accumulates `Department.ActualSpent += expense.Amount`, and logs an audit record.
 4. **Data Feed:** `Department.ActualSpent` feeds directly into `GET /api/finance-manager/allocations` (which VarianceView consumes), overriding the proposal-based estimate with the real reconciled figure.
 
 ### New Files
@@ -234,23 +234,23 @@ This document provides essential context about the NexaPlan platform's architect
 | File                                                             | Role                                                                                                                                   |
 | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | `Models/Expense.cs`                                              | New `Expenses` table: links to ProposalID, stores Amount, ReceiptUrl, Status, SubmittedBy, ReconciledBy                                |
-| `Models/Department.cs`                                           | Added `ActualSpent` column — accumulates reconciled expense totals                                                                     |
+| `Models/Department.cs`                                           | Added `ActualSpent` column â€” accumulates reconciled expense totals                                                                     |
 | `Controllers/DeptHead/DeptHeadExpensesController.cs`             | `GET /dept-head/expenses`, `GET /dept-head/proposals/approved`, `POST /dept-head/expenses`                                             |
 | `Controllers/FinanceManager/FinanceManagerExpensesController.cs` | `GET /finance-manager/expenses?status=`, `POST /finance-manager/expenses/{id}/reconcile`, `POST /finance-manager/expenses/{id}/reject` |
 | `Controllers/DeptHead/DeptHeadBaseController.cs`                 | Added `GetDepartmentIdAsync()` helper (resolves dept from User.DepartmentID)                                                           |
-| `views/department-head/ExpensesView.tsx`                         | Dept Head expense log form — links proposal, enters amount, uploads receipt                                                            |
-| `views/finance-manager/ReconciliationView.tsx`                   | Finance Manager review table — Clear/Reject with confirm modal                                                                         |
+| `views/department-head/ExpensesView.tsx`                         | Dept Head expense log form â€” links proposal, enters amount, uploads receipt                                                            |
+| `views/finance-manager/ReconciliationView.tsx`                   | Finance Manager review table â€” Clear/Reject with confirm modal                                                                         |
 
 ### Migration
 
-- `20260504045354_AddExpenseFlow` — Creates `Expenses` table + adds `ActualSpent` to `Departments`
+- `20260504045354_AddExpenseFlow` â€” Creates `Expenses` table + adds `ActualSpent` to `Departments`
 
 ### Business Rules
 
 - Dept Heads can only log expenses against `ProposalStatus == "Approved"` proposals in their own department.
 - Finance Managers can filter expenses by status (Pending / Reconciled / Rejected).
 - `Department.ActualSpent` is the **authoritative** actual spend figure used by VarianceView (preferred over proposal-based estimates).
-- Rejecting an expense does NOT update ActualSpent — it prompts the Dept Head to resubmit with a corrected receipt.
+- Rejecting an expense does NOT update ActualSpent â€” it prompts the Dept Head to resubmit with a corrected receipt.
 
 ## 11. Auditor Dashboard & Compliance Engine (Session 8)
 
@@ -259,16 +259,16 @@ This document provides essential context about the NexaPlan platform's architect
 ### Architecture
 
 - **Backend Controllers:**
-  - `AuditorBaseController.cs` — Shared tenant/user resolution helper.
-  - `AuditorAuditTrailController.cs` — `GET /logs`, `GET /logs/summary`, `POST /logs/{id}/flag`, `POST /logs/{id}/unflag`.
-  - `AuditorComplianceController.cs` — `GET /compliance/rules`, `GET /compliance/scan` (live check), `POST/PUT/DELETE /compliance/rules` (custom rules).
-  - `AuditorStatementsController.cs` — `GET /statements`, `POST /statements/{id}/access`, `GET /statements/{id}/access-log`.
+  - `AuditorBaseController.cs` â€” Shared tenant/user resolution helper.
+  - `AuditorAuditTrailController.cs` â€” `GET /logs`, `GET /logs/summary`, `POST /logs/{id}/flag`, `POST /logs/{id}/unflag`.
+  - `AuditorComplianceController.cs` â€” `GET /compliance/rules`, `GET /compliance/scan` (live check), `POST/PUT/DELETE /compliance/rules` (custom rules).
+  - `AuditorStatementsController.cs` â€” `GET /statements`, `POST /statements/{id}/access`, `GET /statements/{id}/access-log`.
 - **Backend Models:**
   - `AuditLog`: Upgraded with Flagging properties (`IsFlagged`, `FlagReason`, `FlaggedBy`, `FlaggedAt`). FK navigations set to `NoAction` to prevent legacy data constraints.
   - `ComplianceRule`: Tracks active policies (e.g. BudgetIncrease limits) with numeric thresholds. Allows lead auditor to create non-system custom rules.
   - `FinancialStatement`: Finalized reports with `Sha256Hash` cryptographic integrity fields.
   - `StatementAccessLog`: Highly granular log tracking exactly who/when/where viewed or downloaded financial records.
-- **Frontend Clients:** `auditorApi.ts` — fully typed client interface.
+- **Frontend Clients:** `auditorApi.ts` â€” fully typed client interface.
 - **Frontend UI (`src/app/(roles)/compliance-audit/`):**
   - **`ComplianceAuditSystem.tsx`**: Refactored orchestrator replacing the old 1000-line monolithic file.
   - **`layout/AuditorTopNav.tsx`**: Navigation and Profile controls.
@@ -331,18 +331,18 @@ This document provides essential context about the NexaPlan platform's architect
 
 - Finance Manager allocation KPIs now compute caps from `DepartmentAllocations` (fallback to `AnnualBudgetCap`) and use `RequestedAmount` for totals.
 
-## 14. ML Forecasting Engine — AI Forecasting Tab (Session 11)
+## 14. ML Forecasting Engine â€” AI Forecasting Tab (Session 11)
 
 **Overview:** Connected the Finance Manager "AI Forecasting" tab to a real Random Forest ML model served via Python FastAPI.
 
 ### Architecture
 
-- **Python ML Microservice:** `NexaPlan.API/ml_service/main.py` — FastAPI on port 8001.
+- **Python ML Microservice:** `NexaPlan.API/ml_service/main.py` â€” FastAPI on port 8001.
   - Loads `nexaplan_rf_model.pkl` (scikit-learn Pipeline: scaler + OHE + RandomForestRegressor).
-  - Applies **proportional scaling fix**: model was trained on budgets ≤ ₱19,985; larger real-world budgets are capped to `TRAINING_MAX`, prediction is scaled back up by `real_budget / TRAINING_MAX`.
+  - Applies **proportional scaling fix**: model was trained on budgets â‰¤ â‚±19,985; larger real-world budgets are capped to `TRAINING_MAX`, prediction is scaled back up by `real_budget / TRAINING_MAX`.
   - Inputs: `Budgeted_Amount` (float), `Department` (string), `Month` (3-letter string e.g. "JAN").
   - Output: `predicted_spending`, `variance_amount`, `variance_pct`, `risk_level`.
-  - Model performance: R² = 0.8166, MAE = 0.1426 (log scale).
+  - Model performance: RÂ² = 0.8166, MAE = 0.1426 (log scale).
   - Run: `uvicorn main:app --host 0.0.0.0 --port 8001 --reload`
 
 - **New .NET Controller:** `Controllers/FinanceManager/FinanceManagerForecastController.cs`
@@ -359,21 +359,21 @@ This document provides essential context about the NexaPlan platform's architect
 
 - **Frontend API:** Appended to `src/api/financeManagerApi.ts`
   - Types: `MonthForecast`, `DeptForecast`, `ForecastInsight`, `ForecastSummary`
-  - Function: `getForecastSummary(fiscalYear)` — uses existing `apiFetch` helper (X-Tenant-Id / X-User-Id headers, no JWT Bearer token).
+  - Function: `getForecastSummary(fiscalYear)` â€” uses existing `apiFetch` helper (X-Tenant-Id / X-User-Id headers, no JWT Bearer token).
 
 - **Frontend View:** `src/app/(roles)/finance-manager/views/ForecastingView.tsx`
   - Added `useEffect` to call `getForecastSummary(2026)` on mount.
   - All 3 hardcoded data arrays (`forecastData`, `varianceData`, `aiInsights`) replaced with derived computed values from API response.
   - Loading spinner shown while fetching.
   - KPI cards, model accuracy %, variance chart, and AI insights now show live ML-powered data.
-  - All JSX structure and Tailwind classes preserved — only data source changed.
+  - All JSX structure and Tailwind classes preserved â€” only data source changed.
 
 ### Critical Implementation Notes
 
 - `AppDbContext` is the correct DbContext name (NOT `NexaPlanDbContext`).
 - Department PK is `DepartmentID`, Tenant FK is `TenantID`, name field is `DepartmentName`.
 - `DepartmentAllocation` PK is `AllocationID`, FKs are `DepartmentID` and `TenantID`.
-- `Department` model has NO `IsArchived` field — do not filter on it.
+- `Department` model has NO `IsArchived` field â€” do not filter on it.
 - `builder.Services.AddHttpClient()` was already present in `Program.cs` line 18 before this session.
 - The `requirements.txt` uses unpinned versions (no version pins) to support Python 3.13.
 
@@ -410,7 +410,7 @@ This document provides essential context about the NexaPlan platform's architect
 
 ### Architecture Changes
 
-#### Backend — `FinanceManagerAnalyticsController.cs` (complete rewrite)
+#### Backend â€” `FinanceManagerAnalyticsController.cs` (complete rewrite)
 
 - Route: `GET /api/finance-manager/forecast?fiscalYear=2026`
 - **Four data lines** are now calculated and returned in `chartData[]`:
@@ -420,12 +420,12 @@ This document provides essential context about the NexaPlan platform's architect
   | `committed` | `BudgetProposals` (Approved, PlannedMonth) | Sum of approved proposals per month |
   | `upperBound` | Approved + Pending proposals | Worst-case if all pending proposals approved |
   | `trendLine` | Python `/forecast/trend` or `/forecast/moving-average` | Statistical trend forecast for future months |
-- **ML Risk Dots**: For each dept × month, calls `/predict` on the RF model. Returns `mlPredictedSpending` and `mlRiskLevel` (Low/Medium/High) — used as overlay signals, never as the primary line.
-- **Trend method selection**: ≥6 months of data → Weighted Moving Average; 3–5 months → Linear Trend (OLS); <3 months → no trend line rendered.
+- **ML Risk Dots**: For each dept Ã— month, calls `/predict` on the RF model. Returns `mlPredictedSpending` and `mlRiskLevel` (Low/Medium/High) â€” used as overlay signals, never as the primary line.
+- **Trend method selection**: â‰¥6 months of data â†’ Weighted Moving Average; 3â€“5 months â†’ Linear Trend (OLS); <3 months â†’ no trend line rendered.
 - **`monthsOfData`** and **`hasEnoughData`** fields tell the frontend when to show the trend line and advisory banner.
 - **Insight generation** uses `mlRiskLevel` (from RF model) instead of the old deterministic variance threshold.
 
-#### Backend — `FinanceManagerVarianceController.cs` (extended)
+#### Backend â€” `FinanceManagerVarianceController.cs` (extended)
 
 - Added `IHttpClientFactory` injection to call `/predict` per department.
 - New response fields on `DeptVarianceDto`:
@@ -433,23 +433,23 @@ This document provides essential context about the NexaPlan platform's architect
   - `isAnomaly`: `true` when actual spend exceeds ML expectation by >20%.
 - **Dead code removed**: Eliminated the unused `expensesQuery` variable.
 
-#### DTOs — `ForecastDtos.cs` (updated)
+#### DTOs â€” `ForecastDtos.cs` (updated)
 
 - `MonthForecastDto` now has 8 parameters (added `MlPredictedSpending`, `MlRiskLevel`).
 - `DeptVarianceDto` now has 10 parameters (added `MlExpectedSpending`, `IsAnomaly`).
 - Removed `ForecastSummaryDto` record (replaced by anonymous object return).
 - Added `ChartMonthDto` for documentation clarity.
 
-#### Python ML Service — `main.py` (already complete from Session 15)
+#### Python ML Service â€” `main.py` (already complete from Session 15)
 
-- `/predict` — RF model for dept+month risk signals.
-- `/forecast/trend` — OLS linear regression with 1.5σ confidence band.
-- `/forecast/moving-average` — Weighted MA + recent 3-month trend, 1.2σ band.
+- `/predict` â€” RF model for dept+month risk signals.
+- `/forecast/trend` â€” OLS linear regression with 1.5Ïƒ confidence band.
+- `/forecast/moving-average` â€” Weighted MA + recent 3-month trend, 1.2Ïƒ band.
 
-#### Backend — `SuperAdminConfigController.cs`
+#### Backend â€” `SuperAdminConfigController.cs`
 
 - `PricingController` (nested in same file) correctly serves `GET /api/pricing` as a public endpoint (no auth required).
-- The `BillingView.tsx` → `getPricing()` → `https://nexaplan.runasp.net/api/pricing` chain is fully wired.
+- The `BillingView.tsx` â†’ `getPricing()` â†’ `https://nexaplan.runasp.net/api/pricing` chain is fully wired.
 
 ### Frontend Changes
 
@@ -457,19 +457,19 @@ This document provides essential context about the NexaPlan platform's architect
 
 - Now calls `financeManagerApi.getTrendForecast(2026)` which hits `/api/finance-manager/forecast`.
 - **Chart renders 4 distinct lines:**
-  - **Actual Spend** (solid blue `#2563EB`) — only plotted for months with reconciled expenses.
-  - **Budget Cap** (dashed grey `#94A3B8`) — flat reference line.
-  - **Committed** (solid green `#10B981`) — sum of approved proposals per month.
-  - **Trend Forecast** (dashed purple `#8B5CF6`) — only rendered when `hasEnoughData === true`.
-  - **Confidence Band** — `trendUpper`/`trendLower` shaded area from Python service.
+  - **Actual Spend** (solid blue `#2563EB`) â€” only plotted for months with reconciled expenses.
+  - **Budget Cap** (dashed grey `#94A3B8`) â€” flat reference line.
+  - **Committed** (solid green `#10B981`) â€” sum of approved proposals per month.
+  - **Trend Forecast** (dashed purple `#8B5CF6`) â€” only rendered when `hasEnoughData === true`.
+  - **Confidence Band** â€” `trendUpper`/`trendLower` shaded area from Python service.
 - **Advisory banner** shown when `hasEnoughData === false` prompting user to reconcile expenses with receipt dates.
-- **Variance by dept** table replaces the old bar chart — shows Committed, Variance, and a **ML Expected column** (purple badge) with ⚠ anomaly flag.
+- **Variance by dept** table replaces the old bar chart â€” shows Committed, Variance, and a **ML Expected column** (purple badge) with âš  anomaly flag.
 - KPI cards now show `projectedEOY` (sum of committed), `totalBudget` (from allocations), and `depletionRisk`.
 
 #### `VarianceView.tsx` (extended)
 
 - Added **ML Expected** column (purple header) between Variance and % Used.
-- Shows `mlExpectedSpending` as a purple badge; shows ⚠ when `isAnomaly === true`.
+- Shows `mlExpectedSpending` as a purple badge; shows âš  when `isAnomaly === true`.
 - Respects the Gross/Net toggle (divides by 1.12 when net mode active).
 
 #### `financeManagerApi.ts` (updated)
@@ -491,8 +491,8 @@ This document provides essential context about the NexaPlan platform's architect
 
 ### Build Status
 
-- **.NET API**: `dotnet build` → ✅ 0 errors, 0 warnings.
-- **Frontend**: `npm run build` → ✅ 0 errors.
+- **.NET API**: `dotnet build` â†’ âœ… 0 errors, 0 warnings.
+- **Frontend**: `npm run build` â†’ âœ… 0 errors.
 - **ML Service**: Running on `http://localhost:8001`, endpoints: `/predict`, `/forecast/trend`, `/forecast/moving-average`, `/health`.
 
 ## 18. Budget Planning, Allocation & Forecasting Improvements (Session 18)
@@ -580,9 +580,9 @@ This document provides essential context about the NexaPlan platform's architect
 
 **Overview:** Fixed over-exaggerated Ridge Regression predictions and added end-to-end diagnostic logging to both the ML microservice and the .NET analytics controller.
 
-### Issue 1 � Ridge Model Over-Prediction (Fixed)
+### Issue 1 ï¿½ Ridge Model Over-Prediction (Fixed)
 
-**Root cause:** Ridge Regression, trained on log1p(Actual_Spending) from budgets <= 19985, extrapolates large log-space values for big budgets (e.g. 500000+). np.expm1() on those values can produce hundreds-of-millions outputs � model artifacts, not reality.
+**Root cause:** Ridge Regression, trained on log1p(Actual_Spending) from budgets <= 19985, extrapolates large log-space values for big budgets (e.g. 500000+). np.expm1() on those values can produce hundreds-of-millions outputs ï¿½ model artifacts, not reality.
 
 **Fix applied in ml_service/main.py:**
 - After np.expm1(), a sanity clamp is applied:
@@ -592,7 +592,7 @@ This document provides essential context about the NexaPlan platform's architect
   - Fields: model=, dept=, month=, budget=, log_pred=, raw_expm1=, clamped=
 - Hybrid routing (RF <= 19985, Ridge > 19985) is unchanged.
 
-### Issue 2 � Forecasting Chart Flat at 0 (Diagnostics Added)
+### Issue 2 ï¿½ Forecasting Chart Flat at 0 (Diagnostics Added)
 
 **Fix applied in FinanceManagerAnalyticsController.cs:**
 - Added Console.WriteLine at three key points per department per request:
@@ -601,12 +601,12 @@ This document provides essential context about the NexaPlan platform's architect
   3. [ANALYTICS] Dept=X | Approved proposals found=N | Months with committed data=N
 - Added [CHARTDATA] MON: budget=X | actual=X | committed=X per month in chart builder.
 - These logs appear in the dotnet run terminal to distinguish: (a) no DB rows, (b) fiscal year filter mismatch on ExpenseDate, (c) PlannedMonth format failing ResolveMonthIndex.
-- ResolveMonthIndex handles JAN / January / 1 formats case-insensitively � verified unchanged.
+- ResolveMonthIndex handles JAN / January / 1 formats case-insensitively ï¿½ verified unchanged.
 
 ### Build Note
 - dotnet build dry run: only MSB3026/MSB3027 file-lock warnings (exe held by running dotnet run). Zero C# compilation errors. Hot-reload picks up changes automatically.
 
-## 22. Pure Ridge Model � Raw-Dollar Predictions (Session 22)
+## 22. Pure Ridge Model ï¿½ Raw-Dollar Predictions (Session 22)
 
 **Overview:** Replaced the hybrid RF + Ridge setup with a single Ridge Regression model trained
 natively on raw dollar values. This eliminates all log-space math and extrapolation artifacts.
@@ -617,8 +617,8 @@ natively on raw dollar values. This eliminates all log-space math and extrapolat
 |---|---|
 | nexaplan_rf_model (2).pkl + nexaplan_ridge_model.pkl (log-space) | nexaplan_ridge_model (1).pkl (raw dollars) |
 | Hybrid routing: RF <= 19985, Ridge > 19985 | 100% Ridge, all budget sizes |
-| np.expm1() inverse transform required | No transform � model outputs real PHP values |
-| Sanity clamp (0.10 floor / 2.00 ceiling) | Removed � model is natively bounded |
+| np.expm1() inverse transform required | No transform ï¿½ model outputs real PHP values |
+| Sanity clamp (0.10 floor / 2.00 ceiling) | Removed ï¿½ model is natively bounded |
 
 ### Changes in ml_service/main.py
 
@@ -639,11 +639,11 @@ natively on raw dollar values. This eliminates all log-space math and extrapolat
 
 ## 23. Risk Threshold Recalibration & YTD Anomaly Fix (Session 23)
 
-**Overview:** Two targeted bug fixes � corrected false-positive High Risk warnings caused by
+**Overview:** Two targeted bug fixes ï¿½ corrected false-positive High Risk warnings caused by
 miscalibrated thresholds, and fixed the isAnomaly flag in Full Year variance view that was
 comparing YTD actual spend against a single-month ML prediction.
 
-### Fix 1 � Utilization Risk Thresholds (ml_service/main.py)
+### Fix 1 ï¿½ Utilization Risk Thresholds (ml_service/main.py)
 
 The new raw-dollar Ridge model accurately predicts ~99% budget utilization (departments
 naturally spend nearly their full allocation). The old thresholds (92/78) triggered constant
@@ -656,10 +656,10 @@ New thresholds:
 
 Only the three threshold numbers changed. No model, routing, or response shape changes.
 
-### Fix 2 � Full Year isAnomaly False Positives (FinanceManagerVarianceController.cs)
+### Fix 2 ï¿½ Full Year isAnomaly False Positives (FinanceManagerVarianceController.cs)
 
 Root cause: The Full Year view compared accumulated YTD ActualSpent (e.g. 5 months of spend)
-against a single ML prediction for December � an apples-to-oranges comparison that always
+against a single ML prediction for December ï¿½ an apples-to-oranges comparison that always
 triggered isAnomaly.
 
 Fix logic:
@@ -667,7 +667,7 @@ Fix logic:
   (1 to DateTime.Now.Month if current year, else 1-12 for past years), calls GetMlExpected()
   for each month using cap/12 as the monthly budget probe, sums the results into ytdMlTotal.
   isAnomaly is then computed as: (actualSpent - ytdMlTotal) / ytdMlTotal > 20%.
-- Single month view (filterMonth != null): unchanged � one ML call, compare to that month's actual.
+- Single month view (filterMonth != null): unchanged ï¿½ one ML call, compare to that month's actual.
 
 This makes the YTD ML expected spending scale proportionally with time elapsed in the year,
 preventing the false-positive anomaly flags that appeared in the Full Year dashboard view.
@@ -691,31 +691,31 @@ p.expm1() inversion to prevent exponentially huge miscalculations).
 
 ## 25. Hybrid Insight Engine & Relaxed Risk Thresholds (Session 25)
 
-**Overview:** Fixed two major presentation issues — conflicting forecast insights in the C# analytics controller and over-sensitive risk flags on the Seasonal Risk Calendar.
+**Overview:** Fixed two major presentation issues â€” conflicting forecast insights in the C# analytics controller and over-sensitive risk flags on the Seasonal Risk Calendar.
 
-### Change 1 — Hybrid Insight Engine (FinanceManagerAnalyticsController.cs)
+### Change 1 â€” Hybrid Insight Engine (FinanceManagerAnalyticsController.cs)
 
 Replaced the old GenerateInsights() method (which could produce simultaneous conflicting insights like ''reallocate funds'' AND ''overrun risk'' for the same department) with a mutually exclusive 3-rule engine:
 
 | Rule | Trigger | Output Type | Title |
 |---|---|---|---|
-| Critical Overrun | ML risk High/Medium AND DB utilization >= 75% | Warning | Budget Overrun Risk — {Dept} |
-| Late Surge | ML risk High/Medium AND DB utilization < 75% | Caution | Hidden Burn Rate — {Dept} |
-| Safe Reallocation | ML risk Low AND DB utilization < 60% | Opportunity | Safe Reallocation — {Dept} |
+| Critical Overrun | ML risk High/Medium AND DB utilization >= 75% | Warning | Budget Overrun Risk â€” {Dept} |
+| Late Surge | ML risk High/Medium AND DB utilization < 75% | Caution | Hidden Burn Rate â€” {Dept} |
+| Safe Reallocation | ML risk Low AND DB utilization < 60% | Opportunity | Safe Reallocation â€” {Dept} |
 
 - DB utilization is computed live as: Sum(approved proposals) / AnnualBudget * 100
 - Dominant ML risk for the dept is derived from all monthly ML risk signals (High > Medium > Low)
 - safeToMove estimate = AnnualBudget * (1 - utilization%) * 0.5
 - All insights now use Source: 'Hybrid (DB + ML)'
 
-### Change 2 — Relaxed Seasonal Risk Calendar Thresholds (ml_service/main.py)
+### Change 2 â€” Relaxed Seasonal Risk Calendar Thresholds (ml_service/main.py)
 
-Previous tight thresholds were producing too many false-positive High (Red) flags due to PHP→USD→PHP currency conversion amplifying small prediction errors.
+Previous tight thresholds were producing too many false-positive High (Red) flags due to PHPâ†’USDâ†’PHP currency conversion amplifying small prediction errors.
 
 New thresholds:
-- predicted >= budget * 1.05 → High (only fires if mathematically 5%+ over budget)
-- upper_bound >= budget * 1.15 → Medium (worst-case volatility breaches +15% buffer)
-- else → Low (default Green for normal stable behaviour)
+- predicted >= budget * 1.05 â†’ High (only fires if mathematically 5%+ over budget)
+- upper_bound >= budget * 1.15 â†’ Medium (worst-case volatility breaches +15% buffer)
+- else â†’ Low (default Green for normal stable behaviour)
 
 ## Session 26: Hybrid Model Revamp & Proportional Scaling
 
@@ -733,11 +733,11 @@ New thresholds:
 - **Metadata:**
   - Updated `/health` endpoint and `/predict` response (`confidence_note`) to accurately describe the hybrid architecture.
 
-## Session 27: Scenario Planning Engine — Department Head (Full Implementation)
+## Session 27: Scenario Planning Engine â€” Department Head (Full Implementation)
 
-**Overview:** Built the full Scenario Planning feature for Department Heads — connecting real DB proposals to Finance Manager scenarios, enabling formal Scenario Pitches, and integrating an active-scenario alert into the Overview tab.
+**Overview:** Built the full Scenario Planning feature for Department Heads â€” connecting real DB proposals to Finance Manager scenarios, enabling formal Scenario Pitches, and integrating an active-scenario alert into the Overview tab.
 
-### Backend — `DeptHeadScenariosController.cs` (Rewritten)
+### Backend â€” `DeptHeadScenariosController.cs` (Rewritten)
 
 Three new endpoints added; two legacy endpoints (`/scenarios`, `/scenarios/preview`) kept intact:
 
@@ -745,53 +745,53 @@ Three new endpoints added; two legacy endpoints (`/scenarios`, `/scenarios/previ
 |---|---|---|
 | `GET /api/dept-head/scenarios` | Existing | Returns non-archived tenant scenarios. Fixed to use `title` field and filter `IsArchived=false`, ordered active-first |
 | `GET /api/dept-head/scenarios/active` | Existing | Returns active scenario or Base Case default |
-| `GET /api/dept-head/scenarios/impact?multiplier=&fiscalYear=` | **NEW** | Core calculation: resolves dept budget cap (DepartmentAllocations → AnnualBudgetCap fallback), walks proposals in PriorityRank order (null=4), assigns Survives/AtRisk |
+| `GET /api/dept-head/scenarios/impact?multiplier=&fiscalYear=` | **NEW** | Core calculation: resolves dept budget cap (DepartmentAllocations â†’ AnnualBudgetCap fallback), walks proposals in PriorityRank order (null=4), assigns Survives/AtRisk |
 | `POST /api/dept-head/scenarios/pitch` | **NEW** | Saves dept head's formal pitch. Creates a new `BudgetScenario` row scoped to dept (IsActive=false). Decisions stored as JSON prefix in Description. Writes AuditLog entry |
 | `GET /api/dept-head/scenarios/pitches` | **NEW** | Returns all pitch records for this dept (identified by `[PITCH_DECISIONS]` marker in Description) |
 
 **DTOs added (in same file):** `PitchDecisionDto`, `ScenarioPitchDto`
 
-**Pitch storage strategy:** No migration needed — pitches reuse `BudgetScenario` with `DepartmentID` scoped, `IsActive=false`, decisions JSON embedded in `Description` as `[PITCH_DECISIONS]{json}[/PITCH_DECISIONS]{justification}`, and linked scenario ID stored in `TargetYear`.
+**Pitch storage strategy:** No migration needed â€” pitches reuse `BudgetScenario` with `DepartmentID` scoped, `IsActive=false`, decisions JSON embedded in `Description` as `[PITCH_DECISIONS]{json}[/PITCH_DECISIONS]{justification}`, and linked scenario ID stored in `TargetYear`.
 
-**Build status:** Zero C# compilation errors. MSB3026/3027 file-lock warnings only (API exe in use by running server — hot-reload picks up changes).
+**Build status:** Zero C# compilation errors. MSB3026/3027 file-lock warnings only (API exe in use by running server â€” hot-reload picks up changes).
 
-### Frontend — `deptHeadApi.ts` (Updated)
+### Frontend â€” `deptHeadApi.ts` (Updated)
 
 Added full TypeScript interfaces: `ScenarioSummary`, `ProposalImpact`, `ScenarioImpactResult`, `PitchDecision`, `ScenarioPitchRequest`, `SubmittedPitch`.
 
 New API functions:
-- `getScenarios()` — now typed as `ScenarioSummary[]`
-- `getActiveScenario()` — returns `ScenarioSummary`
-- `getScenarioImpact(multiplier, fiscalYear)` — `GET /scenarios/impact`
-- `submitScenarioPitch(payload)` — `POST /scenarios/pitch`
-- `getMyPitches()` — `GET /scenarios/pitches`
+- `getScenarios()` â€” now typed as `ScenarioSummary[]`
+- `getActiveScenario()` â€” returns `ScenarioSummary`
+- `getScenarioImpact(multiplier, fiscalYear)` â€” `GET /scenarios/impact`
+- `submitScenarioPitch(payload)` â€” `POST /scenarios/pitch`
+- `getMyPitches()` â€” `GET /scenarios/pitches`
 
-### Frontend — `ScenariosView.tsx` (Full Rebuild)
+### Frontend â€” `ScenariosView.tsx` (Full Rebuild)
 
 **Two-panel layout:**
-- **Left panel:** Finance Manager scenario cards (clickable, color-coded: orange=cut, green=growth, indigo=base) + custom slider (±50%) with 400ms debounce before `/impact` call
-- **Right panel:** Proposal impact table showing Priority, Title, Amount, Status, Scenario Status (✅ Survives / ⚠ At Risk), and Your Decision dropdown (AtRisk rows only)
+- **Left panel:** Finance Manager scenario cards (clickable, color-coded: orange=cut, green=growth, indigo=base) + custom slider (Â±50%) with 400ms debounce before `/impact` call
+- **Right panel:** Proposal impact table showing Priority, Title, Amount, Status, Scenario Status (âœ… Survives / âš  At Risk), and Your Decision dropdown (AtRisk rows only)
 
 **Key behaviors:**
 - Clicking a scenario card immediately fetches impact at that multiplier
 - Slider debounce: 400ms after stop before API call
-- Submit Pitch button enabled only when ≥1 AtRisk proposal has a decision selected
+- Submit Pitch button enabled only when â‰¥1 AtRisk proposal has a decision selected
 - Pitch modal: PitchTitle input + Justification textarea (min 50 chars validation) + read-only Decision Summary list
-- On success: toast notification + button changes to "📋 Pitch Submitted — View Response"
+- On success: toast notification + button changes to "ðŸ“‹ Pitch Submitted â€” View Response"
 - Past Pitches accordion at bottom (collapsible) showing all submitted pitches with status badges
-- Zero `window.alert()` / `window.confirm()` — all feedback via toast + modal
+- Zero `window.alert()` / `window.confirm()` â€” all feedback via toast + modal
 
-### Frontend — `OverviewView.tsx` (Extended)
+### Frontend â€” `OverviewView.tsx` (Extended)
 
 Added dept-specific restrictive scenario banner:
 - Fetches active scenario on mount alongside existing overview/risk data
 - If `adjustmentMultiplier < 1.0`: renders an orange warning banner showing scenario name, reduction %, and at-risk proposal count
-- "Review in Scenario Planning →" link calls `onNavigateToScenarios` prop (passed from orchestrator)
+- "Review in Scenario Planning â†’" link calls `onNavigateToScenarios` prop (passed from orchestrator)
 - Banner does NOT render for base-case or growth scenarios
 
-### Frontend — `DepartmentHeadSystem.tsx` (Fixed)
+### Frontend â€” `DepartmentHeadSystem.tsx` (Fixed)
 
-- Fixed global banner field names: `multiplier` → `adjustmentMultiplier`, `name` → `title` (aligned with new API response shape)
+- Fixed global banner field names: `multiplier` â†’ `adjustmentMultiplier`, `name` â†’ `title` (aligned with new API response shape)
 - Passes `onNavigateToScenarios={() => setActiveModule('scenarios')}` to `OverviewView`
 
 ## Session 28: Scenario Pitch Data Architecture Fix
@@ -855,12 +855,12 @@ Added dept-specific restrictive scenario banner:
 | :--- | :--- | :--- | :--- | :--- |
 | Max Departments | 5 | Unlimited | Unlimited | 3 |
 | Max Users | 3 | 15 | Unlimited | 10 |
-| AI Risk Forecasting | ❌ | ✅ | ✅ | ❌ |
-| Confidence Bands | ❌ | ❌ | ✅ | ❌ |
-| Anomaly Detection | ❌ | ❌ | ✅ | ❌ |
-| Scenario Planning | ❌ | ✅ | ✅ | ❌ |
+| AI Risk Forecasting | â�Œ | âœ… | âœ… | â�Œ |
+| Confidence Bands | â�Œ | â�Œ | âœ… | â�Œ |
+| Anomaly Detection | â�Œ | â�Œ | âœ… | â�Œ |
+| Scenario Planning | â�Œ | âœ… | âœ… | â�Œ |
 | Historical Data Range | 12 Mo | 24 Mo | Unlimited | 12 Mo |
-| Scenario Pitching | ❌ | ✅ | ✅ | ❌ |
+| Scenario Pitching | â�Œ | âœ… | âœ… | â�Œ |
 
 ## Session 30: Core Stability & UX Bug Fixes
 
@@ -933,16 +933,16 @@ Added dept-specific restrictive scenario banner:
 
 ### ML Microservice Hybrid Revamp
 - **Hybrid Routing:** Revamped `ml_service/main.py` to route budgets based on a $19,985.0 USD threshold.
-  - **Random Forest:** Used for budgets ≤ $19,985 USD (trained on log-space, uses `np.expm1()`).
+  - **Random Forest:** Used for budgets â‰¤ $19,985 USD (trained on log-space, uses `np.expm1()`).
   - **Ridge Regression:** Used for budgets > $19,985 USD (trained on raw dollars, no inversion).
 - **Live Exchange Rates:** Added `/currency/rates` endpoint to fetch real-time USD/PHP rates from `open.er-api.com` with a 1-hour cache and hardcoded fallbacks.
 - **Enhanced Diagnostics:** `/predict` now returns `model_used` and `confidence_note` explaining the routing decision.
-- **Risk Thresholds:** Calibrated to utilization-based: High (≥110%), Medium (≥90%), Low (else).
+- **Risk Thresholds:** Calibrated to utilization-based: High (â‰¥110%), Medium (â‰¥90%), Low (else).
 
 ### Multi-Currency System (Frontend)
 - **Currency Context:** Created `src/context/CurrencyContext.tsx` providing a global `fmt()` function and `symbol` state.
 - **App Integration:** Wrapped all role-based dashboards in `App.jsx` with `CurrencyProvider`. Dashboard orchestrators (like `MainAdminSystem`) now call `setCurrency()` based on tenant settings.
-- **Dynamic UI:** Systematically replaced hardcoded "₱" symbols and manual `.toLocaleString()` calls with dynamic `fmt()` formatting across Overview, New Request, Forecasting, Reconciliation, Billing, and Variance views.
+- **Dynamic UI:** Systematically replaced hardcoded "â‚±" symbols and manual `.toLocaleString()` calls with dynamic `fmt()` formatting across Overview, New Request, Forecasting, Reconciliation, Billing, and Variance views.
 
 ### Settings & Governance
 - **Main Admin Settings Completion:**
@@ -957,7 +957,7 @@ Added dept-specific restrictive scenario banner:
 ### Critical Implementation Reference
 - **Model Files:** `nexaplan_rf_model (2).pkl` (log-space) and `nexaplan_ridge_model (1).pkl` (raw-dollar).
 - **Tenant Model Additions:** `SessionTimeoutMinutes`, `MinPasswordLength`, `MaxFailedLoginAttempts`, `NotificationPreferences`, `OrgLabel`.
-- **Role IDs:** Finance Manager (3), Department Head (4) — verified in DB seeding.
+- **Role IDs:** Finance Manager (3), Department Head (4) â€” verified in DB seeding.
 - **Base Currency:** PHP is the authoritative system currency; all DB values are stored in PHP.
 
 ## Session 37: Security Policy & Notification System Implementation
@@ -990,9 +990,9 @@ exaplan_ridge_model (1).pkl) was retrained on raw-dollar values in Session 24 an
 
 ### Fix Applied
 - **RF branch (budget_usd <= 19985):** Kept 
-p.expm1(log_pred) � correct, RF is log1p-space trained.
+p.expm1(log_pred) — correct, RF is log1p-space trained.
 - **Ridge branch (budget_usd > 19985):** Removed 
-p.expm1() � Ridge outputs raw USD directly.
+p.expm1() — Ridge outputs raw USD directly.
 - **Proportional scaling restored:** For RF when udget_usd < 5000, prediction is made at the ,000 floor then scaled back by udget_usd / 5000 to prevent RF floor saturation on micro-budgets.
 - **Console logging added:** Each /predict call now prints [PREDICT] model= | dept= | month= | budget_php= | budget_usd= | predicted_usd= | predicted_php= to the uvicorn terminal for diagnostics.
 
@@ -1025,30 +1025,30 @@ p.expm1() after any automated edits.
    - Implemented an in-memory caching layer (5-minute TTL) for getForecastSummary and getVarianceData. Navigating between tabs no longer triggers redundant ML calculations. Added a cache-busting orce flag that is triggered only when the user explicitly clicks the manual 'Refresh' button on the dashboard.
 
 
-## Session 40: Auditor Dashboard � Comprehensive Fix & Completion
+## Session 40: Auditor Dashboard — Comprehensive Fix & Completion
 
 **Overview:** Implemented a full auditor dashboard overhaul including bug fixes, missing features, and UX polish.
 
 ### Bug Fixes Applied
 
-**Bug Fix 1 � IP Address Resolution:**
+**Bug Fix 1 — IP Address Resolution:**
 - Added GetClientIp() helper to ALL 5 base controllers (AuditorBaseController, MainAdminBaseController, FinanceManagerBaseController, DeptHeadBaseController, SuperAdminBaseController).
 - Helper reads X-Forwarded-For ? X-Real-IP ? RemoteIpAddress in priority order.
 - Bulk-replaced all HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown" occurrences across 10 controller files with GetClientIp().
 
-**Bug Fix 2 � Compliance Threshold Decimals:**
+**Bug Fix 2 — Compliance Threshold Decimals:**
 - AuditorComplianceController.cs now rounds all threshold values with Math.Round(rule.Threshold, 2) before returning them in scan results.
 - Frontend ComplianceScansView.tsx uses {(check.threshold ?? 0).toFixed(2)}% for all threshold displays.
 - Threshold input modal uses step="0.01" and shows 	oFixed(2) preview.
 
-**Bug Fix 3 � TaxAmount Propagation:**
+**Bug Fix 3 — TaxAmount Propagation:**
 - Added TaxAmount decimal? column to FinancialStatement model.
-- Migration: 20260519083000_AddFinancialStatementTaxAmount.cs � auto-applies on next API restart.
+- Migration: 20260519083000_AddFinancialStatementTaxAmount.cs — auto-applies on next API restart.
 - FinanceManagerExpensesController.ReconcileExpense now aggregates all reconciled TaxPaid and updates every FinancialStatement for the tenant after each reconciliation.
 - AuditorStatementsController now includes 	axAmount in the GET /statements response.
-- FinancialStatementsView.tsx displays real ? value or 'N/A � no reconciled expenses yet'.
+- FinancialStatementsView.tsx displays real ? value or 'N/A — no reconciled expenses yet'.
 
-**Bug Fix 4 � Global Date/Department Filter:**
+**Bug Fix 4 — Global Date/Department Filter:**
 - ComplianceAuditSystem.tsx now exposes a FilterContext with getDateRange() function.
 - AuditTrailsView.tsx calls getDateRange() on each fetch.
 - Backend GET /api/auditor/logs accepts rom, 	o, departmentId query params and applies them.
@@ -1056,31 +1056,31 @@ p.expm1() after any automated edits.
 
 ### Missing Features Added
 
-**Section 2 � Log Detail Side Panel:**
+**Section 2 — Log Detail Side Panel:**
 - Clicking any row in Audit Trails opens a slide-in right panel (440px wide).
 - Shows all log fields: Log ID, Timestamp, Actor, Role, Action, Target Resource, IP Address, Status, Flagged By, Flagged At.
 - Panel has Flag/Unflag action buttons. Flag opens the React modal (no window.prompt()).
 
-**Section 3 � Flagged Entries Management:**
-- New backend endpoint: GET /api/auditor/logs/flagged � returns all IsFlagged=true logs ordered by FlaggedAt DESC.
+**Section 3 — Flagged Entries Management:**
+- New backend endpoint: GET /api/auditor/logs/flagged — returns all IsFlagged=true logs ordered by FlaggedAt DESC.
 - Summary endpoint now counts real flagged entries.
 - Audit Trails "Flagged Only" checkbox routes to /logs/flagged endpoint.
-- Overview "Flagged for Review" KPI card is clickable � navigates to Audit Trails with flaggedOnly=true pre-filter.
+- Overview "Flagged for Review" KPI card is clickable — navigates to Audit Trails with flaggedOnly=true pre-filter.
 
-**Section 4 � Compliance Deep-Link to Logs:**
+**Section 4 — Compliance Deep-Link to Logs:**
 - Each failing compliance rule in the scan now returns a iolationFilter object with { action, from, to, departmentId }.
 - Frontend shows "View violations in Audit Trail ?" button that navigates to Audit Trails with those pre-filters.
 
-**Section 5 � Generate Report Dropdown:**
+**Section 5 — Generate Report Dropdown:**
 - "Generate Report" button in nav bar now shows a dropdown with: Export Audit Trail (CSV), Export Compliance Scan (CSV), Print current view (PDF).
 - Downloads trigger real file downloads via GET /api/auditor/reports/audit-trail and GET /api/auditor/reports/compliance.
 - New AuditorReportController.cs at /api/auditor/reports handles all exports.
 
-**Section 6 � Audit Trail CSV Export:**
+**Section 6 — Audit Trail CSV Export:**
 - "Export CSV" button in Audit Trails tab exports the currently filtered/searched set.
 - Uses same /api/auditor/reports/audit-trail endpoint with current filter params.
 
-**Section 7 � Variance Summary Tab (NEW):**
+**Section 7 — Variance Summary Tab (NEW):**
 - 5th tab "Variance Summary" added to the top nav.
 - New backend endpoint: GET /api/auditor/variance?fiscalYear=2026 in AuditorAuditTrailController.
 - Returns: departmentId, departmentName, allocatedCap, committedFunds, actualSpent, variance, utilizationPct per department.
@@ -1088,7 +1088,7 @@ p.expm1() after any automated edits.
 - Frontend: VarianceSummaryView.tsx with fiscal year selector, KPI cards, color-coded table (green <75%, amber 75-90%, red >90%), and "Departments at Risk" counter.
 - Read-only badge displayed in header.
 
-**Section 8 � UX Polish:**
+**Section 8 — UX Polish:**
 - 8a: Color-coded action type badges (ACTION_COLORS map with 25+ action types).
 - 8b: Amber left border + background tint for flagged rows (orderLeft: '3px solid #F59E0B').
 - 8c: Pagination uses real 	otal count from backend response.
@@ -1096,23 +1096,23 @@ p.expm1() after any automated edits.
 ### New/Modified Files
 
 **Backend:**
-- Controllers/Auditor/AuditorBaseController.cs � added GetClientIp()
-- Controllers/Auditor/AuditorAuditTrailController.cs � full rewrite: date filters, flagged endpoint, variance endpoint
-- Controllers/Auditor/AuditorComplianceController.cs � full rewrite: rounded thresholds, violationFilter
-- Controllers/Auditor/AuditorStatementsController.cs � added taxAmount to response
-- Controllers/Auditor/AuditorReportController.cs � NEW: CSV export endpoints
-- Controllers/FinanceManager/FinanceManagerExpensesController.cs � TaxAmount update on reconcile
-- Models/FinancialStatement.cs � added TaxAmount decimal? field
-- Migrations/20260519083000_AddFinancialStatementTaxAmount.cs � NEW migration
+- Controllers/Auditor/AuditorBaseController.cs — added GetClientIp()
+- Controllers/Auditor/AuditorAuditTrailController.cs — full rewrite: date filters, flagged endpoint, variance endpoint
+- Controllers/Auditor/AuditorComplianceController.cs — full rewrite: rounded thresholds, violationFilter
+- Controllers/Auditor/AuditorStatementsController.cs — added taxAmount to response
+- Controllers/Auditor/AuditorReportController.cs — NEW: CSV export endpoints
+- Controllers/FinanceManager/FinanceManagerExpensesController.cs — TaxAmount update on reconcile
+- Models/FinancialStatement.cs — added TaxAmount decimal? field
+- Migrations/20260519083000_AddFinancialStatementTaxAmount.cs — NEW migration
 
 **Frontend:**
-- src/api/auditorApi.ts � extended with date/dept filters, getFlaggedLogs, getVariance, downloadReport
-- ComplianceAuditSystem.tsx � full rewrite: FilterContext, export dropdown, 5th tab, preFilter navigation state
-- iews/AuditTrailsView.tsx � full rewrite: side panel, action badge colors, flagged highlights, CSV export, pre-filters
-- iews/OverviewView.tsx � clickable flagged card, real count
-- iews/ComplianceScansView.tsx � threshold fix, violationFilter deep-link
-- iews/FinancialStatementsView.tsx � taxAmount display fix
-- iews/VarianceSummaryView.tsx � NEW component
+- src/api/auditorApi.ts — extended with date/dept filters, getFlaggedLogs, getVariance, downloadReport
+- ComplianceAuditSystem.tsx — full rewrite: FilterContext, export dropdown, 5th tab, preFilter navigation state
+- iews/AuditTrailsView.tsx — full rewrite: side panel, action badge colors, flagged highlights, CSV export, pre-filters
+- iews/OverviewView.tsx — clickable flagged card, real count
+- iews/ComplianceScansView.tsx — threshold fix, violationFilter deep-link
+- iews/FinancialStatementsView.tsx — taxAmount display fix
+- iews/VarianceSummaryView.tsx — NEW component
 
 ### Architecture Notes
 - FilterContext is a new React context exported from ComplianceAuditSystem.tsx alongside ModalContext.
@@ -1121,7 +1121,7 @@ p.expm1() after any automated edits.
 - All CSV downloads use uditorApi.downloadReport() helper that creates a hidden <a> tag.
 ---
 
-## Session: Super Admin Config & Maintenance Tabs � Full Implementation (2026-05-19)
+## Session: Super Admin Config & Maintenance Tabs — Full Implementation (2026-05-19)
 
 ### What Was Built
 Complete implementation of the Super Admin **Config** and **Maintenance** tabs with full backend, frontend, and database wiring.
@@ -1129,19 +1129,19 @@ Complete implementation of the Super Admin **Config** and **Maintenance** tabs w
 ### Backend Changes
 
 **New Model:**
-- Models/MaintenanceLog.cs � NEW: LogId, Type (Success/Warning/Info/Error), Message, Detail, CreatedAt, TriggeredBy
+- Models/MaintenanceLog.cs — NEW: LogId, Type (Success/Warning/Info/Error), Message, Detail, CreatedAt, TriggeredBy
 
 **Database:**
-- Data/AppDbContext.cs � Added DbSet<MaintenanceLog> MaintenanceLogs
-- Migration: 20260519115402_AddMaintenanceLogs � Creates MaintenanceLogs table in MySQL
-- Migration: 20260519101523_AddTaxAmountToFinancialStatements � Fixed TaxAmount column (fixed from AlterColumn to AddColumn)
+- Data/AppDbContext.cs — Added DbSet<MaintenanceLog> MaintenanceLogs
+- Migration: 20260519115402_AddMaintenanceLogs — Creates MaintenanceLogs table in MySQL
+- Migration: 20260519101523_AddTaxAmountToFinancialStatements — Fixed TaxAmount column (fixed from AlterColumn to AddColumn)
 
 **Controllers:**
-- Controllers/SuperAdmin/SuperAdminConfigController.cs � Enhanced with:
+- Controllers/SuperAdmin/SuperAdminConfigController.cs — Enhanced with:
   - Auto-seeding of 10 default config keys on GET
   - Maintenance mode special case: writes jwt_invalidate_before, creates AuditLog entry
   - Correct config keys: global_mfa_enforced, global_ssl_enforced, ml_engine_enabled, maintenance_mode, api_request_timeout_ms, max_export_rows, api_rate_limit_per_min, jwt_expiration_hours, max_failed_login_attempts, session_timeout_minutes
-- Controllers/SuperAdmin/SuperAdminMaintenanceController.cs � NEW with 5 endpoints:
+- Controllers/SuperAdmin/SuperAdminMaintenanceController.cs — NEW with 5 endpoints:
   - GET /maintenance/status: DB ping + latency, DB size via INFORMATION_SCHEMA, ML /health probe, simulated RAM/CPU
   - POST /maintenance/backup: upserts last_backup_time config, creates MaintenanceLog
   - POST /maintenance/clear-cache: creates MaintenanceLog
@@ -1154,17 +1154,17 @@ Complete implementation of the Super Admin **Config** and **Maintenance** tabs w
 ### Frontend Changes
 
 **API Layer:**
-- src/api/superAdminApi.ts � Added MaintenanceStatus, MaintenanceLogEntry types + getMaintenanceStatus, getMaintenanceLogs, triggerBackup, clearCache, restartMicroservices functions
+- src/api/superAdminApi.ts — Added MaintenanceStatus, MaintenanceLogEntry types + getMaintenanceStatus, getMaintenanceLogs, triggerBackup, clearCache, restartMicroservices functions
 
 **Views:**
-- iews/ConfigView.tsx � Full rewrite: proper config keys, addToast prop, real API calls, React confirmation modal for maintenance mode
-- iews/MaintenanceView.tsx � Full rewrite: 5 KPI cards (DB, ML, Size, Backup, Uptime), live API data with 30s polling, SQL metrics progress bars, backup schedule from API, real maintenance logs with icons/colors, restart confirmation modal
+- iews/ConfigView.tsx — Full rewrite: proper config keys, addToast prop, real API calls, React confirmation modal for maintenance mode
+- iews/MaintenanceView.tsx — Full rewrite: 5 KPI cards (DB, ML, Size, Backup, Uptime), live API data with 30s polling, SQL metrics progress bars, backup schedule from API, real maintenance logs with icons/colors, restart confirmation modal
 
 **Routing:**
-- SuperAdminSystem.tsx � Passes addToast to ConfigView and MaintenanceView; addToast stabilized with useCallback
+- SuperAdminSystem.tsx — Passes addToast to ConfigView and MaintenanceView; addToast stabilized with useCallback
 
 ### Architecture Notes
-- Zero window.alert() / window.confirm() � all confirmations use React modal components
+- Zero window.alert() / window.confirm() — all confirmations use React modal components
 - All actions use addToast() for feedback
 - Maintenance middleware uses a scoped DI pattern to avoid DI lifetime issues
 - ML health check uses 5-second timeout to avoid blocking status API
@@ -1181,30 +1181,30 @@ Complete implementation of the Super Admin **Config** and **Maintenance** tabs w
 **Backend:**
 - Installed Microsoft.AspNetCore.Authentication.JwtBearer (v10.0.0)
 - Added Jwt config section to ppsettings.json (Secret, Issuer, Audience, ExpirationHours=24)
-- Program.cs � Wired AddAuthentication(JwtBearerDefaults.AuthenticationScheme) + AddAuthorization(), pipeline now runs UseAuthentication() + UseAuthorization() after CORS
-- AuthController.cs � Injected IConfiguration; login endpoint now generates a signed HS256 JWT with claims: userId, tenantId, roleId, email, name. Token returned as 	oken field in login response.
+- Program.cs — Wired AddAuthentication(JwtBearerDefaults.AuthenticationScheme) + AddAuthorization(), pipeline now runs UseAuthentication() + UseAuthorization() after CORS
+- AuthController.cs — Injected IConfiguration; login endpoint now generates a signed HS256 JWT with claims: userId, tenantId, roleId, email, name. Token returned as 	oken field in login response.
 
 **Frontend:**
-- Created src/config/auth.ts � Central auth helper: saveSession(), clearSession(), getStoredToken(), getAuthHeaders() (injects Authorization: Bearer <token> + X-Tenant-Id + X-User-Id)
-- App.jsx � Imports saveSession/clearSession; uses saveSession(data) on login to store token separately, clearSession() on logout
+- Created src/config/auth.ts — Central auth helper: saveSession(), clearSession(), getStoredToken(), getAuthHeaders() (injects Authorization: Bearer <token> + X-Tenant-Id + X-User-Id)
+- App.jsx — Imports saveSession/clearSession; uses saveSession(data) on login to store token separately, clearSession() on logout
 - All 5 API files updated to use getAuthHeaders():
-  - inanceManagerApi.ts � removed manual getHeaders(), uses getAuthHeaders()
-  - uditorApi.ts � removed getHeaders()/getUserInfo(), uses getAuthHeaders()
-  - deptHeadApi.ts � removed getHeaders(), uses getAuthHeaders()
-  - mainAdminApi.ts � removed inline header build, uses getAuthHeaders()
-  - superAdminApi.ts � was Content-Type only; now uses getAuthHeaders()
+  - inanceManagerApi.ts — removed manual getHeaders(), uses getAuthHeaders()
+  - uditorApi.ts — removed getHeaders()/getUserInfo(), uses getAuthHeaders()
+  - deptHeadApi.ts — removed getHeaders(), uses getAuthHeaders()
+  - mainAdminApi.ts — removed inline header build, uses getAuthHeaders()
+  - superAdminApi.ts — was Content-Type only; now uses getAuthHeaders()
 
 #### 2. Production Deployment Prep (Tasks 1-11)
 
-- **CORS** � Added AllowCredentials() + localhost:3000 to CORS policy; origins config-driven
-- **Auto-Migration** � Already existed; verified working
-- **Maintenance Middleware** � Added /api/payments/webhook + /health exemptions; uses AsNoTracking()
-- **appsettings.example.json** � Created with all keys for Render env var setup
-- **vercel.json** � Created 
+- **CORS** — Added AllowCredentials() + localhost:3000 to CORS policy; origins config-driven
+- **Auto-Migration** — Already existed; verified working
+- **Maintenance Middleware** — Added /api/payments/webhook + /health exemptions; uses AsNoTracking()
+- **appsettings.example.json** — Created with all keys for Render env var setup
+- **vercel.json** — Created 
 exaplan-client/vercel.json with SPA rewrite rule (fixes 404 on page refresh)
-- **Health endpoint** � GET /health returns { status, timestamp, service }
-- **ML Keep-Alive** � pingMlService() added to financeManagerApi; called on FinanceManagerSystem mount
-- **.gitignore** � Created root .gitignore protecting appsettings.json, build outputs, env files
+- **Health endpoint** — GET /health returns { status, timestamp, service }
+- **ML Keep-Alive** — pingMlService() added to financeManagerApi; called on FinanceManagerSystem mount
+- **.gitignore** — Created root .gitignore protecting appsettings.json, build outputs, env files
 
 #### 3. Backup Checkpoint Fix
 - POST /api/super-admin/maintenance/backup now correctly logs as "Backup checkpoint recorded" (not simulated snapshot)
@@ -1212,19 +1212,92 @@ exaplan-client/vercel.json with SPA rewrite rule (fixes 404 on page refresh)
 - UI button text updated to "Record Backup Checkpoint" with honest note
 
 ### Build State
-- dotnet build � 0 errors
+- dotnet build — 0 errors
 - 
-pm run build � 0 errors, built in 10.64s
+pm run build — 0 errors, built in 10.64s
 
 ### What's Still NOT Implemented (Production gaps remaining)
-- **[Authorize] on controllers** � JWT is generated and sent, but no controller enforces it yet. Controllers still trust X-Tenant-Id/X-User-Id headers. Adding [Authorize] is the next step.
-- **HTTPS enforcement** � UseHttpsRedirection() exists but no SSL cert configured for Render
-- **Rate limiting** � No throttle on login endpoint (brute force risk)
-- **Refresh tokens** � JWT expires in 24h; no refresh token endpoint
-- **Email verification** � No email confirm on registration
+- **[Authorize] on controllers** — JWT is generated and sent, but no controller enforces it yet. Controllers still trust X-Tenant-Id/X-User-Id headers. Adding [Authorize] is the next step.
+- **HTTPS enforcement** — UseHttpsRedirection() exists but no SSL cert configured for Render
+- **Rate limiting** — No throttle on login endpoint (brute force risk)
+- **Refresh tokens** — JWT expires in 24h; no refresh token endpoint
+- **Email verification** — No email confirm on registration
 
 #### 4. Controller Authorization & Security Lockdown
 - **[Authorize]** added to all 5 controller base classes (SuperAdminBaseController, MainAdminBaseController, FinanceManagerBaseController, DeptHeadBaseController, AuditorBaseController)
 - **[Authorize]** added to standalone controllers (AdminController, TenantsController, PaymentsController)
 - **[AllowAnonymous]** added to public endpoints: PaymentsController.CreateCheckout, PaymentsController.HandleWebhook, PricingController
 - The system now natively enforces JWT token checks, throwing 401 Unauthorized for requests missing or having invalid Authorization: Bearer <token> headers.
+
+#### 5. Multi-Tenant Data Leakage Lockdown & Strict Isolation
+- **JWT Claims Priority** — Modified `GetTenantId()` and `GetUserId()` in `MainAdminBaseController`, `FinanceManagerBaseController`, `DeptHeadBaseController`, and `AuditorBaseController` to retrieve IDs directly from the JWT claims first. This prevents header spoofing or query-parameter-based privilege escalation.
+- **Strict Notifications Scoping** — Refactored `NotificationsController` queries to join with the `Users` table and filter strictly by the resolved user's `TenantID`. This ensures that a user can only view, mark read, or delete notifications belonging to their specific tenant organization.
+
+#### 6. MFA Dev Workflow, Non-Blocking Enforcement, and Profile Modal Fixing
+- **Development OTP Bypass** — Updated `MfaController.cs` to return `devOtp` in the response body when `ASPNETCORE_ENVIRONMENT` is `Development`. This bypasses SMTP delivery errors during local development.
+- **Auto-Fill OTP in Development** — Updated `UserSecurityView.tsx` to read `devOtp` from the send response, auto-fill the code field, and display a helpful amber warning notification banner to the developer.
+- **Non-Blocking MFA Prompt** — Removed the blocking full-screen MFA setup overlays from all role-based dashboards (`MainAdminSystem.tsx`, `FinanceManagerSystem.tsx`, `DepartmentHeadSystem.tsx`, and `ComplianceAuditSystem.tsx`). Replaced it with a non-blocking toast warning / alert dialog notifying the user that MFA is required.
+- **Dashboard State Reset (Profile settings persistence fix)** — Added a unique React `key` prop based on `currentUser?.userId` to all main dashboard components in `App.jsx`. This ensures the components completely unmount and reset their local states (such as `subView === 'profile'`) when logging out and logging in as a different user.
+
+#### 7. MFA Login Challenge, Last Login Tracking & Forgot Password
+- **MFA Login Challenge Flow** — Updated `AuthController.Login` to detect `user.MfaEnabled`. When true, returns `{ mfaChallenge: true, pendingUserId }` instead of a JWT. Added two new endpoints: `POST /api/auth/send-mfa-challenge` (generates and emails OTP for login, uses _authOtpStore) and `POST /api/auth/verify-mfa-challenge` (verifies OTP, then issues the full JWT). Dev environment returns `devOtp` in both endpoints.
+- **Last Login Tracking** — `AuthController.Login` and `AuthController.VerifyMfaChallenge` now both set `user.LastLoginAt = DateTime.UtcNow` on successful authentication before saving. The `LastLogin` column in the Admin tab is now populated.
+- **Forgot Password Flow** — Added two new endpoints: `POST /api/auth/request-password-reset` (role-gated to RoleID 1 and 2 only; non-admins get a clear "contact your administrator" message; uses _pwResetStore by email key) and `POST /api/auth/reset-password` (verifies OTP and updates password hash, unlocks account).
+- **ChangePassword endpoint** — Added `POST /api/auth/change-password` (requires JWT Authorization header; verifies current password before updating hash).
+{{ ... }}
+- **Frontend — MfaChallengePage.tsx** — New premium dark-themed interstitial screen. Auto-sends OTP on mount, shows dev auto-fill banner, 6-digit input with `Enter` key support, "Resend Code" and "Back to Login" buttons.
+- **Frontend — ForgotPasswordPage.tsx** — New multi-step password reset page with animated step progress sidebar. Steps: Email → OTP verification → New Password → Done.
+- **Frontend — App.jsx** — Updated `handleLogin` to detect `mfaChallenge` and route to `mfa-challenge` view; added `handleMfaVerified` callback; added `pendingMfaUserId` state; added `mfa-challenge` and `forgot-password` render branches.
+- **Frontend — Login.tsx** — Added `onForgotPassword` prop to `LoginProps` interface; wired "Forgot password?" button to call it.
+
+---
+
+## Session 41: Landing Page Copy Accuracy Fixes, Login UI Redesign & Logo Replacement
+
+**Overview:** Corrected misleading/inaccurate content on the marketing landing page to reflect real system capabilities, redesigned the Login page UI to match a clean centered-card mockup, and replaced text-only logos with the new NexaPlan icon across the app.
+
+### Landing Page Copy Fixes (`LandingPage.tsx`)
+
+| Location | Old Text | New Text |
+|---|---|---|
+| Hero stats, Customer stats | `94.2%` (AI Forecast Accuracy) | `81.7%` |
+| Customer stats sub | `Random Forest model` | `Hybrid ML model` |
+| Features → AI Forecasting desc | `94.2% accurate Random Forest model. Bootstrap confidence intervals narrow near observed data.` | `81.7% accurate hybrid ML model (Random Forest + Ridge Regression). Confidence bands computed via volatility-weighted projections.` |
+| Features → RBAC Access Control | `5 user levels` | `6 user levels` |
+| Features → Compliance Audit Trail | `Cryptographically verified, immutable log…` | `SHA-256 verified financial statements with a full audit log…` |
+| Features → Scenario Planning title | `Scenario Planning` | `Scenario Planning (Professional & Enterprise)` |
+| AI Engine paragraph | `Machine learning models continuously improve accuracy…` | `A hybrid ML model (Random Forest + Ridge Regression) analyzes your historical transaction data to predict future departmental expenses.` |
+| AI Engine bullet | `Seasonal pattern detection` | `Monthly spend pattern analysis` |
+| AI Engine bullet | `Anomaly detection for outliers` | `Anomaly detection for outliers (Enterprise plan)` |
+| Security section → Bank-Grade Security | `256-bit encryption, SOC 2 Type II certified, and full audit trails…` | `256-bit encryption and full audit trails for every budget change across your organization.` |
+| Hero social proof | `Trusted by 80+ enterprise teams` | `Built for Philippine enterprise finance teams` |
+| Customer logos disclaimer | *(none)* | Added `"Company names shown are illustrative examples."` in `text-slate-400` below logo row |
+
+**AI accuracy rationale:** The ML microservice (ml_service/main.py) uses a hybrid Random Forest + Ridge Regression model with a verified R² = 0.8166 (≈ 81.7%). The previously displayed 94.2% figure was aspirational and not backed by model evaluation metrics.
+
+**RBAC rationale:** The system seeds 6 roles (Super Admin, Main Admin, Finance Manager, Department Head, Auditor, Viewer) as documented in Section 5.5.
+
+### Login Page UI Redesign (`Login.tsx`)
+
+- **Layout:** Replaced the split two-column (left form / right testimonial) layout with a single centered card on a soft gradient background (`#f0f4ff → #e8edf8 → #f5f7fb`).
+- **Card design:** White card with `border-radius: 1rem`, subtle `box-shadow`, max-width 400px, centered vertically and horizontally.
+- **Header:** Blue gradient lock icon avatar (rounded square) at top of card, "Welcome Back" h1, "Sign in to access your workspace" subtitle.
+- **Inputs:** Both Email and Password fields now have leading icons (`Mail`, `Lock`) inside an `#f8f9fb` background input with soft border.
+- **Forgot password:** Moved to inline right of the Password label row as `"Forgot?"` link.
+- **Sign In button:** Blue gradient (`#0052FF → #2563EB`) with `ArrowRight` icon and drop shadow.
+- **Free trial CTA:** Shown as a bordered outline button below the "New to NexaPlan?" prompt.
+- **SSL notice:** `Shield` icon + "Protected by 256-bit SSL encryption" at card footer.
+- **NexaPlan logo:** Top-left corner shows icon + wordmark, using the new `nexaplan-logo.png` asset.
+- All functional props (`onSubmit`, `setLoginEmail`, `setLoginPassword`, `showPassword`, `rememberDevice`, `errorMessage`, `clearError`, `onForgotPassword`) fully preserved.
+
+### Logo Replacement
+
+- **Asset saved:** New hexagon-cluster icon logo saved to `nexaplan-client/src/assets/brand/nexaplan-logo.png` and `nexaplan-client/public/logo.png`.
+- **LandingPage nav:** Updated to show `<img src="/logo.png" />` + wordmark side by side.
+- **LandingPage footer:** Updated to show `<img src="/logo.png" />` + wordmark (with `brightness-0 invert` filter for dark background).
+- **Login.tsx:** Imports logo via `import nexaplanLogo from '../assets/brand/nexaplan-logo.png'` and shows it top-left.
+
+### Build Status
+
+- Frontend `npm run dev` — hot-reload active, no compilation errors expected.
+- No backend changes in this session.

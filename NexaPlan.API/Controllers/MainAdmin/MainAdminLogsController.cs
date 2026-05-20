@@ -70,8 +70,8 @@ namespace NexaPlan.API.Controllers.MainAdmin
             if (!string.IsNullOrEmpty(search))
                 query = query.Where(l => l.ActionType.Contains(search)
                                       || l.TargetResources.Contains(search));
-            if (!string.IsNullOrEmpty(type))
-                query = query.Where(l => l.ActionType == type);
+            if (!string.IsNullOrEmpty(type) && type != "All")
+                query = query.Where(l => l.ActionType.StartsWith(type));
             if (DateTime.TryParse(dateFrom, out var from))
                 query = query.Where(l => l.TimeStamp >= from);
             if (DateTime.TryParse(dateTo, out var to))

@@ -4,6 +4,8 @@ import { LandingPage } from './pages/LandingPage';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { Checkout } from './pages/Checkout';
+import { MfaChallengePage } from './pages/MfaChallengePage';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import SuperAdminSystem from './app/(roles)/super-admin/SuperAdminSystem';
 import { MainAdminSystem } from './app/(roles)/main-admin/MainAdminSystem';
 import { BudgetPlanningSystem } from './app/(roles)/budget-planning/BudgetPlanningSystem';
@@ -23,6 +25,7 @@ export default function App() {
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [currentUser, setCurrentUser] = useState(null);
+  const [pendingMfaUserId, setPendingMfaUserId] = useState(null);
 
   const clearMessages = () => { setSuccessMessage(''); setErrorMessage(''); };
 
@@ -154,7 +157,7 @@ export default function App() {
     }
   };
 
-  // --- WE WILL UPGRADE LOGIN NEXT ---
+  // --- LOGIN HANDLER ---
   const handleLogin = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -162,38 +165,24 @@ export default function App() {
     try {
       const response = await fetch(apiUrl('/api/Auth/login'), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: loginEmail, password: loginPassword })
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        // Save user session + JWT token securely
+        // MFA challenge: user has MFA enabled — route to interstitial
+        if (data.mfaChallenge && data.pendingUserId) {
+          setPendingMfaUserId(data.pendingUserId);
+          setCurrentView('mfa-challenge');
+          return;
+        }
+
+        // Normal login — save session and route to dashboard
         saveSession(data);
         setCurrentUser(data);
-        // 1: Super Admin, 2: Main Admin, 3: Finance Manager, 4: Dept Head, 5: Auditor, 6: Employee
-        switch (data.roleId) {
-          case 1:
-            setCurrentView('admin-dashboard');
-            break;
-          case 2:
-            setCurrentView('main-admin');
-            break;
-          case 3:
-            setCurrentView('finance-manager');  // Finance Manager
-            break;
-          case 4:
-            setCurrentView('dept-head');         // Department Head
-            break;
-          case 5:
-            setCurrentView('auditor');
-            break;
-          default:
-            setCurrentView('main-admin');
-        }
+        routeToDashboard(data.roleId);
       } else {
         setErrorMessage(data.message || 'Invalid credentials. Please try again.');
       }
@@ -203,6 +192,26 @@ export default function App() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const routeToDashboard = (roleId) => {
+    // 1: Super Admin, 2: Main Admin, 3: Finance Manager, 4: Dept Head, 5: Auditor
+    switch (roleId) {
+      case 1: setCurrentView('admin-dashboard'); break;
+      case 2: setCurrentView('main-admin'); break;
+      case 3: setCurrentView('finance-manager'); break;
+      case 4: setCurrentView('dept-head'); break;
+      case 5: setCurrentView('auditor'); break;
+      default: setCurrentView('main-admin');
+    }
+  };
+
+  // Called by MfaChallengePage after successful OTP verification
+  const handleMfaVerified = (sessionData) => {
+    saveSession(sessionData);
+    setCurrentUser(sessionData);
+    setPendingMfaUserId(null);
+    routeToDashboard(sessionData.roleId);
   };
 
   // --- UPGRADED REGISTRATION LOGIC ---
@@ -278,6 +287,25 @@ export default function App() {
         setRememberDevice={setRememberDevice}
         errorMessage={errorMessage}
         clearError={() => setErrorMessage('')}
+        onForgotPassword={() => { setErrorMessage(''); setCurrentView('forgot-password'); }}
+      />
+    );
+  }
+
+  if (currentView === 'mfa-challenge') {
+    return (
+      <MfaChallengePage
+        pendingUserId={pendingMfaUserId}
+        onVerified={handleMfaVerified}
+        onBack={() => { setPendingMfaUserId(null); setCurrentView('login'); }}
+      />
+    );
+  }
+
+  if (currentView === 'forgot-password') {
+    return (
+      <ForgotPasswordPage
+        onBack={() => setCurrentView('login')}
       />
     );
   }
@@ -354,23 +382,23 @@ export default function App() {
   }
 
   if (currentView === 'main-admin') {
-    return <CurrencyProvider><MainAdminSystem onLogout={handleLogout} /></CurrencyProvider>;
+    return <CurrencyProvider key={currentUser?.userId || 'main-admin'}><MainAdminSystem onLogout={handleLogout} /></CurrencyProvider>;
   }
 
   if (currentView === 'admin-dashboard') {
-    return <SuperAdminSystem onLogout={handleLogout} />;
+    return <SuperAdminSystem key={currentUser?.userId || 'super-admin'} onLogout={handleLogout} />;
   }
 
   if (currentView === 'finance-manager') {
-    return <CurrencyProvider><FinanceManagerSystem onLogout={handleLogout} /></CurrencyProvider>;
+    return <CurrencyProvider key={currentUser?.userId || 'finance-manager'}><FinanceManagerSystem onLogout={handleLogout} /></CurrencyProvider>;
   }
 
   if (currentView === 'dept-head') {
-    return <CurrencyProvider><DepartmentHeadSystem onLogout={handleLogout} /></CurrencyProvider>;
+    return <CurrencyProvider key={currentUser?.userId || 'dept-head'}><DepartmentHeadSystem onLogout={handleLogout} /></CurrencyProvider>;
   }
 
   if (currentView === 'auditor') {
-    return <CurrencyProvider><ComplianceAuditSystem onLogout={handleLogout} /></CurrencyProvider>;
+    return <CurrencyProvider key={currentUser?.userId || 'auditor'}><ComplianceAuditSystem onLogout={handleLogout} /></CurrencyProvider>;
   }
 
   return null;

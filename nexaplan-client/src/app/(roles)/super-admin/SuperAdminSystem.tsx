@@ -11,6 +11,8 @@ import { ConfigView } from './views/ConfigView';
 import { MaintenanceView } from './views/MaintenanceView';
 import * as api from '../../../api/superAdminApi';
 import type { TenantDto, SummaryDto } from '../../../api/superAdminApi';
+import { UserProfileView } from '../../../components/shared/UserProfileView';
+import { UserSecurityView } from '../../../components/shared/UserSecurityView';
 
 export type DashboardView = 'overview' | 'tenants' | 'billing' | 'pricing' | 'admins' | 'config' | 'maintenance' | 'trial-requests';
 
@@ -18,8 +20,25 @@ interface SuperAdminSystemProps { onLogout: () => void; }
 
 export default function SuperAdminSystem({ onLogout }: SuperAdminSystemProps) {
   const [currentView, setCurrentView] = useState<DashboardView>('overview');
+  const [subView, setSubView] = useState<'profile' | 'security' | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [pendingTrialCount, setPendingTrialCount] = useState(0);
+
+  const [user, setUser] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('user') || '{}');
+    } catch {
+      return {};
+    }
+  });
+
+  const handleProfileUpdate = () => {
+    try {
+      setUser(JSON.parse(localStorage.getItem('user') || '{}'));
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   // Shared data from API
   const [tenants, setTenants] = useState<TenantDto[]>([]);
@@ -179,12 +198,22 @@ export default function SuperAdminSystem({ onLogout }: SuperAdminSystemProps) {
 
   return (
     <div className="flex flex-col h-screen w-full bg-[#F1F5F9] font-['Inter']">
-      <SuperAdminTopNav currentView={currentView} setCurrentView={setCurrentView} onLogout={onLogout} pendingTrialCount={pendingTrialCount} />
+      <SuperAdminTopNav 
+        currentView={currentView} 
+        setCurrentView={setCurrentView} 
+        onLogout={onLogout} 
+        pendingTrialCount={pendingTrialCount} 
+        onProfileClick={() => setSubView('profile')}
+        onSecurityClick={() => setSubView('security')}
+        user={user}
+      />
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="h-[72px] bg-white border-b border-[#E2E8F0] flex items-center justify-between px-8 shrink-0">
           <div className="flex items-center gap-3">
-            <h1 className="text-[30px] font-bold text-[#0A192F] tracking-tight">{getPageTitle()}</h1>
+            <h1 className="text-[30px] font-bold text-[#0A192F] tracking-tight">
+              {getPageTitle()}
+            </h1>
             {currentView === 'trial-requests' && pendingTrialCount > 0 && (
               <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#EF4444]/10 text-[#EF4444] rounded-full text-sm font-bold">
                 <span className="w-2 h-2 bg-[#EF4444] rounded-full animate-pulse"></span>
@@ -238,6 +267,35 @@ export default function SuperAdminSystem({ onLogout }: SuperAdminSystemProps) {
           )}
         </main>
       </div>
+
+      {/* ─── Profile & Security Modals ─── */}
+      {subView === 'profile' && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-[#F8FAFC] rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-8 relative border border-slate-200">
+            <button 
+              onClick={() => setSubView(null)} 
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <UserProfileView onBack={() => setSubView(null)} addToast={addToast} onProfileUpdate={handleProfileUpdate} />
+          </div>
+        </div>
+      )}
+
+      {subView === 'security' && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-[#F8FAFC] rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-8 relative border border-slate-200">
+            <button 
+              onClick={() => setSubView(null)} 
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <UserSecurityView onBack={() => setSubView(null)} addToast={addToast} />
+          </div>
+        </div>
+      )}
 
       {/* ═══ Provision Modal ═══ */}
       {showProvisionModal && (

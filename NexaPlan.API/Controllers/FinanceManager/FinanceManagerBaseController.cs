@@ -20,6 +20,11 @@ namespace NexaPlan.API.Controllers.FinanceManager
 
         protected int GetTenantId()
         {
+            var tenantIdClaim = User.FindFirst("tenantId")?.Value;
+            if (int.TryParse(tenantIdClaim, out int tidFromClaim) && tidFromClaim > 0)
+            {
+                return tidFromClaim;
+            }
             if (Request.Headers.TryGetValue("X-Tenant-Id", out var h) && int.TryParse(h, out int tid)) return tid;
             if (Request.Query.TryGetValue("tenantId", out var q) && int.TryParse(q, out int qtid)) return qtid;
             return 0;
@@ -27,6 +32,12 @@ namespace NexaPlan.API.Controllers.FinanceManager
 
         protected int GetUserId()
         {
+            var userIdClaim = User.FindFirst("userId")?.Value 
+                           ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (int.TryParse(userIdClaim, out int uidFromClaim) && uidFromClaim > 0)
+            {
+                return uidFromClaim;
+            }
             if (Request.Headers.TryGetValue("X-User-Id", out var h) && int.TryParse(h, out int uid)) return uid;
             if (Request.Query.TryGetValue("userId", out var q) && int.TryParse(q, out int quid)) return quid;
             return 0;

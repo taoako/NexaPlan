@@ -8,11 +8,12 @@ interface Props {
   logs: MainAdminLog[];
   loading: boolean;
   onFilter: (params: { search?: string; type?: string; from?: string; to?: string }) => void;
+  addToast: (msg: string, type: 'success' | 'error' | 'info') => void;
 }
 
 const LOG_TYPES = ['All','USER','DEPARTMENT','SETTINGS','BULK'];
 
-export function LogsTab({ logs, loading, onFilter }: Props) {
+export function LogsTab({ logs, loading, onFilter, addToast }: Props) {
   const [search, setSearch] = useState('');
   const [type, setType] = useState('All');
   const [from, setFrom] = useState('');
@@ -45,6 +46,7 @@ export function LogsTab({ logs, loading, onFilter }: Props) {
     const userStr = localStorage.getItem('user');
     const user = userStr ? JSON.parse(userStr) : null;
     const tenantId = user?.tenantId || 0;
+    const token = localStorage.getItem('token') || '';
 
     // Use apiUrl helper to ensure we hit the backend, not the Vite dev server
     const url = apiUrl(`/api/main-admin/export?${q.toString()}`);
@@ -52,11 +54,12 @@ export function LogsTab({ logs, loading, onFilter }: Props) {
     try {
       const response = await fetch(url, {
         headers: {
+          'Authorization': `Bearer ${token}`,
           'X-Tenant-Id': String(tenantId),
           'X-User-Id': user?.userId?.toString() || '',
         }
       });
-      if (!response.ok) throw new Error('Export failed');
+      if (!response.ok) throw new Error(`Export failed: ${response.status} ${response.statusText}`);
       
       const blob = await response.blob();
       const downloadUrl = window.URL.createObjectURL(blob);
@@ -66,9 +69,11 @@ export function LogsTab({ logs, loading, onFilter }: Props) {
       document.body.appendChild(a);
       a.click();
       a.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+      addToast('Audit log exported successfully.', 'success');
     } catch (err) {
       console.error('Export failed', err);
-      alert('Professional export failed. Please try again.');
+      addToast('CSV export failed. Please try again.', 'error');
     }
   };
 

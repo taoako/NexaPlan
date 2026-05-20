@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   BarChart3, Users, Building2, Settings, FileText, CreditCard, TrendingUp,
-  LogOut, Bell, ChevronDown, CheckCircle2, AlertCircle, X, Info
+  LogOut, Bell, ChevronDown, CheckCircle2, AlertCircle, X, Info, User, Lock
 } from 'lucide-react';
 import { OverviewTab } from './views/OverviewTab';
 import { ForecastingTab } from './views/ForecastingTab';
@@ -13,6 +13,8 @@ import { BillingTab } from './views/BillingTab';
 import * as api from '../../../api/mainAdminApi';
 import { FeaturesContext, TierFeatures } from '../../../context/FeaturesContext';
 import { useCurrency } from '../../../context/CurrencyContext';
+import { UserProfileView } from '../../../components/shared/UserProfileView';
+import { UserSecurityView } from '../../../components/shared/UserSecurityView';
 
 type Tab = 'overview' | 'forecasting' | 'users' | 'departments' | 'settings' | 'logs' | 'billing';
 interface Toast { id: number; message: string; type: 'success' | 'error' | 'info'; }
@@ -21,20 +23,36 @@ interface Props { onLogout?: () => void; }
 export function MainAdminSystem({ onLogout }: Props) {
   const { setCurrency } = useCurrency();
   // ── Auth: read from localStorage ──
-  const storedUser = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
-  const tenantId: number = storedUser.tenantId ?? 0;
-  const currentUserId: number = storedUser.userId ?? 0;
-  const userName: string = storedUser.firstName && storedUser.lastName 
-    ? `${storedUser.firstName} ${storedUser.lastName}` 
-    : (storedUser.name ?? 'Main Admin');
-  const userInitials: string = storedUser.firstName && storedUser.lastName
-    ? (storedUser.firstName[0] + storedUser.lastName[0]).toUpperCase()
+  const [user, setUser] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('user') || '{}');
+    } catch {
+      return {};
+    }
+  });
+
+  const handleProfileUpdate = () => {
+    try {
+      setUser(JSON.parse(localStorage.getItem('user') || '{}'));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const tenantId: number = user.tenantId ?? 0;
+  const currentUserId: number = user.userId ?? 0;
+  const userName: string = user.firstName && user.lastName 
+    ? `${user.firstName} ${user.lastName}` 
+    : (user.name ?? 'Main Admin');
+  const userInitials: string = user.firstName && user.lastName
+    ? (user.firstName[0] + user.lastName[0]).toUpperCase()
     : userName.charAt(0).toUpperCase();
 
   // ── UI State ──
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [showProfile, setShowProfile] = useState(false);
+  const [subView, setSubView] = useState<'profile' | 'security' | null>(null);
   const profileRef = useRef<HTMLDivElement>(null);
   const [filterRole, setFilterRole] = useState<string | undefined>(undefined);
 
@@ -56,6 +74,13 @@ export function MainAdminSystem({ onLogout }: Props) {
     setToasts(p => [...p, { id, message, type }]);
     setTimeout(() => setToasts(p => p.filter(t => t.id !== id)), 4500);
   }, []);
+
+  // ── MFA Required Warning ──
+  useEffect(() => {
+    if (user.requireMfa && !user.mfaEnabled) {
+      addToast('MFA Setup is required for your account. Please configure it under Security in the profile dropdown.', 'info');
+    }
+  }, [user.requireMfa, user.mfaEnabled, addToast]);
 
   // ── Fetch functions ──
   const fetchSummary  = useCallback(async () => { if (!tenantId) return; try { setSummary(await api.getSummary(tenantId)); } catch (e: any) { addToast(e.message, 'error'); } }, [tenantId, addToast]);
@@ -157,7 +182,7 @@ export function MainAdminSystem({ onLogout }: Props) {
           <span className="font-black text-xl text-white">Nexa<span className="text-indigo-400">Plan</span></span>
           <span className="text-slate-600 mx-2">|</span>
           <span className="text-slate-400 text-sm font-semibold">
-            {storedUser.impersonated ? '👁 Impersonating' : 'Main Admin'}
+            {user.impersonated ? '👁 Impersonating' : 'Main Admin'}
           </span>
         </div>
 
@@ -199,12 +224,28 @@ export function MainAdminSystem({ onLogout }: Props) {
                 <p className="text-xs font-black text-slate-900 truncate">{userName}</p>
                 <p className="text-xs text-slate-500">Tenant ID: {tenantId}</p>
               </div>
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 font-semibold transition-colors"
-              >
-                <LogOut className="w-4 h-4" /> Sign Out
-              </button>
+              <div className="py-1">
+                <button
+                  onClick={() => { setShowProfile(false); setSubView('profile'); }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors font-semibold"
+                >
+                  <User className="w-4 h-4 text-slate-400" /> Profile Settings
+                </button>
+                <button
+                  onClick={() => { setShowProfile(false); setSubView('security'); }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors font-semibold"
+                >
+                  <Lock className="w-4 h-4 text-slate-400" /> Security
+                </button>
+              </div>
+              <div className="border-t border-slate-100 py-1">
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 font-semibold transition-colors"
+                >
+                  <LogOut className="w-4 h-4" /> Sign Out
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -273,6 +314,7 @@ export function MainAdminSystem({ onLogout }: Props) {
               logs={logs}
               loading={loading}
               onFilter={(params) => fetchLogs(params)}
+              addToast={addToast}
             />
           )}
 
@@ -288,6 +330,36 @@ export function MainAdminSystem({ onLogout }: Props) {
           )}
         </FeaturesContext.Provider>
       </main>
+
+      {/* ─── Profile & Security Modals ─── */}
+      {subView === 'profile' && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-[#F8FAFC] rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-8 relative border border-slate-200">
+            <button 
+              onClick={() => setSubView(null)} 
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <UserProfileView onBack={() => setSubView(null)} addToast={addToast} onProfileUpdate={handleProfileUpdate} />
+          </div>
+        </div>
+      )}
+
+      {subView === 'security' && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-[#F8FAFC] rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-8 relative border border-slate-200">
+            <button 
+              onClick={() => setSubView(null)} 
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <UserSecurityView onBack={() => setSubView(null)} addToast={addToast} />
+          </div>
+        </div>
+      )}
+
 
       {/* ── Toast Notifications ── */}
       <div className="fixed bottom-6 right-6 z-[100] flex flex-col gap-2 pointer-events-none">

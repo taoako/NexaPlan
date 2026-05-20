@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { DollarSign, CheckSquare, TrendingUp, GitBranch, BarChart3, AlertTriangle, FileCheck, X, CheckCircle2, Info, FileSignature } from 'lucide-react';
+import { DollarSign, Lock, CheckSquare, TrendingUp, GitBranch, BarChart3, AlertTriangle, FileCheck, X, CheckCircle2, Info, FileSignature } from 'lucide-react';
 import { FinanceManagerTopNav } from './layout/FinanceManagerTopNav';
 import { AllocationView } from './views/AllocationView';
 import { ApprovalView } from './views/ApprovalView';
@@ -12,6 +12,8 @@ import { ReconciliationView } from './views/ReconciliationView';
 import { FeaturesContext, TierFeatures } from '../../../context/FeaturesContext';
 
 import { StatementsView } from './views/StatementsView';
+import { UserProfileView } from '../../../components/shared/UserProfileView';
+import { UserSecurityView } from '../../../components/shared/UserSecurityView';
 
 interface FinanceManagerSystemProps { 
   onLogout: () => void; 
@@ -34,15 +36,37 @@ export function FinanceManagerSystem({ onLogout }: FinanceManagerSystemProps) {
   const [activeScenario, setActiveScenario] = useState<Scenario | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [features, setFeatures] = useState<TierFeatures | null>(null);
+  const [subView, setSubView] = useState<'profile' | 'security' | null>(null);
+  const [user, setUser] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('user') || '{}');
+    } catch {
+      return {};
+    }
+  });
 
-  const storedUser = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
-  const tenantId: number = storedUser.tenantId ?? 0;
+  const handleProfileUpdate = () => {
+    try {
+      setUser(JSON.parse(localStorage.getItem('user') || '{}'));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const tenantId: number = user.tenantId ?? 0;
 
   const addToast = useCallback((message: string, type: 'success' | 'error' | 'info' | 'warning' = 'info') => {
     const id = Date.now();
     setToasts(p => [...p, { id, message, type }]);
     setTimeout(() => setToasts(p => p.filter(t => t.id !== id)), 5000);
   }, []);
+
+  // ── MFA Required Warning ──
+  useEffect(() => {
+    if (user.requireMfa && !user.mfaEnabled) {
+      addToast('MFA Setup is required for your account. Please configure it under Security in the profile dropdown.', 'info');
+    }
+  }, [user.requireMfa, user.mfaEnabled, addToast]);
 
   // Wake up ML microservice on Render as early as possible
   useEffect(() => {
@@ -100,10 +124,13 @@ export function FinanceManagerSystem({ onLogout }: FinanceManagerSystemProps) {
         setActiveModule={setActiveModule}
         navTabs={navTabs}
         onLogout={onLogout}
+        onProfileClick={() => setSubView('profile')}
+        onSecurityClick={() => setSubView('security')}
+        user={user}
       />
 
       {/* Main Content Area - Routing to Views */}
-      <div className="flex-1 overflow-auto bg-[#F8FAFC]">
+      <div className="flex-1 overflow-auto bg-[#F8FAFC] p-8">
         <FeaturesContext.Provider value={features}>
           {activeModule === 'allocation' && <AllocationView />}
           {activeModule === 'approval' && <ApprovalView />}
@@ -114,6 +141,36 @@ export function FinanceManagerSystem({ onLogout }: FinanceManagerSystemProps) {
           {activeModule === 'statements' && <StatementsView />}
         </FeaturesContext.Provider>
       </div>
+
+      {/* ─── Profile & Security Modals ─── */}
+      {subView === 'profile' && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-[#F8FAFC] rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-8 relative border border-slate-200">
+            <button 
+              onClick={() => setSubView(null)} 
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <UserProfileView onBack={() => setSubView(null)} addToast={addToast} onProfileUpdate={handleProfileUpdate} />
+          </div>
+        </div>
+      )}
+
+      {subView === 'security' && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-[#F8FAFC] rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-8 relative border border-slate-200">
+            <button 
+              onClick={() => setSubView(null)} 
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <UserSecurityView onBack={() => setSubView(null)} addToast={addToast} />
+          </div>
+        </div>
+      )}
+
 
       {/* Toast Container */}
       <div className="fixed bottom-6 right-6 z-[100] flex flex-col gap-3">

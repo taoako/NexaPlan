@@ -77,7 +77,8 @@ export function LandingPage({ onNavigate, onSelectPlan, isLoggedIn, userRole }: 
   return (
     <div className="min-h-screen bg-white font-['Inter']">
       <nav className="fixed top-0 w-full z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 h-20 flex items-center justify-between px-8">
-        <div className="flex items-center">
+        <div className="flex items-center gap-2">
+          <img src="/logo.png" alt="NexaPlan Logo" className="h-9 w-9 object-contain" />
           <span className="font-black text-2xl">
             <span className="text-[#0052FF]">Nexa</span>
             <span className="text-[#0A192F]">Plan</span>
@@ -211,7 +212,7 @@ export function LandingPage({ onNavigate, onSelectPlan, isLoggedIn, userRole }: 
                   </svg>
                 ))}
               </div>
-              <div className="text-[12px] text-slate-500">Trusted by 80+ enterprise teams</div>
+              <div className="text-[12px] text-slate-500">Built for Philippine enterprise finance teams</div>
             </div>
           </div>
 
@@ -227,7 +228,7 @@ export function LandingPage({ onNavigate, onSelectPlan, isLoggedIn, userRole }: 
 
           <div className="pt-16 grid grid-cols-3 gap-8 max-w-3xl mx-auto">
             {([
-              { n: '94.2%', l: 'AI Forecast Accuracy' },
+              { n: '81.7%', l: 'AI Forecast Accuracy' },
               { n: '< 48h', l: 'Approval Cycle' },
               { n: '85 hrs', l: 'Saved Per Month' },
             ] as { n: string; l: string }[]).map(({ n, l }) => (
@@ -248,14 +249,15 @@ export function LandingPage({ onNavigate, onSelectPlan, isLoggedIn, userRole }: 
       <section id="customers" className="bg-[#F7F8FA] py-16 px-8 border-y border-[#d1d5db]">
         <div className="max-w-5xl mx-auto">
           <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center mb-8">Trusted by finance teams across the Philippines</p>
-          <div className="flex justify-center items-center gap-12 mb-14 flex-wrap">
+          <div className="flex justify-center items-center gap-12 mb-4 flex-wrap">
             {['MODULUS VISENTRA', 'DAVAO AGRIBUSINESS', 'PRIME FINANCIAL', 'CEBU HOLDINGS', 'MANILA FINTECH'].map((n) => (
               <div key={n} className="text-[14px] font-black text-slate-300 tracking-widest">{n}</div>
             ))}
           </div>
+          <p className="text-[11px] text-slate-400 text-center mb-10">Company names shown are illustrative examples.</p>
           <div className="grid grid-cols-4 gap-5">
             {([
-              { val: '94.2%', label: 'AI Forecast Accuracy', sub: 'Random Forest model' },
+              { val: '81.7%', label: 'AI Forecast Accuracy', sub: 'Hybrid ML model' },
               { val: '< 48h', label: 'Approval Cycle', sub: 'Down from 2 weeks' },
               { val: '85 hrs', label: 'Saved Per Month', sub: 'Per finance team' },
               { val: '12+', label: 'Departments Supported', sub: 'Per enterprise client' },
@@ -279,11 +281,11 @@ export function LandingPage({ onNavigate, onSelectPlan, isLoggedIn, userRole }: 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {([
               { icon: Calculator, title: 'Intelligent Allocation', desc: 'Distribute targeted funding to specific departments with full transparency. Track every peso with granular visibility.' },
-              { icon: GitBranch, title: 'Scenario Planning', desc: 'Clone base budgets to run optimistic and pessimistic what-if driver models. Prepare for any financial outcome.' },
+              { icon: GitBranch, title: 'Scenario Planning (Professional & Enterprise)', desc: 'Clone base budgets to run optimistic and pessimistic what-if driver models. Prepare for any financial outcome.' },
               { icon: Target, title: 'Real-Time Variance', desc: 'Instantly compare approved budgets against actual transactions. Spot deviations before they escalate.' },
-              { icon: Shield, title: 'RBAC Access Control', desc: 'Role-based permissions across 5 user levels. Every action is logged, attributed, and immutably stored.' },
-              { icon: TrendingUp, title: 'AI Forecasting', desc: '94.2% accurate Random Forest model. Bootstrap confidence intervals narrow near observed data.' },
-              { icon: BarChart3, title: 'Compliance Audit Trail', desc: 'Cryptographically verified, immutable log of every financial action across the entire organization.' },
+              { icon: Shield, title: 'RBAC Access Control', desc: 'Role-based permissions across 6 user levels. Every action is logged, attributed, and immutably stored.' },
+              { icon: TrendingUp, title: 'AI Forecasting', desc: '81.7% accurate hybrid ML model (Random Forest + Ridge Regression). Confidence bands computed via volatility-weighted projections.' },
+              { icon: BarChart3, title: 'Compliance Audit Trail', desc: 'SHA-256 verified financial statements with a full audit log of every budget action across the organization.' },
             ] as { icon: React.ElementType; title: string; desc: string }[]).map(({ icon: Icon, title, desc }, i) => (
               <div
                 key={i}
@@ -333,13 +335,13 @@ export function LandingPage({ onNavigate, onSelectPlan, isLoggedIn, userRole }: 
               Stop guessing.<br />Start predicting.
             </h2>
             <p className="text-slate-300 mt-6 text-lg leading-relaxed">
-              Our dedicated Python microservice analyzes your historical transaction data to automatically predict future departmental expenses. Machine learning models continuously improve accuracy with every budget cycle.
+              A hybrid ML model (Random Forest + Ridge Regression) analyzes your historical transaction data to predict future departmental expenses.
             </p>
             <div className="mt-8 flex flex-col gap-3">
               {[
                 'Linear regression for trend analysis',
-                'Seasonal pattern detection',
-                'Anomaly detection for outliers',
+                'Monthly spend pattern analysis',
+                'Anomaly detection for outliers (Enterprise plan)',
               ].map((item) => (
                 <div key={item} className="flex items-center gap-3">
                   <div className="w-6 h-6 bg-[#10B981] rounded-full flex items-center justify-center flex-shrink-0">
@@ -510,7 +512,7 @@ export function LandingPage({ onNavigate, onSelectPlan, isLoggedIn, userRole }: 
                 <Shield className="w-8 h-8 text-[#0052FF]" />
               </div>
               <h3 className="text-xl font-extrabold text-[#0A192F] mb-3">Bank-Grade Security</h3>
-              <p className="text-slate-600">256-bit encryption, SOC 2 Type II certified, and full audit trails for every budget change.</p>
+              <p className="text-slate-600">256-bit encryption and full audit trails for every budget change across your organization.</p>
             </div>
           </div>
         </div>
@@ -540,9 +542,12 @@ export function LandingPage({ onNavigate, onSelectPlan, isLoggedIn, userRole }: 
       <footer className="bg-[#0A192F] border-t border-slate-700 py-12 px-8">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
-            <div className="font-black text-2xl mb-4">
-              <span className="text-[#0052FF]">Nexa</span>
-              <span className="text-white">Plan</span>
+            <div className="flex items-center gap-2 mb-4">
+              <img src="/logo.png" alt="NexaPlan Logo" className="h-8 w-8 object-contain brightness-0 invert" />
+              <span className="font-black text-2xl">
+                <span className="text-[#0052FF]">Nexa</span>
+                <span className="text-white">Plan</span>
+              </span>
             </div>
             <p className="text-slate-400 text-sm">Enterprise budgeting powered by machine learning.</p>
           </div>
