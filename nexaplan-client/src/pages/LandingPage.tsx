@@ -257,7 +257,7 @@ export function LandingPage({ onNavigate, onSelectPlan, isLoggedIn, userRole }: 
           <p className="text-[11px] text-slate-400 text-center mb-10">Company names shown are illustrative examples.</p>
           <div className="grid grid-cols-4 gap-5">
             {([
-              { val: '81.7%', label: 'AI Forecast Accuracy', sub: 'Hybrid ML model' },
+              { val: '81.7%', label: 'AI Forecast Accuracy', sub: 'Random Forest model' },
               { val: '< 48h', label: 'Approval Cycle', sub: 'Down from 2 weeks' },
               { val: '85 hrs', label: 'Saved Per Month', sub: 'Per finance team' },
               { val: '12+', label: 'Departments Supported', sub: 'Per enterprise client' },
@@ -284,7 +284,7 @@ export function LandingPage({ onNavigate, onSelectPlan, isLoggedIn, userRole }: 
               { icon: GitBranch, title: 'Scenario Planning (Professional & Enterprise)', desc: 'Clone base budgets to run optimistic and pessimistic what-if driver models. Prepare for any financial outcome.' },
               { icon: Target, title: 'Real-Time Variance', desc: 'Instantly compare approved budgets against actual transactions. Spot deviations before they escalate.' },
               { icon: Shield, title: 'RBAC Access Control', desc: 'Role-based permissions across 6 user levels. Every action is logged, attributed, and immutably stored.' },
-              { icon: TrendingUp, title: 'AI Forecasting', desc: '81.7% accurate hybrid ML model (Random Forest + Ridge Regression). Confidence bands computed via volatility-weighted projections.' },
+              { icon: TrendingUp, title: 'AI Forecasting', desc: '81.7% accurate Random Forest model. Confidence bands computed via volatility-weighted projections.' },
               { icon: BarChart3, title: 'Compliance Audit Trail', desc: 'SHA-256 verified financial statements with a full audit log of every budget action across the organization.' },
             ] as { icon: React.ElementType; title: string; desc: string }[]).map(({ icon: Icon, title, desc }, i) => (
               <div
@@ -335,7 +335,7 @@ export function LandingPage({ onNavigate, onSelectPlan, isLoggedIn, userRole }: 
               Stop guessing.<br />Start predicting.
             </h2>
             <p className="text-slate-300 mt-6 text-lg leading-relaxed">
-              A hybrid ML model (Random Forest + Ridge Regression) analyzes your historical transaction data to predict future departmental expenses.
+              A Random Forest model analyzes your historical transaction data to predict future departmental expenses.
             </p>
             <div className="mt-8 flex flex-col gap-3">
               {[

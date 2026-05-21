@@ -9,13 +9,10 @@ import requests as http_requests
 from functools import lru_cache
 from datetime import datetime, timedelta
 
-# ── Hybrid Model Setup ──────────────────────────────────────────────────────
-# Both models trained on log1p(Actual_Spending)
-MODEL_DIR      = os.path.dirname(__file__)
-rf_pipeline    = joblib.load(os.path.join(MODEL_DIR, "nexaplan_rf_model (2).pkl"))
-ridge_pipeline = joblib.load(os.path.join(MODEL_DIR, "nexaplan_ridge_model (1).pkl"))
-
-TRAINING_MAX   = 19985.0  # max USD budget in the training dataset
+# ── Model Setup ──────────────────────────────────────────────────────────────
+# Random Forest model trained on log1p(Actual_Spending)
+MODEL_DIR   = os.path.dirname(__file__)
+rf_pipeline = joblib.load(os.path.join(MODEL_DIR, "nexaplan_rf_model (2).pkl"))
 
 # ── Live Exchange Rate Helper ─────────────────────────────────────────────────
 FALLBACK_RATE = 58.0  # PHP per 1 USD
@@ -115,12 +112,12 @@ class PredictResponse(BaseModel):
 def health():
     return {
         "status": "ok",
-        "models": [
-            f"Hybrid: RandomForest (USD <= {TRAINING_MAX}) + Ridge Regression (USD > {TRAINING_MAX})",
-            "RF: log1p-space trained → expm1() applied; proportional scaling for budgets < $5,000 USD",
-            "Ridge: raw-dollar trained → output used directly, NO expm1() transform",
+        "model": "RandomForest",
+        "notes": [
+            "RandomForest: log1p-space trained → expm1() applied to reverse transform",
+            "Proportional scaling applied for budgets below $5,000 USD (training floor guard)",
             "Inputs converted PHP → USD; predictions converted back to PHP via live open.er-api.com rate",
-            "Risk: >= 110% utilization = High | >= 90% = Medium | else = Low"
+            "Risk: >= 115% utilization = High | >= 105% = Medium | else = Low"
         ],
     }
 
@@ -140,38 +137,31 @@ def predict(req: PredictRequest):
 
     try:
         row = pd.DataFrame([{
-            "Budgeted_Amount": budget_usd,   # models trained on USD values
+            "Budgeted_Amount": budget_usd,   # model trained on USD values
             "Department":      dept,
             "Month":           month
         }])
 
-        # ── Step 2: Hybrid routing based on USD budget ──────────────────────
-        if budget_usd <= TRAINING_MAX:
-            # RF model: log1p-space trained → must apply expm1() to reverse the transform
-            # Proportional scaling guard: RF saturates below ~$5,000 USD (training floor)
-            RF_FLOOR_USD = 5000.0
-            if budget_usd < RF_FLOOR_USD:
-                # Scale up to floor, predict, then scale the prediction back down proportionally
-                scale_ratio = budget_usd / RF_FLOOR_USD
-                row_scaled  = pd.DataFrame([{
-                    "Budgeted_Amount": RF_FLOOR_USD,
-                    "Department":      dept,
-                    "Month":           month
-                }])
-                log_pred      = rf_pipeline.predict(row_scaled)[0]
-                predicted_usd = float(np.expm1(log_pred)) * scale_ratio
-            else:
-                log_pred      = rf_pipeline.predict(row)[0]
-                predicted_usd = float(np.expm1(log_pred))
-
-            model_name = "RandomForest"
-            note = f"RandomForest used for budget within training range (${budget_usd:,.2f} <= ${TRAINING_MAX:,.0f})."
+        # ── Step 2: Random Forest prediction (sole model) ────────────────────
+        # RF model: log1p-space trained → must apply expm1() to reverse the transform
+        # Proportional scaling guard: RF saturates below ~$5,000 USD (training floor)
+        RF_FLOOR_USD = 5000.0
+        if budget_usd < RF_FLOOR_USD:
+            # Scale up to floor, predict, then scale the prediction back down proportionally
+            scale_ratio = budget_usd / RF_FLOOR_USD
+            row_scaled  = pd.DataFrame([{
+                "Budgeted_Amount": RF_FLOOR_USD,
+                "Department":      dept,
+                "Month":           month
+            }])
+            log_pred      = rf_pipeline.predict(row_scaled)[0]
+            predicted_usd = float(np.expm1(log_pred)) * scale_ratio
         else:
-            # Ridge model: raw-dollar trained → output IS already in USD, NO expm1() needed.
-            # Applying expm1() here produces astronomically wrong values — this was the bug.
-            predicted_usd = float(ridge_pipeline.predict(row)[0])
-            model_name    = "Ridge"
-            note = f"Ridge Regression used for budget exceeding training range (${budget_usd:,.2f} > ${TRAINING_MAX:,.0f})."
+            log_pred      = rf_pipeline.predict(row)[0]
+            predicted_usd = float(np.expm1(log_pred))
+
+        model_name = "RandomForest"
+        note = f"RandomForest used for all budget ranges (${budget_usd:,.2f} USD)."
 
         # ── Step 3: Convert predicted USD → PHP ──────────────────────────────
         predicted = round(predicted_usd * php_rate, 2)
