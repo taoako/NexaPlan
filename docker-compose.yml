@@ -1,0 +1,41 @@
+services:
+  ml-service:
+    build:
+      context: ./NexaPlan.API/ml_service
+      dockerfile: Dockerfile
+    container_name: nexaplan-ml-service
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+    restart: always
+
+  backend:
+    build:
+      context: ./NexaPlan.API
+      dockerfile: Dockerfile
+    container_name: nexaplan-backend
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ML_SERVICE_URL=http://ml-service:8000
+      # You can override variables like ConnectionStrings__DefaultConnection at runtime here:
+      # - ConnectionStrings__DefaultConnection=Server=your_server;Database=your_db;...
+    depends_on:
+      - ml-service
+    restart: always
+
+  frontend:
+    build:
+      context: ./nexaplan-client
+      dockerfile: Dockerfile
+      args:
+        # Since the frontend runs in the client browser, it needs to point to the host machine's port.
+        - VITE_API_BASE_URL=http://localhost:8080
+    container_name: nexaplan-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: always
