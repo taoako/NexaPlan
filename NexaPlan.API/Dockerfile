@@ -8,7 +8,7 @@ RUN dotnet restore "NexaPlan.API.csproj"
 
 # Copy the rest of the code and build
 COPY . .
-RUN dotnet publish "NexaPlan.API.csproj" -c Release -o /app/publish
+RUN dotnet publish "NexaPlan.API.csproj" -c Release -o /app/publish --no-restore
 
 # Serve Stage
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
