@@ -31,11 +31,15 @@ services:
       context: ./nexaplan-client
       dockerfile: Dockerfile
       args:
-        # Since the frontend runs in the client browser, it needs to point to the host machine's port.
-        - VITE_API_BASE_URL=http://localhost:8080
+        - VITE_API_BASE_URL=/
     container_name: nexaplan-frontend
     ports:
-      - "3000:80"
+      - "3000:80"   # HTTP
+      - "3443:443"  # HTTPS (mapped to port 3443 on host)
+    volumes:
+      - ./nginx-selfsigned.crt:/etc/nginx/certs/server.crt:ro
+      - ./nginx-selfsigned.key:/etc/nginx/certs/server.key:ro
     depends_on:
       - backend
     restart: always
+

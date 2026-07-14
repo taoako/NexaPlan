@@ -85,16 +85,45 @@ namespace NexaPlan.API.Controllers
 
             long finalChargeCents = (long)Math.Round(grandTotal * 100);
 
-            // 2. Validate Infrastructure Config
             var frontendBaseUrl = _configuration["Frontend:BaseUrl"];
+            if (Request.Headers.TryGetValue("Origin", out var originHeader) && !string.IsNullOrWhiteSpace(originHeader))
+            {
+                frontendBaseUrl = originHeader.ToString();
+            }
+            else if (Request.Headers.TryGetValue("Referer", out var refererHeader) && !string.IsNullOrWhiteSpace(refererHeader))
+            {
+                try
+                {
+                    var uri = new Uri(refererHeader.ToString());
+                    frontendBaseUrl = $"{uri.Scheme}://{uri.Authority}";
+                }
+                catch { }
+            }
+
             if (string.IsNullOrWhiteSpace(frontendBaseUrl))
                 return BadRequest(new { message = "Frontend BaseUrl is not configured in appsettings." });
+
+            frontendBaseUrl = frontendBaseUrl.TrimEnd('/');
 
             var secretKey = _configuration["PayMongo:SecretKey"];
 
             if (string.IsNullOrWhiteSpace(secretKey) || secretKey.Contains("your-paymongo-secret"))
             {
                 return BadRequest(new { message = "PayMongo Secret Key is missing or invalid in the server configuration." });
+            }
+
+            // 2b. Validate Terms & Conditions acceptance
+            if (!request.AcceptTerms)
+            {
+                return BadRequest(new { message = "You must accept the Terms and Conditions to proceed." });
+            }
+
+            // 2c. Validate password policy (12+ chars, uppercase, lowercase, digit, special char)
+            var pwRegex = new System.Text.RegularExpressions.Regex(
+                @"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z\d]).{12,}$");
+            if (!pwRegex.IsMatch(request.Password))
+            {
+                return BadRequest(new { message = "Password must be at least 12 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character (e.g. @, #, !, $)." });
             }
 
             // 3. User & Tenant Pre-validation / Cleanup

@@ -72,11 +72,11 @@ builder.Services.AddCors(options =>
             ? frontend.AllowedOrigins
             : new[] { frontend.BaseUrl };
 
-        // Also include localhost dev origins + your Vercel deployment
+
         var allOrigins = origins
             .Append("http://localhost:5173")
             .Append("http://localhost:3000")
-            .Append("https://nexa-plan-one.vercel.app") // ✅ Explicitly added Vercel URL
+            .Append("https://nexa-plan-one.vercel.app") 
             .Where(o => !string.IsNullOrWhiteSpace(o))
             .Distinct()
             .ToArray();

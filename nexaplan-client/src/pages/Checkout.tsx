@@ -15,6 +15,8 @@ interface CheckoutProps {
   postalCode: string;
   setPostalCode: (value: string) => void;
   errorMessage?: string;
+  acceptTerms: boolean;
+  setAcceptTerms: (value: boolean) => void;
 }
 
 export function Checkout({
@@ -31,6 +33,8 @@ export function Checkout({
   postalCode,
   setPostalCode,
   errorMessage,
+  acceptTerms,
+  setAcceptTerms,
 }: CheckoutProps) {
   return (
     <div className="min-h-screen bg-slate-50 pt-12 pb-24 px-8 font-['Inter']">
@@ -155,17 +159,41 @@ export function Checkout({
                   <div className="text-3xl font-black text-[#0A192F]">P119,988.00</div>
                 </div>
 
+                {/* Terms & Conditions Checkbox */}
+                <div className="mt-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      id="checkoutAcceptTerms"
+                      type="checkbox"
+                      checked={acceptTerms}
+                      onChange={(e) => setAcceptTerms(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 accent-[#0052FF] cursor-pointer flex-shrink-0"
+                    />
+                    <span className="text-sm text-slate-600 leading-relaxed">
+                      I have read and agree to NexaPlan's{' '}
+                      <button
+                        type="button"
+                        onClick={() => onNavigate('terms')}
+                        className="text-[#0052FF] font-bold hover:underline"
+                      >
+                        Terms and Conditions
+                      </button>
+                      . My payment will be processed securely by PayMongo.
+                    </span>
+                  </label>
+                </div>
+
                 <button
                   onClick={onStartCheckout}
-                  disabled={isLoading}
-                  className="w-full bg-[#10B981] hover:bg-emerald-600 text-white py-4 rounded-xl font-bold text-lg mt-8 flex items-center justify-center gap-2 transition-all duration-300 disabled:opacity-70"
+                  disabled={isLoading || !acceptTerms}
+                  className="w-full bg-[#10B981] hover:bg-emerald-600 text-white py-4 rounded-xl font-bold text-lg mt-4 flex items-center justify-center gap-2 transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Lock className="w-5 h-5" />
                   {isLoading ? 'Starting checkout...' : 'Proceed to PayMongo'}
                 </button>
 
-                <p className="text-xs text-slate-500 text-center mt-4">
-                  By completing this purchase, you agree to our Terms of Service and Privacy Policy.
+                <p className="text-xs text-slate-500 text-center mt-3">
+                  NexaPlan does not store your payment details. All payments are processed by PayMongo.
                 </p>
               </div>
             </div>

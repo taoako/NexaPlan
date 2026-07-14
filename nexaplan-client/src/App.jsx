@@ -6,6 +6,7 @@ import { Register } from './pages/Register';
 import { Checkout } from './pages/Checkout';
 import { MfaChallengePage } from './pages/MfaChallengePage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
+import { TermsAndConditionsPage } from './pages/TermsAndConditionsPage';
 import SuperAdminSystem from './app/(roles)/super-admin/SuperAdminSystem';
 import { MainAdminSystem } from './app/(roles)/main-admin/MainAdminSystem';
 import { BudgetPlanningSystem } from './app/(roles)/budget-planning/BudgetPlanningSystem';
@@ -46,6 +47,13 @@ export default function App() {
   const [streetAddress, setStreetAddress] = useState('');
   const [city, setCity] = useState('');
   const [postalCode, setPostalCode] = useState('');
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [previousView, setPreviousView] = useState('landing');
+
+  const handleNavigate = (view) => {
+    setPreviousView(currentView);
+    setCurrentView(view);
+  };
   const [cardholderName, setCardholderName] = useState('');
   const [cardNumber, setCardNumber] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
@@ -129,6 +137,7 @@ export default function App() {
       planTier: selectedPlan,
       phone: phone,
       orgType: orgType,
+      acceptTerms: acceptTerms,
     };
 
     try {
@@ -217,6 +226,19 @@ export default function App() {
   // --- UPGRADED REGISTRATION LOGIC ---
   const handleRegister = async (e) => {
     e.preventDefault();
+
+    // Client-side password policy validation
+    const pwRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z\d]).{12,}$/;
+    if (!pwRegex.test(registerPassword)) {
+      setErrorMessage('Password must be at least 12 characters and contain an uppercase letter, lowercase letter, number, and special character.');
+      return;
+    }
+
+    if (!acceptTerms) {
+      setErrorMessage('You must accept the Terms and Conditions to continue.');
+      return;
+    }
+
     setIsLoading(true);
 
     const payload = {
@@ -228,6 +250,7 @@ export default function App() {
       planTier: selectedPlan === 'trial' ? 'Trial' : selectedPlan,
       phone: phone,
       orgType: orgType,
+      acceptTerms: acceptTerms,
     };
 
     try {
@@ -263,7 +286,7 @@ export default function App() {
   if (currentView === 'landing') {
     return (
       <LandingPage
-        onNavigate={setCurrentView}
+        onNavigate={handleNavigate}
         onSelectPlan={(plan) => setSelectedPlan(plan)}
         isLoggedIn={!!currentUser}
         userRole={currentUser?.roleId}
@@ -313,7 +336,7 @@ export default function App() {
   if (currentView === 'register') {
     return (
       <Register
-        onNavigate={setCurrentView}
+        onNavigate={handleNavigate}
         onSubmit={handleRegister}
         firstName={firstName}
         setFirstName={setFirstName}
@@ -331,6 +354,16 @@ export default function App() {
         setOrgType={setOrgType}
         planLabel={planLabels[selectedPlan] || 'Plan'}
         errorMessage={errorMessage}
+        acceptTerms={acceptTerms}
+        setAcceptTerms={setAcceptTerms}
+      />
+    );
+  }
+
+  if (currentView === 'terms') {
+    return (
+      <TermsAndConditionsPage
+        onBack={() => setCurrentView(previousView)}
       />
     );
   }
@@ -338,7 +371,7 @@ export default function App() {
   if (currentView === 'checkout') {
     return (
       <Checkout
-        onNavigate={setCurrentView}
+        onNavigate={handleNavigate}
         onStartCheckout={startCheckout}
         isLoading={isLoading}
         planLabel={planLabels[selectedPlan] || 'Plan'}
@@ -351,6 +384,8 @@ export default function App() {
         postalCode={postalCode}
         setPostalCode={setPostalCode}
         errorMessage={errorMessage}
+        acceptTerms={acceptTerms}
+        setAcceptTerms={setAcceptTerms}
       />
     );
   }

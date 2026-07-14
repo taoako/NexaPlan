@@ -574,7 +574,14 @@ export function LandingPage({ onNavigate, onSelectPlan, isLoggedIn, userRole }: 
             <div className="text-white font-bold mb-4">Legal</div>
             <ul className="space-y-2 text-sm">
               <li><a href="#" className="text-slate-400 hover:text-white transition-colors">Privacy Policy</a></li>
-              <li><a href="#" className="text-slate-400 hover:text-white transition-colors">Terms of Service</a></li>
+              <li>
+                <button
+                  onClick={() => onNavigate('terms')}
+                  className="text-slate-400 hover:text-white transition-colors text-sm text-left"
+                >
+                  Terms of Service
+                </button>
+              </li>
               <li><a href="#" className="text-slate-400 hover:text-white transition-colors">Data Processing</a></li>
               <li><a href="#" className="text-slate-400 hover:text-white transition-colors">Compliance</a></li>
             </ul>

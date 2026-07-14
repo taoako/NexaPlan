@@ -94,8 +94,24 @@ namespace NexaPlan.API.Controllers.MainAdmin
                 return BadRequest(new { message = "Payment gateway not configured." });
 
             var frontendBase = _configuration["Frontend:BaseUrl"];
+            if (Request.Headers.TryGetValue("Origin", out var originHeader) && !string.IsNullOrWhiteSpace(originHeader))
+            {
+                frontendBase = originHeader.ToString();
+            }
+            else if (Request.Headers.TryGetValue("Referer", out var refererHeader) && !string.IsNullOrWhiteSpace(refererHeader))
+            {
+                try
+                {
+                    var uri = new Uri(refererHeader.ToString());
+                    frontendBase = $"{uri.Scheme}://{uri.Authority}";
+                }
+                catch { }
+            }
+
             if (string.IsNullOrWhiteSpace(frontendBase))
                 return BadRequest(new { message = "Frontend BaseUrl is not configured." });
+
+            frontendBase = frontendBase.TrimEnd('/');
 
             var client = _clientFactory.CreateClient("PayMongo");
             var authValue = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"{secretKey}:"));

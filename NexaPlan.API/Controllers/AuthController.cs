@@ -61,10 +61,12 @@ namespace NexaPlan.API.Controllers
                 return BadRequest(new { message = "You must accept the terms and conditions." });
             }
 
-            // Global minimum password check for registration (default 8)
-            if (request.Password.Length < 8)
+            // Global password policy check for registration
+            var passwordRegex = new System.Text.RegularExpressions.Regex(
+                @"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z\d]).{12,}$");
+            if (!passwordRegex.IsMatch(request.Password))
             {
-                return BadRequest(new { message = "Password must be at least 8 characters long." });
+                return BadRequest(new { message = "Password must be at least 12 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character (e.g. @, #, !, $)." });
             }
 
             bool isPaidAccount = request.PlanTier != "Trial";
